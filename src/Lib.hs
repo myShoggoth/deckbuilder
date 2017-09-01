@@ -1,0 +1,262 @@
+module Lib
+    ( PlayingCard
+    , testShuffle
+    , testDeal
+    , testDominionDeal
+    , testDominionDealResult
+    , testDominionCard
+    , testDominionBuy
+    , testDominionRound
+    , testDominionMultipleDeals
+    , testDominionGame
+    , testDominionTurn
+    , testPlayerFind
+    , testDominionDeals
+    ) where
+
+import System.Random
+import System.Random.Shuffle
+import Data.List (delete, find, sortBy)
+import qualified Data.Map as Map
+
+-- Playing Cards
+
+data CardValue = King | Queen | Jack | NumberCard Int
+    deriving (Show, Eq)
+data CardSuit = Hearts | Diamonds | Spades | Clubs
+    deriving (Show, Eq)
+data PlayingCard = PlayingCard CardSuit CardValue
+    deriving (Show, Eq)
+
+fullCardDeck :: [PlayingCard]
+fullCardDeck = [ PlayingCard s v | s <- allsuits, v <- allvals ] where
+        allvals = King : Queen : Jack : [ NumberCard i | i <- [1..10] ]
+        allsuits = [Hearts, Diamonds, Spades, Clubs]
+
+testShuffle :: IO ([PlayingCard])
+testShuffle = shuffleM fullCardDeck
+
+testDeal :: IO ([PlayingCard])
+testDeal = do
+  deck <- shuffleM fullCardDeck
+  return $ fst (splitAt 5 deck)
+
+-- Dominion
+
+data GameState = GameState {
+  _players  :: [Player],
+  _decks    :: Map.Map Card Int,
+  _random   :: StdGen
+} deriving Show
+
+--instance Show GameState where
+--  show gs = show (_players gs) ++ " " ++ show (_decks gs)
+
+data Card = Card {
+  _cardName :: String,
+  _cost     :: Int,
+  _action   :: Card -> Player -> GameState -> GameState
+}
+
+instance Ord Card where
+  compare c1 c2 = compare (_cardName c1) (_cardName c2)
+
+instance Eq Card where
+  a == b = _cardName a == _cardName b
+
+instance Show Card where
+  show c = _cardName c
+
+data Player = Player {
+  _playerName :: String,
+  _deck       :: [Card],
+  _discard    :: [Card],
+  _hand       :: [Card],
+  _actions    :: Int,
+  _buys       :: Int,
+  _money      :: Int,
+  _victory    :: Int
+} deriving Show
+
+instance Eq Player where
+  a == b = _playerName a == _playerName b
+
+treasureCardAction :: Int -> Card -> Player -> GameState -> GameState
+treasureCardAction amt c p gs = changeTurn player gs
+  where player  = Player (_playerName p') (_deck p') (c : _discard p') (delete c (_hand p')) (_actions p') (_buys p') (amt + (_money p')) (_victory p')
+        Just p' = find (== p) (_players gs)
+
+goldCard = Card "Gold" 6 (treasureCardAction 3)
+
+silverCard = Card "Silver" 3 (treasureCardAction 2)
+
+copperCard = Card "Copper" 0 (treasureCardAction 1)
+
+victoryCardAction :: Int -> Card -> Player -> GameState -> GameState
+victoryCardAction amt c p gs = changeTurn player gs
+  where player  = Player (_playerName p') (_deck p') (c : _discard p') (delete c (_hand p')) (_actions p') (_buys p') (_money p') (amt + (_victory p'))
+        Just p' = find (== p) (_players gs)
+
+provinceCard = Card "Province" 8 (victoryCardAction 6)
+
+duchyCard = Card "Province" 5 (victoryCardAction 3)
+
+estateCard = Card "Estate" 2 (victoryCardAction 1)
+
+newPlayer :: String -> Player
+newPlayer n = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] 1 1 0 0
+
+deal :: Int -> Player -> GameState -> GameState
+deal num p gs = changeTurn player (GameState (_players gs) (_decks gs) (choose (split (_random gs))))
+  where (enoughDeck, discard)
+          | length (_deck p') >= num = (_deck p', _discard p')
+          | otherwise                = ( (_deck p') ++ (shuffle' (_discard p') (length (_discard p')) (_random gs)), [])
+        (hand, deck)  = splitAt num enoughDeck
+        player        = Player (_playerName p') deck discard hand (_actions p') (_buys p') (_money p') (_victory p')
+        Just p'       = find (== p) (_players gs)
+        choose (_, g) = g
+
+changeTurn :: Player -> GameState -> GameState
+changeTurn p gs = GameState (p : (delete p (_players gs)) ) (_decks gs) (_random gs)
+
+evaluateHand :: Player -> GameState -> GameState
+evaluateHand p gs = changeTurn p' newGs
+  where newGs     = foldr (\c -> (_action c) c p) gs (_hand p'')
+        Just p'   = find (== p) (_players newGs)
+        Just p''  = find (== p) (_players gs)
+
+tallyAllPoints :: Player -> GameState -> GameState
+tallyAllPoints p gs = evaluateHand player $ changeTurn player gs
+  where player  = Player (_playerName p') [] [] ((_deck p') ++ (_discard p') ++ (_hand p')) 1 1 0 0
+        Just p' = find (== p) (_players gs)
+
+sortByPoints :: GameState -> GameState
+sortByPoints gs = GameState (reverse (sortBy (\p1 p2 -> compare (_victory p1) (_victory p2)) (_players gs))) (_decks gs) (_random gs)
+
+decreaseCards :: Card -> Card -> Int -> Int
+decreaseCards  _  _ 0 = 0
+decreaseCards c1 c2 n = if (c1 == c2)
+                          then n - 1
+                          else n
+
+drawCard :: Player -> Maybe Card -> GameState -> GameState
+drawCard p mc gs = changeTurn (mkPlayer mc (cardsRemain mc) ) (decks mc)
+  where cardsRemain (Just c)    = ( (_decks gs) Map.! c ) > 0
+        cardsRemain Nothing     = False
+        mkPlayer _        False = p
+        mkPlayer (Just c) True  = Player (_playerName p) (_deck p) (c : (_discard p) ) (_hand p) (_actions p) (_buys p) (_money p) (_victory p)
+        mkPlayer Nothing  _     = p
+        decks (Just c)          = GameState (_players gs) (Map.mapWithKey (decreaseCards c) (_decks gs) ) (_random gs)
+        decks Nothing           = gs
+
+bigMoneyBuy :: Player -> GameState -> GameState
+bigMoneyBuy p gs = drawCard (payFor mNewCard) mNewCard gs
+  where mNewCard
+          | (_money p') >= 8  = Just provinceCard
+          | (_money p') >= 6  = Just goldCard
+          | (_money p') >= 3  = Just silverCard
+          | otherwise         = Nothing
+        payFor (Just c)       = Player (_playerName p') (_deck p') (_discard p') (_hand p') (_actions p') (_buys p' - 1) (_money p' - (_cost c)) (_victory p')
+        payFor Nothing        = p'
+        Just p'               = find (== p) (_players gs)
+
+basicDecks :: Int -> Map.Map Card Int
+basicDecks numPlayers
+    | numPlayers == 2 = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 8), (duchyCard, 8), (provinceCard, 8) ]
+    | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
+
+resetTurn :: Player -> GameState -> GameState
+resetTurn p gs = changeTurn player gs
+  where Just p' = find (== p) (_players gs)
+        player  = Player (_playerName p') (_deck p') (_discard p') (_hand p') 1 1 0 0
+
+doTurn :: Player -> GameState -> GameState
+doTurn p = (resetTurn p) . (deal 5 p) . (bigMoneyBuy p) . (evaluateHand p)
+
+isGameOver :: GameState -> Bool
+isGameOver gs = ((_decks gs) Map.! provinceCard == 0) || numEmptyDecks >= 3
+  where numEmptyDecks = length $ Map.filter (== 0) (_decks gs)
+
+runGame' :: Bool -> GameState -> GameState
+runGame' True gs  = gs
+runGame' False gs = runGame' (isGameOver gs') gs'
+  where gs' = foldr doTurn gs (_players gs)
+
+runGame :: [Player] -> IO (GameState)
+runGame players = do
+  g <- newStdGen
+  let gs' = runGame' False $ GameState players (basicDecks (length players)) g
+  let gs'' = foldr tallyAllPoints gs' (_players gs')
+  return $ sortByPoints gs''
+
+-- Dominion Game testing functions
+
+testDominionDeal :: IO (GameState)
+testDominionDeal = do
+  let a = newPlayer "Player 1"
+  g <- newStdGen
+  return $ deal 5 a (GameState [a] (basicDecks 2) g)
+
+testDominionMultipleDeals :: IO (GameState)
+testDominionMultipleDeals = do
+  let a = newPlayer "Player 1"
+  g <- newStdGen
+  return $ ((deal 5 a) . (resetTurn a) . (evaluateHand a) . (deal 5 a)) (GameState [a] (basicDecks 2) g)
+
+testDominionDealResult :: IO (GameState)
+testDominionDealResult = do
+  let a = newPlayer "Player 1"
+  g <- newStdGen
+  return $ ( (evaluateHand a) . (deal 5 a) ) (GameState [a] (basicDecks 2) g)
+
+testDominionCard :: IO (GameState)
+testDominionCard = do
+  let a = newPlayer "Player 1"
+  g <- newStdGen
+  let afterDeal = deal 5 a (GameState [a] (basicDecks 2) g)
+  let Just newA = find (== a) (_players afterDeal)
+  let firstCard = head (_hand newA)
+  return $ (_action firstCard) firstCard newA afterDeal
+
+testDominionBuy :: IO (GameState)
+testDominionBuy = do
+  let a = newPlayer "Player 1"
+  g <- newStdGen
+  return $ ( (bigMoneyBuy a) . (evaluateHand a) . (deal 5 a) ) (GameState [a] (basicDecks 2) g)
+
+testDominionRound :: IO (GameState)
+testDominionRound = do
+  g <- newStdGen
+  let players = [ newPlayer "Player 1", newPlayer "Player 2"]
+  let gs = (GameState players (basicDecks (length players)) g)
+  let gs' = foldr (deal 5) gs players
+  return $ foldr doTurn gs' players
+
+testDominionTurn :: IO (GameState)
+testDominionTurn = do
+  g <- newStdGen
+  let players = [ newPlayer "Player 1", newPlayer "Player 2"]
+  let gs = (GameState players (basicDecks (length players)) g)
+  let gs' = foldr (deal 5) gs players
+  return $ doTurn (head players) gs'
+
+testDominionDeals :: IO (GameState)
+testDominionDeals = do
+  g <- newStdGen
+  let players = [ newPlayer "Player 1", newPlayer "Player 2"]
+  let gs = (GameState players (basicDecks (length players)) g)
+  return $ foldr (deal 5) gs players
+
+testDominionGame :: IO (GameState)
+testDominionGame = do
+  g <- newStdGen
+  runGame [newPlayer "Player 1", newPlayer "Player 2"]
+
+testPlayerFind :: IO (Player)
+testPlayerFind = do
+  g <- newStdGen
+  let a = newPlayer "Andrew"
+  let r = newPlayer "Ruth"
+  let gs = GameState [a, r] (basicDecks 2) g
+  let Just x = find (== r) (_players (changeTurn a gs))
+  return $ x
