@@ -247,14 +247,10 @@ testDominionDeals = do
   return $ foldr (deal 5) gs players
 
 testDominionGame :: IO (Result)
-testDominionGame = do
-  g <- newStdGen
-  runGame [newPlayer "Player 1", newPlayer "Player 2"]
+testDominionGame = runGame [newPlayer "Player 1", newPlayer "Player 2"]
 
 testDominionGames :: IO ([(Result, Int)])
-testDominionGames = do
-  g <- newStdGen
-  runGames 1000 [newPlayer "Player 1", newPlayer "Player 2"]
+testDominionGames = runGames 1000 [newPlayer "Player 1", newPlayer "Player 2"]
 
 testPlayerFind :: IO (Player)
 testPlayerFind = do
