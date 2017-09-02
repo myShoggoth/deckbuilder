@@ -1,8 +1,5 @@
 module Lib
-    ( PlayingCard
-    , testShuffle
-    , testDeal
-    , testDominionDeal
+    ( testDominionDeal
     , testDominionDealResult
     , testDominionCard
     , testDominionBuy
@@ -19,28 +16,6 @@ import System.Random
 import System.Random.Shuffle
 import Data.List (delete, find, sortBy, group, sort, groupBy)
 import qualified Data.Map as Map
-
--- Playing Cards
-
-data CardValue = King | Queen | Jack | NumberCard Int
-    deriving (Show, Eq)
-data CardSuit = Hearts | Diamonds | Spades | Clubs
-    deriving (Show, Eq)
-data PlayingCard = PlayingCard CardSuit CardValue
-    deriving (Show, Eq)
-
-fullCardDeck :: [PlayingCard]
-fullCardDeck = [ PlayingCard s v | s <- allsuits, v <- allvals ] where
-        allvals = King : Queen : Jack : [ NumberCard i | i <- [1..10] ]
-        allsuits = [Hearts, Diamonds, Spades, Clubs]
-
-testShuffle :: IO ([PlayingCard])
-testShuffle = shuffleM fullCardDeck
-
-testDeal :: IO ([PlayingCard])
-testDeal = do
-  deck <- shuffleM fullCardDeck
-  return $ fst (splitAt 5 deck)
 
 -- Dominion
 
