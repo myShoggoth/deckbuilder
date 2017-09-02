@@ -10,6 +10,7 @@ module Lib
     , testPlayerFind
     , testDominionDeals
     , testDominionGames
+    , Result
     ) where
 
 import System.Random
