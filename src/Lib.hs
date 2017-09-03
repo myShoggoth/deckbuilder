@@ -63,32 +63,40 @@ instance Ord Player where
 
 type Result = Either String Int
 
-treasureCardAction :: Int -> Card -> Player -> GameState -> GameState
-treasureCardAction amt c p gs = changeTurn player gs
-  where player  = Player (_playerName p') (_deck p') (c : _discard p') (delete c (_hand p')) (_actions p') (_buys p') (amt + (_money p')) (_victory p')
-        Just p' = find (== p) (_players gs)
+-- Cards and their actions
 
-goldCard = Card "Gold" 6 (treasureCardAction 3)
+basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> GameState -> GameState
+basicCardAction draw actions buys money victory c p gs = changeTurn player gs'
+  where player    = Player (_playerName p'') (_deck p'') (c : _discard p'') (delete c (_hand p'')) (_actions p'' + actions) (_buys p'' + buys) (_money p'' + money) (_victory p'' + victory)
+        Just p'   = find (== p) (_players gs)
+        gs'       = deal draw p' gs
+        Just p''  = find (== p) (_players gs')
 
-silverCard = Card "Silver" 3 (treasureCardAction 2)
+goldCard      = Card "Gold" 6 (basicCardAction 0 0 0 3 0)
 
-copperCard = Card "Copper" 0 (treasureCardAction 1)
+silverCard    = Card "Silver" 3 (basicCardAction 0 0 0 2 0)
 
-victoryCardAction :: Int -> Card -> Player -> GameState -> GameState
-victoryCardAction amt c p gs = changeTurn player gs
-  where player  = Player (_playerName p') (_deck p') (c : _discard p') (delete c (_hand p')) (_actions p') (_buys p') (_money p') (amt + (_victory p'))
-        Just p' = find (== p) (_players gs)
+copperCard    = Card "Copper" 0 (basicCardAction 0 0 0 1 0)
 
-provinceCard = Card "Province" 8 (victoryCardAction 6)
+provinceCard  = Card "Province" 8 (basicCardAction 0 0 0 0 6)
 
-duchyCard = Card "Province" 5 (victoryCardAction 3)
+duchyCard     = Card "Province" 5 (basicCardAction 0 0 0 0 3)
 
-estateCard = Card "Estate" 2 (victoryCardAction 1)
+estateCard    = Card "Estate" 2 (basicCardAction 0 0 0 0 1)
+
+marketCard    = Card "Market" 5 (basicCardAction 1 0 1 1 0)
+
+moatCard      = Card "Moat" 2 (basicCardAction 2 (-1) 0 0 0)
+
+smithyCard    = Card "Smithy" 4 (basicCardAction 3 (-1) 0 0 0)
+
+-- Core Engine
 
 newPlayer :: String -> Player
 newPlayer n = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] 1 1 0 0
 
 deal :: Int -> Player -> GameState -> GameState
+deal 0   _ gs = gs
 deal num p gs = changeTurn player (GameState (_players gs) (_decks gs) (choose (split (_random gs))))
   where (enoughDeck, discard)
           | length (_deck p') >= num = (_deck p', _discard p')
