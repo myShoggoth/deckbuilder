@@ -131,26 +131,32 @@ decreaseCards c1 c2 n = if (c1 == c2)
                           then n - 1
                           else n
 
-drawCard :: Player -> Maybe Card -> GameState -> GameState
-drawCard p mc gs = changeTurn (mkPlayer mc (cardsRemain mc) ) (decks mc)
-  where cardsRemain (Just c)    = ( (_decks gs) Map.! c ) > 0
-        cardsRemain Nothing     = False
-        mkPlayer _        False = p
-        mkPlayer (Just c) True  = Player (_playerName p) (_deck p) (c : (_discard p) ) (_hand p) (_actions p) (_buys p) (_money p) (_victory p)
-        mkPlayer Nothing  _     = p
-        decks (Just c)          = GameState (_players gs) (Map.mapWithKey (decreaseCards c) (_decks gs) ) (_random gs)
-        decks Nothing           = gs
+buyCard :: Player -> Maybe Card -> GameState -> GameState
+buyCard p Nothing  gs = gs
+buyCard p (Just c) gs = changeTurn (player c) (decks c)
+  where
+    decks c   = GameState (_players gs) (Map.mapWithKey (decreaseCards c) (_decks gs) ) (_random gs)
+    player c  = Player (_playerName p') (_deck p') (c : (_discard p') ) (_hand p') (_actions p') (_buys p' - 1) (_money p' - (_cost c)) (_victory p')
+    Just p'   = find (== p) (_players gs)
+
+doBuy :: Int -> Int -> [Card] -> [Maybe Card]
+doBuy 0 _ _ = []
+doBuy n 0 _ = []
+doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (cost findHighCostCard)) cs
+  where findHighCostCard = find (\c -> (_cost c) <= m) cs
+        cost (Just c)     = (_cost c)
+        cost Nothing      = 0
+
+doBuys :: Player -> [Card] -> GameState -> GameState
+doBuys p cards gs = foldr (\mc acc -> buyCard p mc acc) gs (doBuy (_buys p) (_money p) (removeEmptyDecks cards gs))
+  where removeEmptyDecks cards gs = filter (\c -> (_decks gs) Map.! c > 0) cards
+
+bigMoneyCards :: [Card]
+bigMoneyCards = [provinceCard, goldCard, silverCard]
 
 bigMoneyBuy :: Player -> GameState -> GameState
-bigMoneyBuy p gs = drawCard (payFor mNewCard) mNewCard gs
-  where mNewCard
-          | (_money p') >= 8  = Just provinceCard
-          | (_money p') >= 6  = Just goldCard
-          | (_money p') >= 3  = Just silverCard
-          | otherwise         = Nothing
-        payFor (Just c)       = Player (_playerName p') (_deck p') (_discard p') (_hand p') (_actions p') (_buys p' - 1) (_money p' - (_cost c)) (_victory p')
-        payFor Nothing        = p'
-        Just p'               = find (== p) (_players gs)
+bigMoneyBuy p gs = doBuys p' bigMoneyCards gs
+  where Just p' = find (== p) (_players gs)
 
 basicDecks :: Int -> Map.Map Card Int
 basicDecks numPlayers
