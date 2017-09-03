@@ -149,7 +149,7 @@ doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (cost findHighCostCard)) cs
 
 doBuys :: Player -> [Card] -> GameState -> GameState
 doBuys p cards gs = foldr (\mc acc -> buyCard p mc acc) gs (doBuy (_buys p) (_money p) (removeEmptyDecks cards gs))
-  where removeEmptyDecks cards gs = filter (\c -> (_decks gs) Map.! c > 0) cards
+  where removeEmptyDecks cards gs = filter (\c -> (Map.member c (_decks gs)) && (_decks gs) Map.! c > 0) cards
 
 bigMoneyCards :: [Card]
 bigMoneyCards = [provinceCard, goldCard, silverCard]
