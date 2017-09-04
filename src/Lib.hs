@@ -65,24 +65,30 @@ type Result = Either String Int
 
 -- Cards and their actions
 
-basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> GameState -> GameState
-basicCardAction draw actions buys money victory c p gs = changeTurn player gs'
-  where player    = Player (_playerName p'') (_deck p'') (c : _discard p'') (delete c (_hand p'')) (_actions p'' + actions) (_buys p'' + buys) (_money p'' + money) (_victory p'' + victory)
+valueCard :: Int -> Int -> Card -> Player -> GameState -> GameState
+valueCard money victory c p gs = changeTurn player gs
+  where player    = Player (_playerName p) (_deck p) (c : _discard p) (delete c (_hand p)) (_actions p) (_buys p') (_money p' + money) (_victory p' + victory)
         Just p'   = find (== p) (_players gs)
-        gs'       = deal draw p' gs
-        Just p''  = find (== p) (_players gs')
 
-goldCard      = Card "Gold" 6 (basicCardAction 0 0 0 3 0)
+goldCard      = Card "Gold" 6 (valueCard 3 0)
 
-silverCard    = Card "Silver" 3 (basicCardAction 0 0 0 2 0)
+silverCard    = Card "Silver" 3 (valueCard 2 0)
 
-copperCard    = Card "Copper" 0 (basicCardAction 0 0 0 1 0)
+copperCard    = Card "Copper" 0 (valueCard 1 0)
 
-provinceCard  = Card "Province" 8 (basicCardAction 0 0 0 0 6)
+provinceCard  = Card "Province" 8 (valueCard 0 6)
 
-duchyCard     = Card "Province" 5 (basicCardAction 0 0 0 0 3)
+duchyCard     = Card "Province" 5 (valueCard 0 3)
 
-estateCard    = Card "Estate" 2 (basicCardAction 0 0 0 0 1)
+estateCard    = Card "Estate" 2 (valueCard 0 1)
+
+basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> GameState -> GameState
+basicCardAction draw actions buys money victory c p gs = player p
+  where player (Player _ _ _ _ 0 _ _ _) = gs
+        player _                        = changeTurn (Player (_playerName p'') (_deck p'') (c : _discard p'') (delete c (_hand p'')) (_actions p'' + actions) (_buys p'' + buys) (_money p'' + money) (_victory p'' + victory)) gs'
+        Just p'                         = find (== p) (_players gs)
+        gs'                             = deal draw p' gs
+        Just p''                        = find (== p) (_players gs')
 
 marketCard    = Card "Market" 5 (basicCardAction 1 0 1 1 0)
 
