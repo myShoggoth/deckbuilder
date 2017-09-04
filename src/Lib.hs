@@ -15,7 +15,7 @@ module Lib
 
 import System.Random
 import System.Random.Shuffle
-import Data.List (delete, find, sortBy, group, sort, groupBy)
+import Data.List (delete, find, sortBy, group, sort, groupBy, intersect)
 import qualified Data.Map as Map
 
 -- Dominion
@@ -83,6 +83,8 @@ duchyCard     = Card "Province" 5 (valueCard 0 3)
 
 estateCard    = Card "Estate" 2 (valueCard 0 1)
 
+curseCard     = Card "Curse" 0 (valueCard 0 (-1))
+
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> GameState -> GameState
 basicCardAction draw actions buys money victory c p gs = player p
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
@@ -91,11 +93,19 @@ basicCardAction draw actions buys money victory c p gs = player p
         gs'                               = deal draw p' gs
         Just p''                          = find (== p) (_players gs')
 
-marketCard    = Card "Market" 5 (basicCardAction 1 0 1 1 0)
+marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0)
 
-moatCard      = Card "Moat" 2 (basicCardAction 2 (-1) 0 0 0)
+moatCard        = Card "Moat"       2 (basicCardAction 2 (-1) 0 0 0)
 
-smithyCard    = Card "Smithy" 4 (basicCardAction 3 (-1) 0 0 0)
+smithyCard      = Card "Smithy"     4 (basicCardAction 3 (-1) 0 0 0)
+
+villageCard     = Card "Village"    3 (basicCardAction 1 1 0 0 0)
+
+festivalCard    = Card "Festival"   5 (basicCardAction 0 1 1 2 0)
+
+laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0)
+
+woodcutterCard  = Card "Woodcutter" 3 (basicCardAction 0 0 1 2 0)
 
 -- Core Engine
 
@@ -166,13 +176,6 @@ doBuys :: Player -> [Card] -> GameState -> GameState
 doBuys p cards gs = foldr (\mc acc -> buyCard p mc acc) gs (doBuy (_buys p) (_money p) (removeEmptyDecks cards gs))
   where removeEmptyDecks cards gs = filter (\c -> (Map.member c (_decks gs)) && (_decks gs) Map.! c > 0) cards
 
-bigMoneyCards :: [Card]
-bigMoneyCards = [provinceCard, goldCard, silverCard]
-
-bigMoneyBuy :: Player -> GameState -> GameState
-bigMoneyBuy p gs = doBuys p' bigMoneyCards gs
-  where Just p' = find (== p) (_players gs)
-
 basicDecks :: Int -> Map.Map Card Int
 basicDecks numPlayers
     | numPlayers == 2 = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 8), (duchyCard, 8), (provinceCard, 8) ]
@@ -208,6 +211,29 @@ runGames num players = do
   let gens = map mkStdGen seeds
   let gses = map (GameState players (basicDecks (length players))) gens
   return $ map (\l -> (head l, length l)) $ group $ sort $ map (gameResult . (runGame' False)) gses
+
+-- Strategies
+
+-- Big money
+
+bigMoneyCards :: [Card]
+bigMoneyCards = [provinceCard, goldCard, silverCard]
+
+bigMoneyBuy :: Player -> GameState -> GameState
+bigMoneyBuy p gs = doBuys p' bigMoneyCards gs
+  where Just p' = find (== p) (_players gs)
+
+discardCards :: [Card]
+discardCards = [curseCard, estateCard, duchyCard, provinceCard, copperCard]
+
+doDiscard :: (Int, Int) -> [Card] -> Player -> GameState -> GameState
+doDiscard (min, max) cards p gs = changeTurn player gs
+  where pref = take max $ intersect (_hand p) cards
+        toDiscard
+          | length pref > min = pref
+          | otherwise         = take min $ pref ++ (_hand p)
+        player  = Player (_playerName p) (_deck p) (_discard p ++ toDiscard) newHand (_played p) (_actions p) (_buys p) (_money p) (_victory p)
+        newHand = foldr (\c acc -> delete c acc) (_hand p) toDiscard
 
 -- Dominion Game testing functions
 
