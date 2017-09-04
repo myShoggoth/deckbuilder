@@ -49,6 +49,7 @@ data Player = Player {
   _deck       :: [Card],
   _discard    :: [Card],
   _hand       :: [Card],
+  _played     :: [Card],
   _actions    :: Int,
   _buys       :: Int,
   _money      :: Int,
@@ -67,7 +68,7 @@ type Result = Either String Int
 
 valueCard :: Int -> Int -> Card -> Player -> GameState -> GameState
 valueCard money victory c p gs = changeTurn player gs
-  where player    = Player (_playerName p) (_deck p) (c : _discard p) (delete c (_hand p)) (_actions p) (_buys p') (_money p' + money) (_victory p' + victory)
+  where player    = Player (_playerName p) (_deck p') (_discard p') (delete c (_hand p')) (c : _played p') (_actions p') (_buys p') (_money p' + money) (_victory p' + victory)
         Just p'   = find (== p) (_players gs)
 
 goldCard      = Card "Gold" 6 (valueCard 3 0)
@@ -84,11 +85,11 @@ estateCard    = Card "Estate" 2 (valueCard 0 1)
 
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> GameState -> GameState
 basicCardAction draw actions buys money victory c p gs = player p
-  where player (Player _ _ _ _ 0 _ _ _) = gs
-        player _                        = changeTurn (Player (_playerName p'') (_deck p'') (c : _discard p'') (delete c (_hand p'')) (_actions p'' + actions) (_buys p'' + buys) (_money p'' + money) (_victory p'' + victory)) gs'
-        Just p'                         = find (== p) (_players gs)
-        gs'                             = deal draw p' gs
-        Just p''                        = find (== p) (_players gs')
+  where player (Player _ _ _ _ _ 0 _ _ _) = gs
+        player _                          = changeTurn (Player (_playerName p'') (_deck p'') (_discard p'') (delete c (_hand p'')) (c : _played p'') (_actions p'' + actions) (_buys p'' + buys) (_money p'' + money) (_victory p'' + victory)) gs'
+        Just p'                           = find (== p) (_players gs)
+        gs'                               = deal draw p' gs
+        Just p''                          = find (== p) (_players gs')
 
 marketCard    = Card "Market" 5 (basicCardAction 1 0 1 1 0)
 
@@ -99,7 +100,7 @@ smithyCard    = Card "Smithy" 4 (basicCardAction 3 (-1) 0 0 0)
 -- Core Engine
 
 newPlayer :: String -> Player
-newPlayer n = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] 1 1 0 0
+newPlayer n = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] [] 1 1 0 0
 
 deal :: Int -> Player -> GameState -> GameState
 deal 0   _ gs = gs
@@ -108,7 +109,7 @@ deal num p gs = changeTurn player (GameState (_players gs) (_decks gs) (choose (
           | length (_deck p') >= num = (_deck p', _discard p')
           | otherwise                = ( (_deck p') ++ (shuffle' (_discard p') (length (_discard p')) (_random gs)), [])
         (hand, deck)  = splitAt num enoughDeck
-        player        = Player (_playerName p') deck discard hand (_actions p') (_buys p') (_money p') (_victory p')
+        player        = Player (_playerName p') deck discard hand (_played p') (_actions p') (_buys p') (_money p') (_victory p')
         Just p'       = find (== p) (_players gs)
         choose (_, g) = g
 
@@ -123,7 +124,7 @@ evaluateHand p gs = changeTurn p' newGs
 
 tallyAllPoints :: Player -> GameState -> GameState
 tallyAllPoints p gs = evaluateHand player $ changeTurn player gs
-  where player  = Player (_playerName p') [] [] ((_deck p') ++ (_discard p') ++ (_hand p')) 1 1 0 0
+  where player  = Player (_playerName p') [] [] ((_deck p') ++ (_discard p') ++ (_hand p') ++ (_played p')) [] 1 1 0 0
         Just p' = find (== p) (_players gs)
 
 sortByPoints :: GameState -> GameState
@@ -150,7 +151,7 @@ buyCard p Nothing  gs = gs
 buyCard p (Just c) gs = changeTurn (player c) (decks c)
   where
     decks c   = GameState (_players gs) (Map.mapWithKey (decreaseCards c) (_decks gs) ) (_random gs)
-    player c  = Player (_playerName p') (_deck p') (c : (_discard p') ) (_hand p') (_actions p') (_buys p' - 1) (_money p' - (_cost c)) (_victory p')
+    player c  = Player (_playerName p') (_deck p') (c : (_discard p') ) (_hand p') (_played p') (_actions p') (_buys p' - 1) (_money p' - (_cost c)) (_victory p')
     Just p'   = find (== p) (_players gs)
 
 doBuy :: Int -> Int -> [Card] -> [Maybe Card]
@@ -180,7 +181,7 @@ basicDecks numPlayers
 resetTurn :: Player -> GameState -> GameState
 resetTurn p gs = changeTurn player gs
   where Just p' = find (== p) (_players gs)
-        player  = Player (_playerName p') (_deck p') (_discard p') (_hand p') 1 1 0 0
+        player  = Player (_playerName p') (_deck p') (_discard p' ++ _played p') (_hand p') [] 1 1 0 0
 
 doTurn :: Bool -> Player -> GameState -> GameState
 doTurn True  p gs = gs
