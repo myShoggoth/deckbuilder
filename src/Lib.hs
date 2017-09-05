@@ -107,6 +107,15 @@ laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0)
 
 woodcutterCard  = Card "Woodcutter" 3 (basicCardAction 0 0 1 2 0)
 
+cellarCardAction :: Card -> Player -> GameState -> GameState
+cellarCardAction c p gs = player p
+  where player (Player _ _ _ _ _ 0 _ _ _) = gs
+        player _                          = bigMoneyDiscard (0, (length (_hand p'))) p' gs
+        Just p'                           = find (== p) (_players gs)
+
+cellarCard      = Card "Cellar"     2 cellarCardAction
+
+
 -- Core Engine
 
 newPlayer :: String -> Player
@@ -173,8 +182,9 @@ doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (cost findHighCostCard)) cs
         cost Nothing      = 0
 
 doBuys :: Player -> [Card] -> GameState -> GameState
-doBuys p cards gs = foldr (\mc acc -> buyCard p mc acc) gs (doBuy (_buys p) (_money p) (removeEmptyDecks cards gs))
+doBuys p cards gs = foldr (\mc acc -> buyCard p' mc acc) gs (doBuy (_buys p') (_money p') (removeEmptyDecks cards gs))
   where removeEmptyDecks cards gs = filter (\c -> (Map.member c (_decks gs)) && (_decks gs) Map.! c > 0) cards
+        Just p'                   = find (== p) (_players gs)
 
 basicDecks :: Int -> Map.Map Card Int
 basicDecks numPlayers
@@ -214,17 +224,7 @@ runGames num players = do
 
 -- Strategies
 
--- Big money
-
-bigMoneyCards :: [Card]
-bigMoneyCards = [provinceCard, goldCard, silverCard]
-
-bigMoneyBuy :: Player -> GameState -> GameState
-bigMoneyBuy p gs = doBuys p' bigMoneyCards gs
-  where Just p' = find (== p) (_players gs)
-
-discardCards :: [Card]
-discardCards = [curseCard, estateCard, duchyCard, provinceCard, copperCard]
+-- Strategy helpers
 
 doDiscard :: (Int, Int) -> [Card] -> Player -> GameState -> GameState
 doDiscard (min, max) cards p gs = changeTurn player gs
@@ -234,6 +234,16 @@ doDiscard (min, max) cards p gs = changeTurn player gs
           | otherwise         = take min $ pref ++ (_hand p)
         player  = Player (_playerName p) (_deck p) (_discard p ++ toDiscard) newHand (_played p) (_actions p) (_buys p) (_money p) (_victory p)
         newHand = foldr (\c acc -> delete c acc) (_hand p) toDiscard
+
+-- Big money
+
+bigMoneyBuy :: Player -> GameState -> GameState
+bigMoneyBuy p gs = doBuys p bigMoneyCards gs
+  where bigMoneyCards = [provinceCard, goldCard, silverCard]
+
+bigMoneyDiscard :: (Int, Int) -> Player -> GameState -> GameState
+bigMoneyDiscard rng = doDiscard rng discardCards
+  where discardCards = [curseCard, estateCard, duchyCard, provinceCard, copperCard]
 
 -- Dominion Game testing functions
 
