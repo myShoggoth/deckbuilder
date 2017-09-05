@@ -110,11 +110,18 @@ woodcutterCard  = Card "Woodcutter" 3 (basicCardAction 0 0 1 2 0)
 cellarCardAction :: Card -> Player -> GameState -> GameState
 cellarCardAction c p gs = player p
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
-        player _                          = bigMoneyDiscard (0, (length (_hand p'))) p' gs
+        player _                          = bigMoneyDiscard (0, (length (_hand p'))) (Player (_playerName p) (_deck p) (_discard p') (delete c (_hand p)) (c : _played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
         Just p'                           = find (== p) (_players gs)
 
 cellarCard      = Card "Cellar"     2 cellarCardAction
 
+chapelCardAction :: Card -> Player -> GameState -> GameState
+chapelCardAction c p gs = player p
+  where player (Player _ _ _ _ _ 0 _ _ _) = gs
+        player _                          = bigMoneyTrash (0, 4) (Player (_playerName p) (_deck p) (_discard p') (delete c (_hand p)) (c : _played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
+        Just p'                           = find (== p) (_players gs)
+
+chapelCard     = Card "Chapel"      2 chapelCardAction
 
 -- Core Engine
 
@@ -235,6 +242,15 @@ doDiscard (min, max) cards p gs = changeTurn player gs
         player  = Player (_playerName p) (_deck p) (_discard p ++ toDiscard) newHand (_played p) (_actions p) (_buys p) (_money p) (_victory p)
         newHand = foldr (\c acc -> delete c acc) (_hand p) toDiscard
 
+doTrash :: (Int, Int) -> [Card] -> Player -> GameState -> GameState
+doTrash (min, max) cards p gs = changeTurn player gs
+  where pref = take max $ intersect (_hand p) cards
+        toDiscard
+          | length pref > min = pref
+          | otherwise         = take min $ pref ++ (_hand p)
+        player  = Player (_playerName p) (_deck p) (_discard p) newHand (_played p) (_actions p) (_buys p) (_money p) (_victory p)
+        newHand = foldr (\c acc -> delete c acc) (_hand p) toDiscard
+
 -- Big money
 
 bigMoneyBuy :: Player -> GameState -> GameState
@@ -244,6 +260,10 @@ bigMoneyBuy p gs = doBuys p bigMoneyCards gs
 bigMoneyDiscard :: (Int, Int) -> Player -> GameState -> GameState
 bigMoneyDiscard rng = doDiscard rng discardCards
   where discardCards = [curseCard, estateCard, duchyCard, provinceCard, copperCard]
+
+bigMoneyTrash :: (Int, Int) -> Player -> GameState -> GameState
+bigMoneyTrash rng = doTrash rng trashCards
+  where trashCards = [curseCard, estateCard, copperCard]
 
 -- Dominion Game testing functions
 
