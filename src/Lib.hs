@@ -108,20 +108,33 @@ laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0)
 woodcutterCard  = Card "Woodcutter" 3 (basicCardAction 0 0 1 2 0)
 
 cellarCardAction :: Card -> Player -> GameState -> GameState
-cellarCardAction c p gs = player p
+cellarCardAction c p gs = gs''
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
-        player _                          = bigMoneyDiscard (0, (length (_hand p'))) (Player (_playerName p) (_deck p) (_discard p') (delete c (_hand p)) (c : _played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
+        player _                          = bigMoneyDiscard (0, (length (_hand p))) (Player (_playerName p) (_deck p) (_discard p) (delete c (_hand p')) (c : _played p) (_actions p) (_buys p) (_money p) (_victory p')) gs
         Just p'                           = find (== p) (_players gs)
+        gs'                               = player p
+        gs''                              = deal (length (_hand p) - (length (_hand p''))) p'' gs'
+        Just p''                          = find (== p) (_players gs')
 
 cellarCard      = Card "Cellar"     2 cellarCardAction
 
 chapelCardAction :: Card -> Player -> GameState -> GameState
 chapelCardAction c p gs = player p
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
-        player _                          = bigMoneyTrash (0, 4) (Player (_playerName p) (_deck p) (_discard p') (delete c (_hand p)) (c : _played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
+        player _                          = bigMoneyTrash (0, 4) (Player (_playerName p') (_deck p') (_discard p') (delete c (_hand p')) (c : _played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
         Just p'                           = find (== p) (_players gs)
 
 chapelCard     = Card "Chapel"      2 chapelCardAction
+
+harbingerCardAction :: Card -> Player -> GameState -> GameState
+harbingerCardAction c p gs = player p
+  where player (Player _ _ _ _ _ 0 _ _ _) = gs
+        player _                          = bigMoneyRetrieve (0, 1) (Player (_playerName p'') (_deck p'') (_discard p'') (delete c (_hand p'')) (c : _played p'') (_actions p'') (_buys p'') (_money p'') (_victory p'')) gs
+        Just p'                           = find (== p) (_players gs)
+        gs'                               = deal 1 p' gs
+        Just p''                          = find (== p) (_players gs')
+
+harbingerCard   = Card "Harbinger"  3 harbingerCardAction
 
 -- Core Engine
 
@@ -251,6 +264,15 @@ doTrash (min, max) cards p gs = changeTurn player gs
         player  = Player (_playerName p) (_deck p) (_discard p) newHand (_played p) (_actions p) (_buys p) (_money p) (_victory p)
         newHand = foldr (\c acc -> delete c acc) (_hand p) toDiscard
 
+doRetrieveDiscard :: (Int, Int) -> [Card] -> Player -> GameState -> GameState
+doRetrieveDiscard (min, max) cards p gs = changeTurn player gs
+  where pref = take max $ intersect (_discard p) cards
+        toRetrieve
+          | length pref > min = pref
+          | otherwise         = take min $ pref ++ (_discard p)
+        player = Player (_playerName p) (toRetrieve ++ _deck p) newDiscard (_hand p) (_played p) (_actions p) (_buys p) (_money p) (_victory p)
+        newDiscard = foldr (\c acc -> delete c acc) (_discard p) toRetrieve
+
 -- Big money
 
 bigMoneyBuy :: Player -> GameState -> GameState
@@ -264,6 +286,10 @@ bigMoneyDiscard rng = doDiscard rng discardCards
 bigMoneyTrash :: (Int, Int) -> Player -> GameState -> GameState
 bigMoneyTrash rng = doTrash rng trashCards
   where trashCards = [curseCard, estateCard, copperCard]
+
+bigMoneyRetrieve :: (Int, Int) -> Player -> GameState -> GameState
+bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
+  where retrieveCards = [goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
 
 -- Dominion Game testing functions
 
