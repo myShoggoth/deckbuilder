@@ -136,6 +136,17 @@ harbingerCardAction c p gs = player p
 
 harbingerCard   = Card "Harbinger"  3 harbingerCardAction
 
+-- Merchant Card does not deal with the case where the silver is played after
+-- the merchant card
+merchantCardAction :: Card -> Player -> GameState -> GameState
+merchantCardAction c p gs = basicCardAction 1 0 0 (money silverPlayed) 0 c p' gs
+  where silverPlayed  = silverCard `elem` (_played p' ++ _hand p')
+        Just p'       = find (== p) (_players gs)
+        money True    = 2
+        money False   = 1
+
+merchantCard    = Card "Merchant"   3 merchantCardAction
+
 -- Core Engine
 
 newPlayer :: String -> Player
