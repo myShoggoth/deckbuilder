@@ -147,6 +147,21 @@ merchantCardAction c p gs = basicCardAction 1 0 0 (money silverPlayed) 0 c p' gs
 
 merchantCard    = Card "Merchant"   3 merchantCardAction
 
+hasActionsLeft :: Player -> Bool
+hasActionsLeft (Player _ _ _ _ _ 0 _ _ _) = False
+hasActionsLeft _                          = True
+
+vassalCardAction :: Card -> Player -> GameState -> GameState
+vassalCardAction c p gs = topOfDeck $ find (\_ -> True) (_hand p')
+  where player (Player _ _ _ _ _ 0 _ _ _)       = gs
+        player _                                = basicCardAction 0 0 0 2 0 c p gs
+        Just p'                                 = find (== p) $ _players $ player p
+        topOfDeck Nothing                       = gs
+        topOfDeck (Just c@(Card _ _ valueCard)) = changeTurn (Player (_playerName p') (_deck p') (c : _discard p') (delete c (_hand p')) (_played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
+        topOfDeck (Just c)                      = (_action c) c p gs
+
+vassalCard      = Card "Vassal"     3 vassalCardAction
+
 -- Core Engine
 
 newPlayer :: String -> Player
