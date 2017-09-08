@@ -1,6 +1,8 @@
 module Main where
 
-import Lib
+import DeckBuilding.Dominion.Types
+import DeckBuilding.Dominion
+import DeckBuilding.Dominion.Utils
 
 main :: IO ([(Result, Int)])
-main = testDominionGames
+main = runGames 1000 [newPlayer "Player 1", newPlayer "Player 2"]
