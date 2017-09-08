@@ -1,14 +1,14 @@
 name:                deckbuilder
-version:             0.1.0.0
+version:             0.1.0.1
 -- synopsis:
 -- description:
-homepage:            https://github.com/githubuser/deckbuilder#readme
+homepage:            https://github.com/myshoggoth/deckbuilder#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2017 Author name here
-category:            Web
+author:              Andrew F. Boardman
+maintainer:          andrew@myshoggoth.com
+copyright:           2017 Andrew F. Boardman
+category:            Game
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -46,4 +46,4 @@ test-suite deckbuilder-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/deckbuilder
+  location: https://github.com/myshoggoth/deckbuilder
