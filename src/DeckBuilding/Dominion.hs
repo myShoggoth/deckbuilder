@@ -4,6 +4,10 @@ module DeckBuilding.Dominion
     , runGames
     , runGame
     , newPlayer
+    , doTurn
+    , basicDecks
+    , resetTurn
+    , evaluateHand
     ) where
 
 import qualified Data.Map as Map
