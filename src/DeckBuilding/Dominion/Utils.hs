@@ -21,7 +21,7 @@ deal num p gs = changeTurn player (GameState (_players gs) (_decks gs) (choose (
           | length (_deck p') >= num = (_deck p', _discard p')
           | otherwise                = ( (_deck p') ++ (shuffle' (_discard p') (length (_discard p')) (_random gs)), [])
         (hand, deck)  = splitAt num enoughDeck
-        player        = Player (_playerName p') deck discard hand (_played p') (_actions p') (_buys p') (_money p') (_victory p')
+        player        = Player (_playerName p') deck discard ( (_hand p') ++ hand ) (_played p') (_actions p') (_buys p') (_money p') (_victory p')
         Just p'       = find (== p) (_players gs)
         choose (_, g) = g
 
@@ -34,7 +34,7 @@ valueCard money victory c p gs = changeTurn player gs
         Just p'   = find (== p) (_players gs)
 
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> GameState -> GameState
-basicCardAction draw actions buys money victory c p gs = player p
+basicCardAction draw actions buys money victory c p gs = player p'
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
         player _                          = changeTurn (Player (_playerName p'') (_deck p'') (_discard p'') (delete c (_hand p'')) (c : _played p'') (_actions p'' + actions) (_buys p'' + buys) (_money p'' + money) (_victory p'' + victory)) gs'
         Just p'                           = find (== p) (_players gs)
