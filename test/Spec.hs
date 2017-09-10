@@ -24,11 +24,7 @@ main = do
     describe "DeckBuilding.Dominion.Cards.deal" $ do
       it "deals the correct number of cards" $ do
         (length (_hand p1AfterDeal)) `shouldBe` 5
-
-      it "has the right number of cards still in deck" $ do
         (length (_deck p1AfterDeal)) `shouldBe` 5
-
-      it "has an empty discard pile" $ do
         (length (_discard p1AfterDeal)) `shouldBe` 0
 
       it "has a total of seven copper" $ do
@@ -40,6 +36,8 @@ main = do
     describe "DeckBuilding.Dominion.evaluateHand" $ do
       it "has no more cards in hand" $ do
         (length (_played p1AfterEvaluate)) `shouldBe` 5
+        (length (_hand p1AfterEvaluate)) `shouldBe` 0
+        (length (_discard p1AfterDeal)) `shouldBe` 0
 
       it "calculates the right amount of money" $ do
         (_money p1AfterEvaluate) `shouldBe` (length (filter (== copperCard) (_played p1AfterEvaluate)))
@@ -72,19 +70,82 @@ main = do
         let Just p1AfterDeal = find (== p1) (_players afterCard)
         (_money p1AfterDeal) `shouldBe` 1
 
+      it "gives money for a silver" $ do
+        let afterCard = (_action silverCard) silverCard p1AfterDeal afterDeal
+        let Just p1AfterDeal = find (== p1) (_players afterCard)
+        (_money p1AfterDeal) `shouldBe` 2
+
+      it "gives money for a gold" $ do
+        let afterCard = (_action goldCard) goldCard p1AfterDeal afterDeal
+        let Just p1AfterDeal = find (== p1) (_players afterCard)
+        (_money p1AfterDeal) `shouldBe` 3
+
       it "gives victory for an estate" $ do
         let afterCard = (_action estateCard) estateCard p1AfterDeal afterDeal
         let Just p1AfterDeal = find (== p1) (_players afterCard)
         (_victory p1AfterDeal) `shouldBe` 1
 
+      it "gives victory for a duchy" $ do
+        let afterCard = (_action duchyCard) duchyCard p1AfterDeal afterDeal
+        let Just p1AfterDeal = find (== p1) (_players afterCard)
+        (_victory p1AfterDeal) `shouldBe` 3
+
+      it "gives victory for a province" $ do
+        let afterCard = (_action provinceCard) provinceCard p1AfterDeal afterDeal
+        let Just p1AfterDeal = find (== p1) (_players afterCard)
+        (_victory p1AfterDeal) `shouldBe` 6
+
+      it "takes victory for a curse" $ do
+        let afterCard = (_action curseCard) curseCard p1AfterDeal afterDeal
+        let Just p1AfterDeal = find (== p1) (_players afterCard)
+        (_victory p1AfterDeal) `shouldBe` (-1)
+
     describe "DeckBuilding.Dominion.Cards.basicCardAction" $ do
-      it "it works with market cards" $ do
+      it "it works with market" $ do
         let afterCard = (_action marketCard) marketCard p1AfterDeal afterDeal
         let Just p1AfterCard = find (== p1) (_players afterCard)
         (length (_hand p1AfterCard)) `shouldBe` 6
         (_actions p1AfterCard) `shouldBe` 1
         (_buys p1AfterCard) `shouldBe` 2
         (_money p1AfterCard) `shouldBe` 1
+
+      it "it works with moat" $ do
+        let afterCard = (_action moatCard) moatCard p1AfterDeal afterDeal
+        let Just p1AfterCard = find (== p1) (_players afterCard)
+        (length (_hand p1AfterCard)) `shouldBe` 7
+        (_actions p1AfterCard) `shouldBe` 0
+
+      it "it works with smithy" $ do
+        let afterCard = (_action smithyCard) smithyCard p1AfterDeal afterDeal
+        let Just p1AfterCard = find (== p1) (_players afterCard)
+        (length (_hand p1AfterCard)) `shouldBe` 8
+        (_actions p1AfterCard) `shouldBe` 0
+
+      it "it works with village" $ do
+        let afterCard = (_action villageCard) villageCard p1AfterDeal afterDeal
+        let Just p1AfterCard = find (== p1) (_players afterCard)
+        (length (_hand p1AfterCard)) `shouldBe` 6
+        (_actions p1AfterCard) `shouldBe` 2
+
+      it "it works with festival" $ do
+        let afterCard = (_action festivalCard) festivalCard p1AfterDeal afterDeal
+        let Just p1AfterCard = find (== p1) (_players afterCard)
+        (_actions p1AfterCard) `shouldBe` 2
+        (_buys p1AfterCard) `shouldBe` 2
+        (_money p1AfterCard) `shouldBe` 2
+
+      it "it works with laboratory" $ do
+        let afterCard = (_action laboratoryCard) laboratoryCard p1AfterDeal afterDeal
+        let Just p1AfterCard = find (== p1) (_players afterCard)
+        (length (_hand p1AfterCard)) `shouldBe` 7
+        (_actions p1AfterCard) `shouldBe` 1
+
+      it "it works with woodcutter" $ do
+        let afterCard = (_action woodcutterCard) woodcutterCard p1AfterDeal afterDeal
+        let Just p1AfterCard = find (== p1) (_players afterCard)
+        (_actions p1AfterCard) `shouldBe` 1
+        (_buys p1AfterCard) `shouldBe` 2
+        (_money p1AfterCard) `shouldBe` 2
 
 -- Dominion Game testing functions
 
