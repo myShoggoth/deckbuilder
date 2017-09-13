@@ -7,23 +7,21 @@ module DeckBuilding.Dominion.Types
 import qualified Data.Map as Map
 import System.Random
 import Control.Lens
+import Control.Monad.State
 
-data GameState = GameState {
+data Game = Game {
   _players  :: [Player],
   _decks    :: Map.Map Card Int,
   _random   :: StdGen
 } deriving Show
 
---instance Show GameState where
---  show gs = show (_players gs) ++ " " ++ show (_decks gs)
-
 data CardType = Value | Action
-  deriving Show
+  deriving (Show, Eq)
 
 data Card = Card {
   _cardName :: String,
   _cost     :: Int,
-  _action   :: Card -> Player -> GameState -> GameState,
+  _action   :: Card -> Player -> State Game Player,
   _cardType :: CardType
 }
 
@@ -56,6 +54,6 @@ instance Ord Player where
 
 type Result = Either String Int
 
-makeLenses ''GameState
+makeLenses ''Game
 makeLenses ''Card
 makeLenses ''Player

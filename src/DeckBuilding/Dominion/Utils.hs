@@ -1,45 +1,58 @@
 module DeckBuilding.Dominion.Utils
     ( deal
-    , changeTurn
+    , updatePlayer
     , valueCard
     , basicCardAction
     , doBuy
     , doBuys
     , buyCard
+    , hasActionsLeft
     ) where
 
 import DeckBuilding.Dominion.Types
 import System.Random.Shuffle
 import System.Random (split)
 import Data.List (delete, find)
+import Data.Foldable (foldrM)
 import qualified Data.Map as Map
 import Control.Lens
+import Control.Monad.State
 
-deal :: Int -> Player -> GameState -> GameState
-deal 0   _ gs = gs
-deal num p gs = changeTurn player $ over random (snd . split) gs
-  where (enoughDeck, newDiscard)
-          | length (p' ^. deck) >= num  = (p' ^. deck, p' ^. discard)
-          | otherwise                   = ( (p' ^. deck) ++ (shuffle' (p' ^. discard) (length (p' ^. discard)) (gs ^. random)), [])
-        (newHand, newDeck)              = splitAt num enoughDeck
-        player                          = set deck newDeck $ set discard newDiscard $ over hand (++ newHand) $ p'
-        Just p'                         = find (== p) (gs ^. players)
+deal :: Int -> Player -> State Game Player
+deal 0   p = do
+  return p
+deal num p = do
+  gs <- get
+  let (enoughDeck, newDiscard)
+          | length (p ^. deck) >= num   = (p ^. deck, p ^. discard)
+          | otherwise                   = ( (p ^. deck) ++ (shuffle' (p ^. discard) (length (p ^. discard)) (gs ^. random)), [])
+  let (newHand, newDeck)  = splitAt num enoughDeck
+  let player              = set deck newDeck $ set discard newDiscard $ over hand (++ newHand) $ p
+  put $ over players ( (player:) . (delete p)) $ over random (snd . split) gs
+  return player
 
-changeTurn :: Player -> GameState -> GameState
-changeTurn p gs = over players ( (p:) . (delete p) ) gs
+updatePlayer :: Player -> State Game Player
+updatePlayer p = do
+  gs <- get
+  put $ over players ( (p:) . (delete p) ) gs
+  return p
 
-valueCard :: Int -> Int -> Card -> Player -> GameState -> GameState
-valueCard m v c p gs = changeTurn player gs
-  where player    = over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) $ p'
-        Just p'   = find (== p) (gs ^. players)
+valueCard :: Int -> Int -> Card -> Player -> State Game Player
+valueCard m v c p = do
+  updatePlayer $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) $ p
 
-basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> GameState -> GameState
-basicCardAction draw a b m v c p gs = player p'
-  where player (Player _ _ _ _ _ 0 _ _ _) = gs
-        player _                          = changeTurn (over hand (delete c) $ over played (c:) $ over actions (+a) $ over buys (+b) $ over money (+m) $ over victory (+v) $ p'') gs'
-        Just p'                           = find (== p) (gs ^. players)
-        gs'                               = deal draw p' gs
-        Just p''                          = find (== p) (gs' ^. players)
+hasActionsLeft :: Player -> Bool
+hasActionsLeft (Player _ _ _ _ _ 0 _ _ _) = False
+hasActionsLeft _                          = True
+
+basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> State Game Player
+basicCardAction draw a b m v c p = do
+  if hasActionsLeft p
+    then do
+      p' <- deal draw p
+      let player = over hand (delete c) $ over played (c:) $ over actions (+a) $ over buys (+b) $ over money (+m) $ over victory (+v) $ p'
+      updatePlayer player
+    else return p
 
 doBuy :: Int -> Int -> [Card] -> [Maybe Card]
 doBuy 0 _ _ = []
@@ -49,10 +62,11 @@ doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (mcost findHighCostCard)) c
         mcost (Just c)   = (c ^. cost)
         mcost Nothing    = 0
 
-doBuys :: Player -> [Card] -> GameState -> GameState
-doBuys p cards gs = foldr (\mc acc -> buyCard p' mc acc) gs (doBuy (p' ^. buys) (p' ^. money ) (removeEmptyDecks cards gs))
-  where removeEmptyDecks cards gs = filter (\c -> (Map.member c (gs ^. decks)) && (gs ^. decks) Map.! c > 0) cards
-        Just p'                   = find (== p) (gs ^. players)
+doBuys :: Player -> [Card] -> State Game Player
+doBuys p cards = do
+  gs <- get
+  let nonEmptyDecks = filter (\c -> (Map.member c (gs ^. decks)) && (gs ^. decks) Map.! c > 0) cards
+  foldrM (\mc player -> buyCard mc player) p (doBuy (p ^. buys) (p ^. money ) nonEmptyDecks)
 
 decreaseCards :: Card -> Card -> Int -> Int
 decreaseCards  _  _ 0 = 0
@@ -60,9 +74,11 @@ decreaseCards c1 c2 n = if (c1 == c2)
                           then n - 1
                           else n
 
-buyCard :: Player -> Maybe Card -> GameState -> GameState
-buyCard p Nothing  gs = gs
-buyCard p (Just c) gs = changeTurn (player c) $ over decks (Map.mapWithKey (decreaseCards c)) gs
-  where
-    player c  = over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) $ p'
-    Just p'   = find (== p) (gs ^. players)
+buyCard ::  Maybe Card -> Player -> State Game Player
+buyCard Nothing  p = return p
+buyCard (Just c) p = do
+  gs <- get
+  put $ over decks (Map.mapWithKey (decreaseCards c)) gs
+  let p' = over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) $ p
+  updatePlayer $ p'
+  return p'
