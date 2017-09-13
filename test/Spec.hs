@@ -24,9 +24,9 @@ main = do
 
     describe "DeckBuilding.Dominion.Cards.deal" $ do
       it "deals the correct number of cards" $ do
-        (length (_hand p1AfterDeal)) `shouldBe` 5
-        (length (_deck p1AfterDeal)) `shouldBe` 5
-        (length (_discard p1AfterDeal)) `shouldBe` 0
+        (length (p1AfterDeal  ^. hand)) `shouldBe` 5
+        (length (p1AfterDeal ^. deck)) `shouldBe` 5
+        (length (p1AfterDeal ^. discard)) `shouldBe` 0
 
       it "has a total of seven copper" $ do
         (length (filter (== copperCard) ((p1AfterDeal ^. hand) ++ (p1AfterDeal ^. deck)))) `shouldBe` 7
