@@ -16,6 +16,8 @@ module DeckBuilding.Dominion.Cards
     , cellarCard
     , chapelCard
     , harbingerCard
+    , merchantCard
+    , vassalCard
     , bigMoneyBuy
     , bigMoneyDiscard
     , bigMoneyTrash
@@ -27,91 +29,104 @@ import DeckBuilding.Dominion.Utils
 import DeckBuilding.Dominion.Strategies.Basic
 
 import Data.List (delete, find, sortBy, group, sort, groupBy, intersect)
+import System.Random.Shuffle
+import Control.Lens
 
 -- Cards and their actions
 
-goldCard      = Card "Gold" 6 (valueCard 3 0)
+goldCard      = Card "Gold" 6 (valueCard 3 0) Value
 
-silverCard    = Card "Silver" 3 (valueCard 2 0)
+silverCardAction :: Card -> Player -> GameState -> GameState
+silverCardAction c p gs = doSilver merchantPlayed
+  where merchantPlayed  = merchantCard `elem` (p' ^.played)
+        Just p'         = find (== p) (gs ^. players)
+        doSilver True   = valueCard 3 0 c p gs
+        doSilver False  = valueCard 2 0 c p gs
 
-copperCard    = Card "Copper" 0 (valueCard 1 0)
+silverCard    = Card "Silver" 3 silverCardAction Value
 
-provinceCard  = Card "Province" 8 (valueCard 0 6)
+copperCard    = Card "Copper" 0 (valueCard 1 0) Value
 
-duchyCard     = Card "Province" 5 (valueCard 0 3)
+provinceCard  = Card "Province" 8 (valueCard 0 6) Value
 
-estateCard    = Card "Estate" 2 (valueCard 0 1)
+duchyCard     = Card "Province" 5 (valueCard 0 3) Value
 
-curseCard     = Card "Curse" 0 (valueCard 0 (-1))
+estateCard    = Card "Estate" 2 (valueCard 0 1) Value
 
-marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0)
+curseCard     = Card "Curse" 0 (valueCard 0 (-1)) Value
 
-moatCard        = Card "Moat"       2 (basicCardAction 2 (-1) 0 0 0)
+marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
-smithyCard      = Card "Smithy"     4 (basicCardAction 3 (-1) 0 0 0)
+moatCard        = Card "Moat"       2 (basicCardAction 2 (-1) 0 0 0) Action
 
-villageCard     = Card "Village"    3 (basicCardAction 1 1 0 0 0)
+smithyCard      = Card "Smithy"     4 (basicCardAction 3 (-1) 0 0 0) Action
 
-festivalCard    = Card "Festival"   5 (basicCardAction 0 1 1 2 0)
+villageCard     = Card "Village"    3 (basicCardAction 1 1 0 0 0) Action
 
-laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0)
+festivalCard    = Card "Festival"   5 (basicCardAction 0 1 1 2 0) Action
 
-woodcutterCard  = Card "Woodcutter" 3 (basicCardAction 0 0 1 2 0)
+laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0) Action
+
+woodcutterCard  = Card "Woodcutter" 3 (basicCardAction 0 0 1 2 0) Action
 
 cellarCardAction :: Card -> Player -> GameState -> GameState
 cellarCardAction c p gs = gs''
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
-        player _                          = bigMoneyDiscard (0, (length (_hand p))) (Player (_playerName p) (_deck p) (_discard p) (delete c (_hand p')) (c : _played p) (_actions p) (_buys p) (_money p) (_victory p')) gs
-        Just p'                           = find (== p) (_players gs)
-        gs'                               = player p
-        gs''                              = deal (length (_hand p) - (length (_hand p''))) p'' gs'
-        Just p''                          = find (== p) (_players gs')
+        player _                          = bigMoneyDiscard (0, (length (p' ^. hand))) (over played (c:) (over hand (delete c) p')) gs
+        Just p'                           = find (== p) (gs ^. players)
+        gs'                               = player p'
+        Just p''                          = find (== p) (gs' ^. players)
+        gs''                              = deal (length (p' ^. hand) - (length (p'' ^. hand))) p'' gs'
 
-cellarCard      = Card "Cellar"     2 cellarCardAction
+cellarCard      = Card "Cellar"     2 cellarCardAction Action
 
 chapelCardAction :: Card -> Player -> GameState -> GameState
 chapelCardAction c p gs = player p
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
-        player _                          = bigMoneyTrash (0, 4) (Player (_playerName p') (_deck p') (_discard p') (delete c (_hand p')) (c : _played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
-        Just p'                           = find (== p) (_players gs)
+        player _                          = bigMoneyTrash (0, 4) (over played (c:) (over hand (delete c) p')) gs
+        Just p'                           = find (== p) (gs ^. players)
 
-chapelCard     = Card "Chapel"      2 chapelCardAction
+chapelCard     = Card "Chapel"      2 chapelCardAction Action
 
 harbingerCardAction :: Card -> Player -> GameState -> GameState
 harbingerCardAction c p gs = player p
   where player (Player _ _ _ _ _ 0 _ _ _) = gs
-        player _                          = bigMoneyRetrieve (0, 1) (Player (_playerName p'') (_deck p'') (_discard p'') (delete c (_hand p'')) (c : _played p'') (_actions p'') (_buys p'') (_money p'') (_victory p'')) gs
-        Just p'                           = find (== p) (_players gs)
+        player _                          = bigMoneyRetrieve (0, 1) (over played (c:) (over hand (delete c) p'')) gs
+        Just p'                           = find (== p) (gs ^. players)
         gs'                               = deal 1 p' gs
-        Just p''                          = find (== p) (_players gs')
+        Just p''                          = find (== p) (gs' ^. players)
 
-harbingerCard   = Card "Harbinger"  3 harbingerCardAction
+harbingerCard   = Card "Harbinger"  3 harbingerCardAction Action
 
 -- Merchant Card does not deal with the case where the silver is played after
 -- the merchant card
 merchantCardAction :: Card -> Player -> GameState -> GameState
 merchantCardAction c p gs = basicCardAction 1 0 0 (money silverPlayed) 0 c p' gs
-  where silverPlayed  = silverCard `elem` (_played p' ++ _hand p')
-        Just p'       = find (== p) (_players gs)
+  where silverPlayed  = silverCard `elem` (p' ^. played ++ p' ^. hand)
+        Just p'       = find (== p) (gs ^. players)
         money True    = 2
         money False   = 1
 
-merchantCard    = Card "Merchant"   3 merchantCardAction
+merchantCard    = Card "Merchant"   3 merchantCardAction Action
 
 hasActionsLeft :: Player -> Bool
 hasActionsLeft (Player _ _ _ _ _ 0 _ _ _) = False
 hasActionsLeft _                          = True
 
 vassalCardAction :: Card -> Player -> GameState -> GameState
-vassalCardAction c p gs = topOfDeck $ find (\_ -> True) (_hand p')
-  where player (Player _ _ _ _ _ 0 _ _ _)       = gs
-        player _                                = basicCardAction 0 0 0 2 0 c p gs
-        Just p'                                 = find (== p) $ _players $ player p
-        topOfDeck Nothing                       = gs
-        topOfDeck (Just c@(Card _ _ valueCard)) = changeTurn (Player (_playerName p') (_deck p') (c : _discard p') (delete c (_hand p')) (_played p') (_actions p') (_buys p') (_money p') (_victory p')) gs
-        topOfDeck (Just c)                      = (_action c) c p gs
+vassalCardAction c p gs = topOfDeck $ find (\_ -> True) enoughDeck
+  where player (Player _ _ _ _ _ 0 _ _ _)         = gs
+        player _                                  = basicCardAction 0 0 0 2 0 c p gs
+        gs'                                       = player p
+        Just p'                                   = find (== p) $ gs' ^. players
+        (enoughDeck, newDiscard)
+            | length (p' ^. deck) >= 1            = (p' ^. deck, p' ^. discard)
+            | otherwise                           = ( (p' ^. deck) ++ (shuffle' (p' ^. discard) (length (p' ^. discard)) (gs ^. random)), [])
+        topOfDeck Nothing                         = gs'
+        topOfDeck (Just c@(Card _ _ _ Value))     = changeTurn (over discard (c:) (set hand (delete c enoughDeck) p')) gs'
+        topOfDeck (Just c)                        = (c ^. action) c (over played (c:) (set discard newDiscard (set hand (delete c enoughDeck) p'))) gs'
 
-vassalCard      = Card "Vassal"     3 vassalCardAction
+vassalCard      = Card "Vassal"     3 vassalCardAction Action
 
 
 -- Big money

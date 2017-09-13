@@ -7,34 +7,32 @@ module DeckBuilding.Dominion.Strategies.Basic
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Utils
 import Data.List (delete, intersect)
+import Control.Lens
 
 -- Strategies
 
 -- Strategy helpers
 
 doDiscard :: (Int, Int) -> [Card] -> Player -> GameState -> GameState
-doDiscard (min, max) cards p gs = changeTurn player gs
-  where pref = take max $ intersect (_hand p) cards
+doDiscard (min, max) cards p = changeTurn (over discard (++ toDiscard) (set hand newHand p))
+  where pref = take max $ intersect (p ^. hand) cards
         toDiscard
           | length pref > min = pref
-          | otherwise         = take min $ pref ++ (_hand p)
-        player  = Player (_playerName p) (_deck p) (_discard p ++ toDiscard) newHand (_played p) (_actions p) (_buys p) (_money p) (_victory p)
-        newHand = foldr (\c acc -> delete c acc) (_hand p) toDiscard
+          | otherwise         = take min $ pref ++ (p ^. hand)
+        newHand = foldr (\c acc -> delete c acc) (p ^. hand) toDiscard
 
 doTrash :: (Int, Int) -> [Card] -> Player -> GameState -> GameState
-doTrash (min, max) cards p gs = changeTurn player gs
-  where pref = take max $ intersect (_hand p) cards
+doTrash (min, max) cards p = changeTurn (set hand newHand p)
+  where pref = take max $ intersect (p ^. hand) cards
         toDiscard
           | length pref > min = pref
-          | otherwise         = take min $ pref ++ (_hand p)
-        player  = Player (_playerName p) (_deck p) (_discard p) newHand (_played p) (_actions p) (_buys p) (_money p) (_victory p)
-        newHand = foldr (\c acc -> delete c acc) (_hand p) toDiscard
+          | otherwise         = take min $ pref ++ (p ^. hand)
+        newHand = foldr (\c acc -> delete c acc) (p ^. hand) toDiscard
 
 doRetrieveDiscard :: (Int, Int) -> [Card] -> Player -> GameState -> GameState
-doRetrieveDiscard (min, max) cards p gs = changeTurn player gs
-  where pref = take max $ intersect (_discard p) cards
+doRetrieveDiscard (min, max) cards p = changeTurn (over deck (toRetrieve ++) (set discard newDiscard p))
+  where pref = take max $ intersect (p ^. discard ) cards
         toRetrieve
           | length pref > min = pref
-          | otherwise         = take min $ pref ++ (_discard p)
-        player = Player (_playerName p) (toRetrieve ++ _deck p) newDiscard (_hand p) (_played p) (_actions p) (_buys p) (_money p) (_victory p)
-        newDiscard = foldr (\c acc -> delete c acc) (_discard p) toRetrieve
+          | otherwise         = take min $ pref ++ (p ^. discard)
+        newDiscard = foldr (\c acc -> delete c acc) (p  ^. discard) toRetrieve

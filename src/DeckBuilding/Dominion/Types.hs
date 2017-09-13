@@ -1,12 +1,12 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module DeckBuilding.Dominion.Types
-    ( GameState(..)
-    , Card(..)
-    , Player(..)
-    , Result(..)
+    ( module DeckBuilding.Dominion.Types
     ) where
 
 import qualified Data.Map as Map
 import System.Random
+import Control.Lens
 
 data GameState = GameState {
   _players  :: [Player],
@@ -17,10 +17,14 @@ data GameState = GameState {
 --instance Show GameState where
 --  show gs = show (_players gs) ++ " " ++ show (_decks gs)
 
+data CardType = Value | Action
+  deriving Show
+
 data Card = Card {
   _cardName :: String,
   _cost     :: Int,
-  _action   :: Card -> Player -> GameState -> GameState
+  _action   :: Card -> Player -> GameState -> GameState,
+  _cardType :: CardType
 }
 
 instance Ord Card where
@@ -51,3 +55,7 @@ instance Ord Player where
   compare p1 p2 = compare (_playerName p1) (_playerName p2)
 
 type Result = Either String Int
+
+makeLenses ''GameState
+makeLenses ''Card
+makeLenses ''Player
