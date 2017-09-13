@@ -195,3 +195,11 @@ main = do
       it "gives 1 point for the starting deck" $ do
         let (p1AfterCard, afterCard) = runState ((gardensCard ^. action) gardensCard p1AfterDeal) afterDeal
         (p1AfterCard ^. victory) `shouldBe` 1
+
+    describe "DeckBuilding.Dominion.Cards.militiaCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((militiaCard ^. action) militiaCard p1AfterDeal) afterDeal2
+      it "gives two money" $ do
+        (p1AfterCard ^. money) `shouldBe` 2
+      it "makes other players discard down to three cards" $ do
+        let (Just p2') = find (== p2) (afterCard ^. players)
+        (length (p2' ^. hand)) `shouldBe` 3

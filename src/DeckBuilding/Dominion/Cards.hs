@@ -20,6 +20,7 @@ module DeckBuilding.Dominion.Cards
     , vassalCard
     , bureaucratCard
     , gardensCard
+    , militiaCard
     , bigMoneyBuy
     , bigMoneyDiscard
     , bigMoneyTrash
@@ -57,7 +58,7 @@ estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 
 curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 
-victoryCards = [goldCard, silverCard, copperCard, curseCard, gardensCard]
+victoryCards    = [provinceCard, duchyCard, estateCard, curseCard, gardensCard]
 
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
@@ -158,6 +159,19 @@ gardensCardAction c p = do
 
 gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
+militiaDiscard :: Player -> State Game Player
+militiaDiscard p = if defendsAgainstAttack militiaCard p
+                      then return p
+                      else doDiscard ( (length (p ^. hand)) - 3, (length (p ^. hand)) - 3 ) victoryCards p
+
+militiaCardAction :: Card -> Player -> State Game Player
+militiaCardAction c p = do
+  gs <- get
+  mapM militiaDiscard (delete p (gs ^. players))
+  updatePlayer $ over money (+2) p
+
+militiaCard     = Card "Militia"    4 militiaCardAction Action
+
 -- Big money
 
 bigMoneyBuy :: Player -> State Game Player
@@ -166,7 +180,7 @@ bigMoneyBuy p = doBuys p bigMoneyCards
 
 bigMoneyDiscard :: (Int, Int) -> Player -> State Game Player
 bigMoneyDiscard rng = doDiscard rng discardCards
-  where discardCards = [curseCard, estateCard, duchyCard, provinceCard, copperCard]
+  where discardCards = victoryCards ++ [copperCard]
 
 bigMoneyTrash :: (Int, Int) -> Player -> State Game Player
 bigMoneyTrash rng = doTrash rng trashCards
