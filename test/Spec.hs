@@ -190,3 +190,8 @@ main = do
       it "makes other players discard a victory card" $ do
         let (Just p2') = find (== p2) (afterCard ^. players)
         (length (p2' ^. hand)) `shouldBe` 4
+
+    describe "DeckBuilding.Dominion.Cards.gardensCardAction" $ do
+      it "gives 1 point for the starting deck" $ do
+        let (p1AfterCard, afterCard) = runState ((gardensCard ^. action) gardensCard p1AfterDeal) afterDeal
+        (p1AfterCard ^. victory) `shouldBe` 1

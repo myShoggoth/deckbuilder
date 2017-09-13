@@ -19,6 +19,7 @@ module DeckBuilding.Dominion.Cards
     , merchantCard
     , vassalCard
     , bureaucratCard
+    , gardensCard
     , bigMoneyBuy
     , bigMoneyDiscard
     , bigMoneyTrash
@@ -56,7 +57,7 @@ estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 
 curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 
-victoryCards = [goldCard, silverCard, copperCard, curseCard]
+victoryCards = [goldCard, silverCard, copperCard, curseCard, gardensCard]
 
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
@@ -149,6 +150,13 @@ bureaucratCardAction c p = do
   updatePlayer $ over deck (silverCard:) p
 
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
+
+gardensCardAction :: Card -> Player -> State Game Player
+gardensCardAction c p = do
+  let points = length ( (p ^. hand) ++ (p ^. discard) ++ (p ^. played) ++ (p ^. deck) ) `div` 10
+  updatePlayer $ over victory (+ points) p
+
+gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
 -- Big money
 
