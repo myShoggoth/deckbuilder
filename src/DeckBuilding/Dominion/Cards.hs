@@ -18,6 +18,7 @@ module DeckBuilding.Dominion.Cards
     , harbingerCard
     , merchantCard
     , vassalCard
+    , bureaucratCard
     , bigMoneyBuy
     , bigMoneyDiscard
     , bigMoneyTrash
@@ -54,6 +55,8 @@ duchyCard       = Card "Province"   5 (valueCard 0 3) Value
 estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 
 curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
+
+victoryCards = [goldCard, silverCard, copperCard, curseCard]
 
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
@@ -128,6 +131,24 @@ vassalCardAction c p = do
     else return p
 
 vassalCard      = Card "Vassal"     3 vassalCardAction Action
+
+defendsAgainstAttack :: Card -> Player -> Bool
+defendsAgainstAttack _ p = moatCard `elem` (p ^. hand)
+
+discardVictory :: Player -> State Game Player
+discardVictory p = if defendsAgainstAttack bureaucratCard p
+                      then return p
+                      else updatePlayer $ found $ find (\c -> c `elem` victoryCards) (p ^. hand)
+  where found Nothing   = p
+        found (Just c)  = over hand (delete c) $ over discard (c:) p
+
+bureaucratCardAction :: Card -> Player -> State Game Player
+bureaucratCardAction c p = do
+  gs <- get
+  mapM discardVictory (delete p (gs ^. players))
+  updatePlayer $ over deck (silverCard:) p
+
+bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
 
 -- Big money
 

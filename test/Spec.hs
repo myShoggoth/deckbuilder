@@ -16,8 +16,10 @@ main = do
   g <- newStdGen
   hspec $ do
     let p1                                = newPlayer "Player 1"
-    let (p1AfterDeal, afterDeal)          = runState (deal 5 p1) $ Game [p1] (basicDecks 2) g
-    let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal
+    let p2                                = newPlayer "Player 2"
+    let (p1AfterDeal, afterDeal)          = runState (deal 5 p1) $ Game [p1, p2] (basicDecks 2) g
+    let (p2AfterDeal, afterDeal2)         = runState (deal 5 p2) afterDeal
+    let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
     let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
 
     describe "DeckBuilding.Dominion.Cards.deal" $ do
@@ -166,7 +168,7 @@ main = do
         (p1AfterCard ^. money) `shouldBe` 4 -- 2 for silver, 2 for merchant
         (p1AfterCard ^. actions) `shouldBe` 1
       it "adds two money if a silver is played after" $ do
-        let (p1AfterSilver, afterCard)              = runState ((merchantCard ^. action) merchantCard p1AfterDeal) afterDeal
+        let (p1AfterSilver, afterCard)  = runState ((merchantCard ^. action) merchantCard p1AfterDeal) afterDeal
         let (p1AfterCard, afterSilver)  = runState ((silverCard ^. action) silverCard p1AfterSilver) afterCard
         (p1AfterCard ^. money) `shouldBe` 4
         (p1AfterCard ^. actions) `shouldBe` 1
@@ -180,3 +182,11 @@ main = do
         (length (p1AfterCard ^. played)) `shouldBe` 5
         (length (p1AfterCard ^. deck)) `shouldBe` 4
         (length (p1AfterCard ^. discard)) `shouldBe` 1
+
+    describe "DeckBuilding.Dominion.Cards.bureaucratCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((bureaucratCard ^. action) bureaucratCard p1AfterDeal) afterDeal2
+      it "puts a silver on the deck" $ do
+        head (p1AfterCard ^. deck) `shouldBe` silverCard
+      it "makes other players discard a victory card" $ do
+        let (Just p2') = find (== p2) (afterCard ^. players)
+        (length (p2' ^. hand)) `shouldBe` 4
