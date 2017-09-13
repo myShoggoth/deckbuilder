@@ -196,11 +196,11 @@ main = do
 
     describe "DeckBuilding.Dominion.Cards.vassalCardAction" $ do
       it "draws a value card" $ do
-        let forcedDeal = Player (p1 ^. playerName) [vassalCard, estateCard, estateCard, copperCard, copperCard] [] (take 5 (repeat copperCard)) [] 1 1 0 0
+        let forcedDeal = Player (p1 ^. playerName) (take 5 (repeat copperCard)) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0
         let afterForcedDeal = (GameState [forcedDeal] (basicDecks 2) g)
         let afterCard = evaluateHand forcedDeal afterForcedDeal
         let Just p1AfterCard = find (== p1) (afterCard ^. players)
-        (p1AfterCard ^. money) `shouldBe` 5
+        (p1AfterCard ^. money) `shouldBe` 4
         (length (p1AfterCard ^. hand)) `shouldBe` 0
         (length (p1AfterCard ^. played)) `shouldBe` 5
         (length (p1AfterCard ^. deck)) `shouldBe` 4

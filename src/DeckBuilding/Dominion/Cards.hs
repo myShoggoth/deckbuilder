@@ -123,7 +123,7 @@ vassalCardAction c p gs = topOfDeck $ find (\_ -> True) enoughDeck
             | length (p' ^. deck) >= 1            = (p' ^. deck, p' ^. discard)
             | otherwise                           = ( (p' ^. deck) ++ (shuffle' (p' ^. discard) (length (p' ^. discard)) (gs ^. random)), [])
         topOfDeck Nothing                         = gs'
-        topOfDeck (Just c@(Card _ _ _ Value))     = changeTurn (over discard (c:) (set hand (delete c enoughDeck) p')) gs'
+        topOfDeck (Just c@(Card _ _ _ Value))     = changeTurn (over discard (c:) (set deck (tail enoughDeck) p')) gs'
         topOfDeck (Just c)                        = (c ^. action) c (over played (c:) (set discard newDiscard (set hand (delete c enoughDeck) p'))) gs'
 
 vassalCard      = Card "Vassal"     3 vassalCardAction Action
