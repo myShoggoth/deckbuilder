@@ -80,8 +80,9 @@ doTurns (x:xs) = do
 isGameOver :: State Game Bool
 isGameOver = do
   gs <- get
+  emptyDecks <- numEmptyDecks
   let numEmptyDecks = length $ Map.filter (== 0) (gs ^. decks)
-  return $ ((gs ^. decks) Map.! provinceCard == 0) || numEmptyDecks >= 3
+  return $ ((gs ^. decks) Map.! provinceCard == 0) || emptyDecks >= 3
 
 runGame' :: State Game Result
 runGame' = do

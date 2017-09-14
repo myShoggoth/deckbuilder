@@ -7,6 +7,7 @@ module DeckBuilding.Dominion.Utils
     , doBuys
     , buyCard
     , hasActionsLeft
+    , numEmptyDecks
     ) where
 
 import DeckBuilding.Dominion.Types
@@ -61,6 +62,11 @@ doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (mcost findHighCostCard)) c
   where findHighCostCard = find (\c -> (c ^. cost) <= m) cs
         mcost (Just c)   = (c ^. cost)
         mcost Nothing    = 0
+
+numEmptyDecks :: State Game Int
+numEmptyDecks = do
+  gs <- get
+  return $ length $ Map.filter (== 0) (gs ^. decks)
 
 doBuys :: Player -> [Card] -> State Game Player
 doBuys p cards = do

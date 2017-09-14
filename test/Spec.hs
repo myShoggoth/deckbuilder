@@ -10,6 +10,7 @@ import qualified Test.QuickCheck as QC
 import Control.Exception (evaluate)
 import Control.Lens
 import Control.Monad.State
+import qualified Data.Map as Map
 
 main :: IO ()
 main = do
@@ -210,3 +211,16 @@ main = do
         (p1AfterCard ^. money) `shouldBe` 3
       it "trashes a copper" $ do
         length ((p1AfterCard ^. hand) ++ (p1AfterCard ^. discard) ++ (p1AfterCard ^. played) ++ (p1AfterCard ^. deck)) `shouldBe` 10 -- includes the moneylender card itself
+
+    describe "DeckBuilding.Dominion.Cards.poacherCardAction" $ do
+      it "gives a card, action, and money" $ do
+        let (p1AfterCard, afterCard) = runState ((poacherCard ^. action) poacherCard p1AfterDeal) afterDeal
+        length (p1AfterCard ^. hand) `shouldBe` 6
+        (p1AfterCard ^. money) `shouldBe` 1
+        (p1AfterCard ^. actions) `shouldBe` 1
+      it "causes a discard per empty supply pile" $ do
+        let preCard = set decks (Map.fromList [ (copperCard, 46), (silverCard, 0), (goldCard, 30), (estateCard, 0), (duchyCard, 8), (provinceCard, 8) ]) afterDeal
+        let (p1AfterCard, afterCard) = runState ((poacherCard ^. action) poacherCard p1AfterDeal) preCard
+        length (p1AfterCard ^. hand) `shouldBe` 4
+        (p1AfterCard ^. money) `shouldBe` 1
+        (p1AfterCard ^. actions) `shouldBe` 1

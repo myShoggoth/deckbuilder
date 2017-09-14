@@ -22,6 +22,7 @@ module DeckBuilding.Dominion.Cards
     , gardensCard
     , militiaCard
     , moneylenderCard
+    , poacherCard
     , bigMoneyBuy
     , bigMoneyDiscard
     , bigMoneyTrash
@@ -146,10 +147,12 @@ discardVictory p = if defendsAgainstAttack bureaucratCard p
         found (Just c)  = over hand (delete c) $ over discard (c:) p
 
 bureaucratCardAction :: Card -> Player -> State Game Player
-bureaucratCardAction c p = do
-  gs <- get
-  mapM discardVictory (delete p (gs ^. players))
-  updatePlayer $ over deck (silverCard:) $ over played (c:) p
+bureaucratCardAction c p = if hasActionsLeft p
+                              then do
+                                gs <- get
+                                mapM discardVictory (delete p (gs ^. players))
+                                updatePlayer $ over deck (silverCard:) $ over played (c:) p
+                              else return p
 
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
 
@@ -161,24 +164,40 @@ gardensCardAction c p = do
 gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
 militiaDiscard :: Player -> State Game Player
-militiaDiscard p = if defendsAgainstAttack militiaCard p
-                      then return p
-                      else doDiscard ( (length (p ^. hand)) - 3, (length (p ^. hand)) - 3 ) victoryCards p
+militiaDiscard p = if hasActionsLeft p
+                      then if defendsAgainstAttack militiaCard p
+                              then return p
+                              else bigMoneyDiscard ( (length (p ^. hand)) - 3, (length (p ^. hand)) - 3 ) p
+                      else return p
 
 militiaCardAction :: Card -> Player -> State Game Player
-militiaCardAction c p = do
-  gs <- get
-  mapM militiaDiscard (delete p (gs ^. players))
-  updatePlayer $ over money (+2) $ over played (c:) p
+militiaCardAction c p = if hasActionsLeft p
+                          then do
+                            gs <- get
+                            mapM militiaDiscard (delete p (gs ^. players))
+                            updatePlayer $ over money (+2) $ over played (c:) p
+                          else return p
 
 militiaCard     = Card "Militia"    4 militiaCardAction Action
 
 moneylenderCardAction :: Card -> Player -> State Game Player
-moneylenderCardAction c p = return $ copper $ find (== copperCard) (p ^. hand)
+moneylenderCardAction c p = if hasActionsLeft p
+                              then return $ copper $ find (== copperCard) (p ^. hand)
+                              else return p
   where copper Nothing    = over discard (c:) p
         copper (Just cop) = over hand (delete cop) $ over money (+3) $ over played (c:) p
 
 moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action
+
+poacherCardAction :: Card -> Player -> State Game Player
+poacherCardAction c p = if hasActionsLeft p
+                          then do
+                            p' <- basicCardAction 1 0 0 1 0 c p
+                            emptyDecks <- numEmptyDecks
+                            bigMoneyDiscard (emptyDecks, emptyDecks) p'
+                          else return p
+
+poacherCard     = Card "Poacher"      4 poacherCardAction Action
 
 -- Big money
 
