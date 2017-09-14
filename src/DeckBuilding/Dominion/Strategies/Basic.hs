@@ -10,6 +10,7 @@ import Data.List (delete, intersect, find)
 import Control.Lens
 import Control.Monad.State
 import qualified Data.Map as Map
+import Data.Foldable (foldrM)
 
 -- Strategies
 
@@ -76,3 +77,32 @@ gainCard cards highestPrice p = do
   return p'
   where obtain pl Nothing  = pl
         obtain pl (Just c) = over discard (c:) pl
+
+doBuy :: Int -> Int -> [Card] -> [Maybe Card]
+doBuy 0 _ _ = []
+doBuy n 0 _ = []
+doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (mcost findHighCostCard)) cs
+  where findHighCostCard = find (\c -> (c ^. cost) <= m) cs
+        mcost (Just c)   = (c ^. cost)
+        mcost Nothing    = 0
+
+decreaseCards :: Card -> Card -> Int -> Int
+decreaseCards  _  _ 0 = 0
+decreaseCards c1 c2 n = if (c1 == c2)
+                          then n - 1
+                          else n
+
+buyCard ::  Maybe Card -> Player -> State Game Player
+buyCard Nothing  p = return p
+buyCard (Just c) p = do
+  gs <- get
+  put $ over decks (Map.mapWithKey (decreaseCards c)) gs
+  let p' = over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) $ p
+  updatePlayer $ p'
+  return p'
+
+doBuys :: Player -> [Card] -> State Game Player
+doBuys p cards = do
+  gs <- get
+  let nonEmptyDecks = filter (\c -> (Map.member c (gs ^. decks)) && (gs ^. decks) Map.! c > 0) cards
+  foldrM (\mc player -> buyCard mc player) p (doBuy (p ^. buys) (p ^. money ) nonEmptyDecks)

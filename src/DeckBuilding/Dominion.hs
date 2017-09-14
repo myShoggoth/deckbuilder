@@ -1,6 +1,5 @@
 module DeckBuilding.Dominion
-    ( deal
-    , runGames
+    ( runGames
     , runGame
     , newPlayer
     , doTurn

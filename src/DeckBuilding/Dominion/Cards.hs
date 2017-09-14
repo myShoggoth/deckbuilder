@@ -37,6 +37,10 @@ import Control.Monad.State
 
 -- Cards and their actions
 
+valueCard :: Int -> Int -> Card -> Player -> State Game Player
+valueCard m v c p = do
+  updatePlayer $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) $ p
+
 goldCard        = Card "Gold"       6 (valueCard 3 0) Value
 
 silverCardAction :: Card -> Player -> State Game Player
@@ -58,6 +62,15 @@ estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 
 victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
+
+basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> State Game Player
+basicCardAction draw a b m v c p = do
+  if hasActionsLeft p
+    then do
+      p' <- deal draw p
+      let player = over hand (delete c) $ over played (c:) $ over actions (+a) $ over buys (+b) $ over money (+m) $ over victory (+v) $ p'
+      updatePlayer player
+    else return p
 
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
