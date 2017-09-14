@@ -203,3 +203,10 @@ main = do
       it "makes other players discard down to three cards" $ do
         let (Just p2') = find (== p2) (afterCard ^. players)
         (length (p2' ^. hand)) `shouldBe` 3
+
+    describe "DeckBuilding.Dominion.Cards.moneylenderCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((moneylenderCard ^. action) moneylenderCard p1AfterDeal) afterDeal2
+      it "gives 3 money" $ do
+        (p1AfterCard ^. money) `shouldBe` 3
+      it "trashes a copper" $ do
+        length ((p1AfterCard ^. hand) ++ (p1AfterCard ^. discard) ++ (p1AfterCard ^. played) ++ (p1AfterCard ^. deck)) `shouldBe` 10 -- includes the moneylender card itself

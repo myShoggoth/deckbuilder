@@ -21,6 +21,7 @@ module DeckBuilding.Dominion.Cards
     , bureaucratCard
     , gardensCard
     , militiaCard
+    , moneylenderCard
     , bigMoneyBuy
     , bigMoneyDiscard
     , bigMoneyTrash
@@ -148,14 +149,14 @@ bureaucratCardAction :: Card -> Player -> State Game Player
 bureaucratCardAction c p = do
   gs <- get
   mapM discardVictory (delete p (gs ^. players))
-  updatePlayer $ over deck (silverCard:) p
+  updatePlayer $ over deck (silverCard:) $ over played (c:) p
 
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
 
 gardensCardAction :: Card -> Player -> State Game Player
 gardensCardAction c p = do
   let points = length ( (p ^. hand) ++ (p ^. discard) ++ (p ^. played) ++ (p ^. deck) ) `div` 10
-  updatePlayer $ over victory (+ points) p
+  updatePlayer $ over victory (+ points) $ over played (c:) p
 
 gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
@@ -168,9 +169,16 @@ militiaCardAction :: Card -> Player -> State Game Player
 militiaCardAction c p = do
   gs <- get
   mapM militiaDiscard (delete p (gs ^. players))
-  updatePlayer $ over money (+2) p
+  updatePlayer $ over money (+2) $ over played (c:) p
 
 militiaCard     = Card "Militia"    4 militiaCardAction Action
+
+moneylenderCardAction :: Card -> Player -> State Game Player
+moneylenderCardAction c p = return $ copper $ find (== copperCard) (p ^. hand)
+  where copper Nothing    = over discard (c:) p
+        copper (Just cop) = over hand (delete cop) $ over money (+3) $ over played (c:) p
+
+moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action
 
 -- Big money
 
