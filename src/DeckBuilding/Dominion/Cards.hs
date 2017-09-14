@@ -23,17 +23,14 @@ module DeckBuilding.Dominion.Cards
     , militiaCard
     , moneylenderCard
     , poacherCard
-    , bigMoneyBuy
-    , bigMoneyDiscard
-    , bigMoneyTrash
-    , bigMoneyRetrieve
+    , remodelCard
+    , victoryCards
     ) where
 
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Utils
-import DeckBuilding.Dominion.Strategies.Basic
 
-import Data.List (delete, find, sortBy, group, sort, groupBy, intersect)
+import Data.List (delete, find, sortBy, group, sort, groupBy, intersect, (\\))
 import System.Random.Shuffle
 import Control.Lens
 import Control.Monad.State
@@ -60,7 +57,7 @@ estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 
 curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 
-victoryCards    = [provinceCard, duchyCard, estateCard, curseCard, gardensCard]
+victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
 
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
@@ -80,7 +77,7 @@ cellarCardAction :: Card -> Player -> State Game Player
 cellarCardAction c p = do
   if hasActionsLeft p
     then do
-      p' <- bigMoneyDiscard (0, (length (p ^. hand))) (over played (c:) (over hand (delete c) p))
+      p' <- (p ^. strategy . discardStrategy) (0, (length (p ^. hand))) (over played (c:) (over hand (delete c) p))
       deal (length (p ^. hand) - (length (p' ^. hand))) p'
     else return p
 
@@ -90,7 +87,7 @@ chapelCardAction :: Card -> Player -> State Game Player
 chapelCardAction c p = do
   if hasActionsLeft p
     then do
-      bigMoneyTrash (0, 4) (over played (c:) (over hand (delete c) p))
+      (p ^. strategy . trashStrategy) (0, 4) (over played (c:) (over hand (delete c) p))
     else return p
 
 chapelCard     = Card "Chapel"      2 chapelCardAction Action
@@ -100,7 +97,7 @@ harbingerCardAction c p = do
   if hasActionsLeft p
     then do
       p' <- deal 1 p
-      bigMoneyRetrieve (0, 1) (over played (c:) (over hand (delete c) p'))
+      (p ^. strategy . retrieveStrategy) (0, 1) (over played (c:) (over hand (delete c) p'))
     else return p
 
 harbingerCard   = Card "Harbinger"  3 harbingerCardAction Action
@@ -167,7 +164,7 @@ militiaDiscard :: Player -> State Game Player
 militiaDiscard p = if hasActionsLeft p
                       then if defendsAgainstAttack militiaCard p
                               then return p
-                              else bigMoneyDiscard ( (length (p ^. hand)) - 3, (length (p ^. hand)) - 3 ) p
+                              else (p ^. strategy . discardStrategy) ( (length (p ^. hand)) - 3, (length (p ^. hand)) - 3 ) p
                       else return p
 
 militiaCardAction :: Card -> Player -> State Game Player
@@ -194,25 +191,19 @@ poacherCardAction c p = if hasActionsLeft p
                           then do
                             p' <- basicCardAction 1 0 0 1 0 c p
                             emptyDecks <- numEmptyDecks
-                            bigMoneyDiscard (emptyDecks, emptyDecks) p'
+                            (p' ^. strategy . discardStrategy) (emptyDecks, emptyDecks) p'
                           else return p
 
 poacherCard     = Card "Poacher"      4 poacherCardAction Action
 
--- Big money
+remodelCardAction :: Card -> Player -> State Game Player
+remodelCardAction c p = if hasActionsLeft p
+                          then do
+                            p' <- (p ^. strategy . trashStrategy) (0, 1) p
+                            let diff = (p ^. hand) \\ (p' ^. hand)
+                            if length diff == 1
+                              then (p' ^. strategy . gainCardStrategy) ((head diff) ^. cost + 2) p
+                              else return p'
+                          else return p
 
-bigMoneyBuy :: Player -> State Game Player
-bigMoneyBuy p = doBuys p bigMoneyCards
-  where bigMoneyCards = [provinceCard, goldCard, silverCard]
-
-bigMoneyDiscard :: (Int, Int) -> Player -> State Game Player
-bigMoneyDiscard rng = doDiscard rng discardCards
-  where discardCards = victoryCards ++ [copperCard]
-
-bigMoneyTrash :: (Int, Int) -> Player -> State Game Player
-bigMoneyTrash rng = doTrash rng trashCards
-  where trashCards = [curseCard, estateCard, copperCard]
-
-bigMoneyRetrieve :: (Int, Int) -> Player -> State Game Player
-bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
-  where retrieveCards = [goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
+remodelCard     = Card "Remodel"      4 remodelCardAction Action

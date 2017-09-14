@@ -2,6 +2,7 @@ import DeckBuilding.Dominion
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Cards
 import DeckBuilding.Dominion.Utils
+import DeckBuilding.Dominion.Strategies.Basic
 
 import System.Random
 import Data.List
@@ -176,7 +177,7 @@ main = do
 
     describe "DeckBuilding.Dominion.Cards.vassalCardAction" $ do
       it "draws a value card" $ do
-        let forcedDeal = Player "Forced Deal" (take 5 (repeat copperCard)) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0
+        let forcedDeal = Player "Forced Deal" (take 5 (repeat copperCard)) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigMoneyStrategy
         let (p1AfterCard, afterCard) = runState (evaluateHand forcedDeal) $ Game [forcedDeal] (basicDecks 2) g
         (p1AfterCard ^. money) `shouldBe` 4
         (length (p1AfterCard ^. hand)) `shouldBe` 0

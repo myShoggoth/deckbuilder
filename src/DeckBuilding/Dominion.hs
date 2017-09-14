@@ -26,13 +26,13 @@ import DeckBuilding.Dominion.Strategies.Basic
 -- Core Engine
 
 newPlayer :: String -> Player
-newPlayer n = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] [] 1 1 0 0
+newPlayer n = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] [] 1 1 0 0 bigMoneyStrategy
 
 evaluateHand :: Player -> State Game Player
 evaluateHand p = foldrM (\c acc -> (c ^. action) c acc) p (p ^. hand)
 
 tallyAllPoints :: Player -> State Game Player
-tallyAllPoints p = evaluateHand $ Player (p ^. playerName) [] [] ((p ^. deck) ++ (p ^. discard) ++ (p ^. hand) ++ (p ^. played)) [] 1 1 0 0
+tallyAllPoints p = evaluateHand $ Player (p ^. playerName) [] [] ((p ^. deck) ++ (p ^. discard) ++ (p ^. hand) ++ (p ^. played)) [] 1 1 0 0 (p ^. strategy)
 
 sortByPoints :: State Game [Player]
 sortByPoints = do
@@ -59,12 +59,12 @@ resetTurn :: Player -> State Game Player
 resetTurn p = do
   gs <- get
   updatePlayer player
-  where player  = Player (p ^. playerName) (p ^. deck) (p ^. discard ++ p ^. played) (p ^. hand) [] 1 1 0 0
+  where player  = Player (p ^. playerName) (p ^. deck) (p ^. discard ++ p ^. played) (p ^. hand) [] 1 1 0 0 (p ^. strategy)
 
 doTurn :: Player -> State Game Bool
 doTurn p = do
   p' <- evaluateHand p
-  p'' <- bigMoneyBuy p'
+  p'' <- (p' ^. strategy . buyStrategy) p'
   p''' <- deal 5 p''
   p'''' <- resetTurn p'''
   isGameOver

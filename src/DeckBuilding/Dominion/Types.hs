@@ -34,6 +34,22 @@ instance Eq Card where
 instance Show Card where
   show c = _cardName c
 
+data Strategy = Strategy {
+  _strategyName     :: String,
+  _buyStrategy      :: Player -> State Game Player,
+  _discardStrategy  :: (Int, Int) -> Player -> State Game Player,
+  _trashStrategy    :: (Int, Int) -> Player -> State Game Player,
+  _retrieveStrategy :: (Int, Int) -> Player -> State Game Player,
+  _orderHand        :: Player -> State Game Player,
+  _gainCardStrategy :: Int -> Player -> State Game Player
+}
+
+instance Show Strategy where
+  show s = _strategyName s
+
+instance Eq Strategy where
+  a == b = _strategyName a == _strategyName b
+
 data Player = Player {
   _playerName :: String,
   _deck       :: [Card],
@@ -43,7 +59,8 @@ data Player = Player {
   _actions    :: Int,
   _buys       :: Int,
   _money      :: Int,
-  _victory    :: Int
+  _victory    :: Int,
+  _strategy   :: Strategy
 } deriving Show
 
 instance Eq Player where
@@ -56,4 +73,5 @@ type Result = Either String Int
 
 makeLenses ''Game
 makeLenses ''Card
+makeLenses ''Strategy
 makeLenses ''Player

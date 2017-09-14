@@ -43,8 +43,8 @@ valueCard m v c p = do
   updatePlayer $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) $ p
 
 hasActionsLeft :: Player -> Bool
-hasActionsLeft (Player _ _ _ _ _ 0 _ _ _) = False
-hasActionsLeft _                          = True
+hasActionsLeft (Player _ _ _ _ _ 0 _ _ _ _) = False
+hasActionsLeft _                            = True
 
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> State Game Player
 basicCardAction draw a b m v c p = do
