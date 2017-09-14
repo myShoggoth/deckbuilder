@@ -24,8 +24,8 @@ import DeckBuilding.Dominion.Strategies.Basic
 
 -- Core Engine
 
-newPlayer :: String -> Player
-newPlayer n = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] [] 1 1 0 0 bigMoneyStrategy
+newPlayer :: String -> Strategy -> Player
+newPlayer n s = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] [] 1 1 0 0 s
 
 evaluateHand :: Player -> State Game Player
 evaluateHand p = foldrM (\c acc -> (c ^. action) c acc) p (p ^. hand)

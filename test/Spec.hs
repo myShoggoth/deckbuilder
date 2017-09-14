@@ -17,8 +17,8 @@ main :: IO ()
 main = do
   g <- newStdGen
   hspec $ do
-    let p1                                = newPlayer "Player 1"
-    let p2                                = newPlayer "Player 2"
+    let p1                                = newPlayer "Player 1" bigMoneyStrategy
+    let p2                                = newPlayer "Player 2" bigSmithyStrategy
     let (p1AfterDeal, afterDeal)          = runState (deal 5 p1) $ Game [p1, p2] (basicDecks 2) g
     let (p2AfterDeal, afterDeal2)         = runState (deal 5 p2) afterDeal
     let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2

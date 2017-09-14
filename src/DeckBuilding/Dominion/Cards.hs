@@ -1,7 +1,9 @@
 module DeckBuilding.Dominion.Cards
-    ( goldCard
+    ( platinumCard
+    , goldCard
     , silverCard
     , copperCard
+    , colonyCard
     , provinceCard
     , duchyCard
     , estateCard
@@ -41,6 +43,8 @@ valueCard :: Int -> Int -> Card -> Player -> State Game Player
 valueCard m v c p = do
   updatePlayer $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) $ p
 
+platinumCard    = Card "Platinum"   9 (valueCard 5 0) Value
+
 goldCard        = Card "Gold"       6 (valueCard 3 0) Value
 
 silverCardAction :: Card -> Player -> State Game Player
@@ -52,6 +56,8 @@ silverCardAction c p    = doSilver merchantPlayed
 silverCard      = Card "Silver"     3 silverCardAction Value
 
 copperCard      = Card "Copper"     0 (valueCard 1 0) Value
+
+colonyCard      = Card "Colony"     11 (valueCard 0 10) Value
 
 provinceCard    = Card "Province"   8 (valueCard 0 6) Value
 

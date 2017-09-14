@@ -1,5 +1,6 @@
 module DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyStrategy
+    , bigSmithyStrategy
     ) where
 
 import DeckBuilding.Dominion.Types
@@ -20,7 +21,7 @@ bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTras
 
 bigMoneyBuy :: Player -> State Game Player
 bigMoneyBuy p = doBuys p bigMoneyCards
-  where bigMoneyCards = [provinceCard, goldCard, silverCard]
+  where bigMoneyCards = [colonyCard, platinumCard, provinceCard, goldCard, silverCard]
 
 bigMoneyDiscard :: (Int, Int) -> Player -> State Game Player
 bigMoneyDiscard rng = doDiscard rng discardCards
@@ -32,14 +33,26 @@ bigMoneyTrash rng = doTrash rng trashCards
 
 bigMoneyRetrieve :: (Int, Int) -> Player -> State Game Player
 bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
-  where retrieveCards = [goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
+  where retrieveCards = [platinumCard, goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
 
 bigMoneyGain :: Int -> Player -> State Game Player
 bigMoneyGain cost p = gainCard gainCards cost p
-  where gainCards = [provinceCard, goldCard, silverCard, duchyCard]
+  where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, silverCard, duchyCard]
 
 bigMoneyOrderHand :: Player -> State Game Player
 bigMoneyOrderHand p = return p
+
+-- Big smithy
+
+bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain
+
+bigSmithyBuy :: Player -> State Game Player
+bigSmithyBuy p = doBuys p bigMoneyCards
+  where bigMoneyCards = [colonyCard, platinumCard, provinceCard, smithyCard, goldCard, silverCard]
+
+bigSmithyGain :: Int -> Player -> State Game Player
+bigSmithyGain cost p = gainCard gainCards cost p
+  where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, smithyCard, silverCard, duchyCard]
 
 -- Strategy helpers
 
