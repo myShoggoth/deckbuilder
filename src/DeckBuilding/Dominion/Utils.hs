@@ -14,8 +14,7 @@ import Control.Lens
 import Control.Monad.State
 
 deal :: Int -> Player -> State Game Player
-deal 0   p = do
-  return p
+deal 0   p = return p
 deal num p = do
   gs <- get
   let (enoughDeck, newDiscard)

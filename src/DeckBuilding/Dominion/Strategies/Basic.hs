@@ -39,8 +39,8 @@ countCards c p = length $ filter (== c) $ (p ^. hand) ++ (p ^. deck) ++ (p ^. di
 
 buyN :: Int -> Card -> Player -> State Game Bool
 buyN n c p = if countCards c p < n
-                then alwaysBuy c p
-                else return False
+    then alwaysBuy c p
+    else return False
 
 bigMoneyBuy :: Player -> State Game Player
 bigMoneyBuy p = doBuys p (p ^. buys) bigMoneyCards
@@ -125,8 +125,8 @@ doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (mcost findHighCostCard)) c
 decreaseCards :: Card -> Card -> Int -> Int
 decreaseCards  _  _ 0 = 0
 decreaseCards c1 c2 n = if (c1 == c2)
-                          then n - 1
-                          else n
+    then n - 1
+    else n
 
 buyCard ::  Maybe Card -> Player -> State Game Player
 buyCard Nothing  p = return p

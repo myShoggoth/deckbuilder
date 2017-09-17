@@ -55,10 +55,7 @@ basicDecks numPlayers
     | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
 
 resetTurn :: Player -> State Game Player
-resetTurn p = do
-  gs <- get
-  updatePlayer player
-  where player  = Player (p ^. playerName) (p ^. deck) (p ^. discard ++ p ^. played) (p ^. hand) [] 1 1 0 0 (p ^. strategy)
+resetTurn p = updatePlayer $ Player (p ^. playerName) (p ^. deck) (p ^. discard ++ p ^. played) (p ^. hand) [] 1 1 0 0 (p ^. strategy)
 
 doTurn :: Player -> State Game Bool
 doTurn p = do
