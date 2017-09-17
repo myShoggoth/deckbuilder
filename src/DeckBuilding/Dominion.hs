@@ -65,7 +65,7 @@ doTurn p = do
   p' <- evaluateHand p
   p'' <- (p' ^. strategy . buyStrategy) p'
   p''' <- deal 5 p''
-  p'''' <- resetTurn p'''
+  _ <- resetTurn p'''
   isGameOver
 
 doTurns :: [Player] -> State Game Bool
@@ -80,7 +80,6 @@ isGameOver :: State Game Bool
 isGameOver = do
   gs <- get
   emptyDecks <- numEmptyDecks
-  let numEmptyDecks = length $ Map.filter (== 0) (gs ^. decks)
   return $ ((gs ^. decks) Map.! provinceCard == 0) || emptyDecks >= 3
 
 runGame' :: State Game Result

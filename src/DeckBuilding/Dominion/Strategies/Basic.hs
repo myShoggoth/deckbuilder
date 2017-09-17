@@ -19,9 +19,32 @@ import Data.Foldable (foldrM)
 
 bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain
 
+canAfford :: Card -> Player -> Bool
+canAfford c p = (c ^. cost) <= (p ^. money)
+
+cardsLeft :: Game -> Card -> Bool
+cardsLeft gs c = (Map.member c (gs ^. decks)) && ((gs ^. decks) Map.! c > 0)
+
+alwaysBuy :: Card -> Player -> State Game Bool
+alwaysBuy c p = do
+  gs <- get
+  if (canAfford c p) && (cardsLeft gs c)
+    then do
+      buyCard (Just c) p
+      return True
+    else return False
+
+countCards :: Card -> Player -> Int
+countCards c p = length $ filter (== c) $ (p ^. hand) ++ (p ^. deck) ++ (p ^. discard) ++ (p ^. played)
+
+buyN :: Int -> Card -> Player -> State Game Bool
+buyN n c p = if countCards c p < n
+                then alwaysBuy c p
+                else return False
+
 bigMoneyBuy :: Player -> State Game Player
-bigMoneyBuy p = doBuys p bigMoneyCards
-  where bigMoneyCards = [colonyCard, platinumCard, provinceCard, goldCard, silverCard]
+bigMoneyBuy p = doBuys p (p ^. buys) bigMoneyCards
+  where bigMoneyCards = [(colonyCard, alwaysBuy), (platinumCard, alwaysBuy), (provinceCard, alwaysBuy), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
 
 bigMoneyDiscard :: (Int, Int) -> Player -> State Game Player
 bigMoneyDiscard rng = doDiscard rng discardCards
@@ -47,8 +70,8 @@ bigMoneyOrderHand p = return p
 bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain
 
 bigSmithyBuy :: Player -> State Game Player
-bigSmithyBuy p = doBuys p bigMoneyCards
-  where bigMoneyCards = [colonyCard, platinumCard, provinceCard, smithyCard, goldCard, silverCard]
+bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards
+  where bigMoneyCards = [(colonyCard, alwaysBuy), (platinumCard, alwaysBuy), (provinceCard, alwaysBuy), (smithyCard, (buyN 2)), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
 
 bigSmithyGain :: Int -> Player -> State Game Player
 bigSmithyGain cost p = gainCard gainCards cost p
@@ -114,8 +137,20 @@ buyCard (Just c) p = do
   updatePlayer $ p'
   return p'
 
-doBuys :: Player -> [Card] -> State Game Player
-doBuys p cards = do
+doBuys' :: Player -> [(Card, Card -> Player -> State Game Bool)] -> State Game Bool
+doBuys' p [] = return False
+doBuys' p ( (c, a):xs) = do
+  bought <- a c p
+  if bought
+    then return True
+    else doBuys' p xs
+
+doBuys :: Player -> Int -> [(Card, Card -> Player -> State Game Bool)] -> State Game Player
+doBuys p 0 _      = return p
+doBuys p b cards = do
+  bought <- doBuys' p cards
   gs <- get
-  let nonEmptyDecks = filter (\c -> (Map.member c (gs ^. decks)) && (gs ^. decks) Map.! c > 0) cards
-  foldrM (\mc player -> buyCard mc player) p (doBuy (p ^. buys) (p ^. money ) nonEmptyDecks)
+  let Just p' = find (== p) (gs ^. players)
+  if bought
+    then doBuys p' (b - 1) cards
+    else return p'

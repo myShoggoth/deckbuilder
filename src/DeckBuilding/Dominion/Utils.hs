@@ -8,7 +8,7 @@ module DeckBuilding.Dominion.Utils
 import DeckBuilding.Dominion.Types
 import System.Random.Shuffle
 import System.Random (split)
-import Data.List (delete, find)
+import Data.List (delete, find, elemIndex)
 import qualified Data.Map as Map
 import Control.Lens
 import Control.Monad.State
@@ -23,13 +23,15 @@ deal num p = do
           | otherwise                   = ( (p ^. deck) ++ (shuffle' (p ^. discard) (length (p ^. discard)) (gs ^. random)), [])
   let (newHand, newDeck)  = splitAt num enoughDeck
   let player              = set deck newDeck $ set discard newDiscard $ over hand (++ newHand) $ p
-  put $ over players ( (player:) . (delete p)) $ over random (snd . split) gs
+  put $ over random (snd . split) gs
+  updatePlayer player
   return player
 
 updatePlayer :: Player -> State Game Player
 updatePlayer p = do
   gs <- get
-  put $ over players ( (p:) . (delete p) ) gs
+  let Just index = elemIndex p (gs ^. players)
+  put $ over players (set (element index) p) gs
   return p
 
 hasActionsLeft :: Player -> Bool
