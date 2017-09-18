@@ -248,3 +248,16 @@ main = do
         length (p1AfterCard ^. played) `shouldBe` 10
         (p1AfterCard ^. money) `shouldBe` 7
         (p1AfterCard ^. victory) `shouldBe` 1
+
+    describe "DeckBuilding.Dominion.Cards.banditCardAction" $ do
+      it "gives a gold onto the discard pile" $ do
+        let (p1AfterCard, afterCard) = runState ((banditCard ^. action) banditCard p1AfterDeal) afterDeal
+        length (p1AfterCard ^. discard) `shouldBe` 1
+        head (p1AfterCard ^. discard) `shouldBe` goldCard
+        (p1AfterCard ^. actions) `shouldBe` 0
+      it "trashes an opponent's silver" $ do
+        let forcedDeal = Player "Bandit Deal" (silverCard: (take 5 (repeat copperCard))) [] [estateCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigSmithyStrategy
+        let (p1AfterCard, afterCard) = runState ((banditCard ^. action) banditCard p1) $ Game [p1, forcedDeal] (basicDecks 2) g
+        let (Just fd) = find (== forcedDeal) (afterCard ^. players)
+        length (fd ^. discard) `shouldBe` 1
+        length (fd ^. deck) `shouldBe` 4

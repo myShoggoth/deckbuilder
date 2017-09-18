@@ -27,6 +27,8 @@ module DeckBuilding.Dominion.Cards
     , poacherCard
     , remodelCard
     , throneRoomCard
+    , banditCard
+    , treasureCards
     , victoryCards
     ) where
 
@@ -56,6 +58,8 @@ silverCardAction c p    = doSilver merchantPlayed
 silverCard      = Card "Silver"     3 silverCardAction Value
 
 copperCard      = Card "Copper"     0 (valueCard 1 0) Value
+
+treasureCards   = [platinumCard, goldCard, silverCard, copperCard]
 
 colonyCard      = Card "Colony"     11 (valueCard 0 10) Value
 
@@ -174,11 +178,9 @@ gardensCardAction c p = do
 gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
 militiaDiscard :: Player -> State Game Player
-militiaDiscard p = if hasActionsLeft p
-    then if defendsAgainstAttack militiaCard p
-            then return p
-            else (p ^. strategy . discardStrategy) ( (length (p ^. hand)) - 3, (length (p ^. hand)) - 3 ) p
-    else return p
+militiaDiscard p = if defendsAgainstAttack militiaCard p
+    then return p
+    else (p ^. strategy . discardStrategy) ( (length (p ^. hand)) - 3, (length (p ^. hand)) - 3 ) p
 
 militiaCardAction :: Card -> Player -> State Game Player
 militiaCardAction c p = if hasActionsLeft p
@@ -238,3 +240,22 @@ throneRoomCardAction c p = if hasActionsLeft p
           (card ^. action) card p'''
 
 throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action
+
+banditDiscard :: Player -> State Game Player
+banditDiscard p = if defendsAgainstAttack militiaCard p
+    then return p
+    else do
+      let (toptwo, therest) = splitAt 2 $ (p ^. deck)
+      let totrash           = take 1 $ intersect toptwo (delete copperCard (reverse treasureCards))
+      let todiscard         = toptwo \\ totrash
+      updatePlayer $ set deck therest $ over discard (todiscard++) $ p
+
+banditCardAction :: Card -> Player -> State Game Player
+banditCardAction c p = if hasActionsLeft p
+    then do
+      gs <- get
+      mapM banditDiscard (delete p (gs ^. players))
+      updatePlayer $ over discard (goldCard:) $ over played (c:) $ over actions (+ (-1)) p
+    else return p
+
+banditCard      = Card "Bandit"       5 banditCardAction Action
