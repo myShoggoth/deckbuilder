@@ -17,7 +17,7 @@ import Data.Foldable (foldrM)
 
 -- Big money
 
-bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain
+bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom
 
 canAfford :: Card -> Player -> Bool
 canAfford c p = (c ^. cost) <= (p ^. money)
@@ -60,14 +60,17 @@ bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
 
 bigMoneyGain :: Int -> Player -> State Game Player
 bigMoneyGain cost p = gainCard gainCards cost p
-  where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, silverCard, duchyCard]
+  where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, duchyCard, silverCard]
 
 bigMoneyOrderHand :: Player -> State Game Player
 bigMoneyOrderHand p = return p
 
+bigMoneyThroneRoom :: Player -> State Game (Maybe Card)
+bigMoneyThroneRoom p = return Nothing
+
 -- Big smithy
 
-bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain
+bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom
 
 bigSmithyBuy :: Player -> State Game Player
 bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards
@@ -76,6 +79,10 @@ bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards
 bigSmithyGain :: Int -> Player -> State Game Player
 bigSmithyGain cost p = gainCard gainCards cost p
   where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, smithyCard, silverCard, duchyCard]
+
+bigSmithyThroneRoom :: Player -> State Game (Maybe Card)
+bigSmithyThroneRoom p = findFirstCard throneRoomCards p
+  where throneRoomCards = [smithyCard]
 
 -- Strategy helpers
 
@@ -102,6 +109,12 @@ doRetrieveDiscard (min, max) cards p = updatePlayer (over deck (toRetrieve ++) (
           | length pref > min = pref
           | otherwise         = take min $ pref ++ (p ^. discard)
         newDiscard = foldr (\c acc -> delete c acc) (p  ^. discard) toRetrieve
+
+findFirstCard :: [Card] -> Player -> State Game (Maybe Card)
+findFirstCard cards p = return $ getFirst pref
+  where pref = intersect (p ^. hand) cards
+        getFirst []     = Nothing
+        getFirst (x:xs) = Just x
 
 gainCard :: [Card] -> Int -> Player -> State Game Player
 gainCard cards highestPrice p = do

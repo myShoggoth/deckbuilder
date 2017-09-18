@@ -35,13 +35,14 @@ instance Show Card where
   show c = _cardName c
 
 data Strategy = Strategy {
-  _strategyName     :: String,
-  _buyStrategy      :: Player -> State Game Player,
-  _discardStrategy  :: (Int, Int) -> Player -> State Game Player,
-  _trashStrategy    :: (Int, Int) -> Player -> State Game Player,
-  _retrieveStrategy :: (Int, Int) -> Player -> State Game Player,
-  _orderHand        :: Player -> State Game Player,
-  _gainCardStrategy :: Int -> Player -> State Game Player
+  _strategyName       :: String,
+  _buyStrategy        :: Player -> State Game Player,
+  _discardStrategy    :: (Int, Int) -> Player -> State Game Player,
+  _trashStrategy      :: (Int, Int) -> Player -> State Game Player,
+  _retrieveStrategy   :: (Int, Int) -> Player -> State Game Player,
+  _orderHand          :: Player -> State Game Player,
+  _gainCardStrategy   :: Int -> Player -> State Game Player,
+  _throneRoomStrategy :: Player -> State Game (Maybe Card)
 }
 
 instance Show Strategy where

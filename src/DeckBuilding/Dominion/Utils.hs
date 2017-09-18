@@ -19,6 +19,7 @@ deal num p = do
   gs <- get
   let (enoughDeck, newDiscard)
           | length (p ^. deck) >= num   = (p ^. deck, p ^. discard)
+          | length (p ^. discard) == 0  = (p ^. deck, [])
           | otherwise                   = ( (p ^. deck) ++ (shuffle' (p ^. discard) (length (p ^. discard)) (gs ^. random)), [])
   let (newHand, newDeck)  = splitAt num enoughDeck
   let player              = set deck newDeck $ set discard newDiscard $ over hand (++ newHand) $ p

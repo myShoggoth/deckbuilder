@@ -27,8 +27,14 @@ import DeckBuilding.Dominion.Strategies.Basic
 newPlayer :: String -> Strategy -> Player
 newPlayer n s = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] [] 1 1 0 0 s
 
+evaluateHand' :: Player -> [Card] -> State Game Player
+evaluateHand' p []     = return p
+evaluateHand' p (x:xs) = do
+  p' <- (x ^. action) x p
+  evaluateHand' p' (p' ^. hand)
+
 evaluateHand :: Player -> State Game Player
-evaluateHand p = foldrM (\c acc -> (c ^. action) c acc) p (p ^. hand)
+evaluateHand p = evaluateHand' p (p ^. hand)
 
 tallyAllPoints :: Player -> State Game Player
 tallyAllPoints p = evaluateHand $ Player (p ^. playerName) [] [] ((p ^. deck) ++ (p ^. discard) ++ (p ^. hand) ++ (p ^. played)) [] 1 1 0 0 (p ^. strategy)
@@ -61,7 +67,7 @@ doTurn :: Player -> State Game Bool
 doTurn p = do
   p' <- (p ^. strategy . orderHand) p
   p'' <- evaluateHand p'
-  p''' <- (p' ^. strategy . buyStrategy) p''
+  p''' <- (p'' ^. strategy . buyStrategy) p''
   p'''' <- deal 5 p'''
   _ <- resetTurn p''''
   isGameOver
