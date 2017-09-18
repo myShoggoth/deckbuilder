@@ -262,3 +262,12 @@ main = do
         let (Just fd) = find (== forcedDeal) (afterCard ^. players)
         length (fd ^. discard) `shouldBe` 1
         length (fd ^. deck) `shouldBe` 4
+
+    describe "DeckBuilding.Dominion.Cards.councilRoomCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((councilRoomCard ^. action) councilRoomCard p1AfterDeal) afterDeal2
+      let (Just p2') = find (== p2) (afterCard ^. players)
+      it "draws four cards" $ do
+        length (p1AfterCard ^. hand) `shouldBe` 9
+        length (p1AfterCard ^. deck) `shouldBe` 1
+      it "causes the other players to draw a card" $ do
+        length (p2' ^. hand) `shouldBe` 6

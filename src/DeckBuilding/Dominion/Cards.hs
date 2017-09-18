@@ -28,6 +28,7 @@ module DeckBuilding.Dominion.Cards
     , remodelCard
     , throneRoomCard
     , banditCard
+    , councilRoomCard
     , treasureCards
     , victoryCards
     ) where
@@ -259,3 +260,18 @@ banditCardAction c p = if hasActionsLeft p
     else return p
 
 banditCard      = Card "Bandit"       5 banditCardAction Action
+
+councilRoomDraw :: Player -> State Game Player
+councilRoomDraw p = do
+    p' <- deal 1 p
+    updatePlayer p'
+
+councilRoomCardAction :: Card -> Player -> State Game Player
+councilRoomCardAction c p = if hasActionsLeft p
+    then do
+      gs <- get
+      mapM councilRoomDraw (delete p (gs ^. players))
+      basicCardAction 4 (-1) 0 0 0 c p
+    else return p
+
+councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action
