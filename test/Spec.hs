@@ -189,12 +189,13 @@ main = do
         (p1AfterCard ^. actions) `shouldBe` 0
 
     describe "DeckBuilding.Dominion.Cards.bureaucratCardAction" $ do
-      let (p1AfterCard, afterCard) = runState ((bureaucratCard ^. action) bureaucratCard p1AfterDeal) afterDeal2
+      let forcedDeal = Player "Bureaurat Deal" (take 5 (repeat copperCard)) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigMoneyStrategy
+      let (p1AfterCard, afterCard) = runState ((bureaucratCard ^. action) bureaucratCard p1AfterDeal) $ Game [p1AfterDeal, forcedDeal] (basicDecks 2) g
       it "puts a silver on the deck" $ do
         head (p1AfterCard ^. deck) `shouldBe` silverCard
         (p1AfterCard ^. actions) `shouldBe` 0
       it "makes other players discard a victory card" $ do
-        let (Just p2') = find (== p2) (afterCard ^. players)
+        let (Just p2') = find (== forcedDeal) (afterCard ^. players)
         (length (p2' ^. hand)) `shouldBe` 4
 
     describe "DeckBuilding.Dominion.Cards.gardensCardAction" $ do
