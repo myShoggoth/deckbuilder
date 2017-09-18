@@ -29,6 +29,7 @@ module DeckBuilding.Dominion.Cards
     , throneRoomCard
     , banditCard
     , councilRoomCard
+    , witchCard
     , treasureCards
     , victoryCards
     ) where
@@ -275,3 +276,18 @@ councilRoomCardAction c p = if hasActionsLeft p
     else return p
 
 councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action
+
+gainCurse :: Player -> State Game Player
+gainCurse p = if defendsAgainstAttack witchCard p
+    then return p
+    else updatePlayer $ over discard (curseCard:) p
+
+witchCardAction :: Card -> Player -> State Game Player
+witchCardAction c p = if hasActionsLeft p
+    then do
+      gs <- get
+      mapM gainCurse (delete p (gs ^. players))
+      basicCardAction 2 (-1) 0 0 0 c p
+    else return p
+
+witchCard       = Card "Witch"        5 witchCardAction Action

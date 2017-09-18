@@ -271,3 +271,12 @@ main = do
         length (p1AfterCard ^. deck) `shouldBe` 1
       it "causes the other players to draw a card" $ do
         length (p2' ^. hand) `shouldBe` 6
+
+    describe "DeckBuilding.Dominion.Cards.witchCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((witchCard ^. action) witchCard p1AfterDeal) afterDeal2
+      let (Just p2') = find (== p2) (afterCard ^. players)
+      it "draws two cards" $ do
+        length (p1AfterCard ^. hand) `shouldBe` 7
+        (p1AfterCard ^. actions) `shouldBe` 0
+      it "causes other players to get curses" $ do
+        head (p2' ^. discard) `shouldBe` curseCard
