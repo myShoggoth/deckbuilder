@@ -59,10 +59,11 @@ resetTurn p = updatePlayer $ Player (p ^. playerName) (p ^. deck) (p ^. discard 
 
 doTurn :: Player -> State Game Bool
 doTurn p = do
-  p' <- evaluateHand p
-  p'' <- (p' ^. strategy . buyStrategy) p'
-  p''' <- deal 5 p''
-  _ <- resetTurn p'''
+  p' <- (p ^. strategy . orderHand) p
+  p'' <- evaluateHand p'
+  p''' <- (p' ^. strategy . buyStrategy) p''
+  p'''' <- deal 5 p'''
+  _ <- resetTurn p''''
   isGameOver
 
 doTurns :: [Player] -> State Game Bool
