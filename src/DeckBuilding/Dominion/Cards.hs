@@ -30,6 +30,7 @@ module DeckBuilding.Dominion.Cards
     , banditCard
     , councilRoomCard
     , witchCard
+    , mineCard
     , treasureCards
     , victoryCards
     ) where
@@ -41,6 +42,7 @@ import Data.List (delete, find, sortBy, group, sort, groupBy, intersect, (\\))
 import System.Random.Shuffle
 import Control.Lens
 import Control.Monad.State
+import qualified Data.Map as Map
 
 -- Cards and their actions
 
@@ -291,3 +293,23 @@ witchCardAction c p = if hasActionsLeft p
     else return p
 
 witchCard       = Card "Witch"        5 witchCardAction Action
+
+mineCardAction :: Card -> Player -> State Game Player
+mineCardAction c p = if hasActionsLeft p
+    then do
+      mc <- firstCardInPlay $ intersect (p ^. hand) treasureCards
+      mine mc
+    else return p
+  where mine Nothing            = return p
+        mine (Just c)           = mine' c
+        mine' card
+          | card == copperCard  = exchange copperCard silverCard
+          | card == silverCard  = exchange silverCard goldCard
+          | card == goldCard    = exchange goldCard platinumCard
+          | otherwise           = return p
+        exchange c1 c2    = do
+          gs <- get
+          put $ over decks (Map.mapWithKey (decreaseCards c2)) gs
+          updatePlayer $ over hand (delete c1) $ over hand (c2:) $ over actions (+ (-1)) $ p
+
+mineCard          = Card "Mine"       5 mineCardAction Action

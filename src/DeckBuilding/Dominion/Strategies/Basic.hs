@@ -121,11 +121,16 @@ gainCard cards highestPrice p = do
   gs <- get
   let nonEmptyDecks = filter (\c -> (Map.member c (gs ^. decks)) && (gs ^. decks) Map.! c > 0) cards
   let highestCostCard = find (\c -> (c ^. cost) <= highestPrice) cards
-  let p' = obtain p highestCostCard
+  p' <- obtain highestCostCard
   updatePlayer p'
   return p'
-  where obtain pl Nothing  = pl
-        obtain pl (Just c) = over discard (c:) pl
+  where obtain :: Maybe Card -> State Game Player
+        obtain Nothing  = return p
+        obtain (Just c) = do
+          gs <- get
+          put $ over decks (Map.mapWithKey (decreaseCards c)) gs
+          let p'' = over discard (c:) p
+          return p''
 
 doBuy :: Int -> Int -> [Card] -> [Maybe Card]
 doBuy 0 _ _ = []
@@ -134,12 +139,6 @@ doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (mcost findHighCostCard)) c
   where findHighCostCard = find (\c -> (c ^. cost) <= m) cs
         mcost (Just c)   = (c ^. cost)
         mcost Nothing    = 0
-
-decreaseCards :: Card -> Card -> Int -> Int
-decreaseCards  _  _ 0 = 0
-decreaseCards c1 c2 n = if (c1 == c2)
-    then n - 1
-    else n
 
 buyCard ::  Maybe Card -> Player -> State Game Player
 buyCard Nothing  p = return p

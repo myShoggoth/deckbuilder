@@ -280,3 +280,8 @@ main = do
         (p1AfterCard ^. actions) `shouldBe` 0
       it "causes other players to get curses" $ do
         head (p2' ^. discard) `shouldBe` curseCard
+
+    describe "DeckBuilding.Dominion.Cards.mineCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((mineCard ^. action) mineCard p1AfterDeal) afterDeal
+      it "upgrades a copper to silver" $ do
+        head (p1AfterCard ^. hand) `shouldBe` silverCard

@@ -3,6 +3,8 @@ module DeckBuilding.Dominion.Utils
     , updatePlayer
     , hasActionsLeft
     , numEmptyDecks
+    , firstCardInPlay
+    , decreaseCards
     ) where
 
 import DeckBuilding.Dominion.Types
@@ -12,6 +14,7 @@ import Data.List (delete, find, elemIndex)
 import qualified Data.Map as Map
 import Control.Lens
 import Control.Monad.State
+import Control.Monad (filterM)
 
 deal :: Int -> Player -> State Game Player
 deal 0   p = return p
@@ -42,3 +45,19 @@ numEmptyDecks :: State Game Int
 numEmptyDecks = do
   gs <- get
   return $ length $ Map.filter (== 0) (gs ^. decks)
+
+decreaseCards :: Card -> Card -> Int -> Int
+decreaseCards  _  _ 0 = 0
+decreaseCards c1 c2 n = if (c1 == c2)
+    then n - 1
+    else n
+
+isCardInPlay :: Card -> State Game Bool
+isCardInPlay c = do
+  gs <- get
+  return $ c `Map.member` (gs ^. decks) && (gs ^. decks) Map.! c > 0
+
+firstCardInPlay :: [Card] -> State Game (Maybe Card)
+firstCardInPlay cs = do
+  cards <- filterM isCardInPlay cs
+  return $ find (\_ -> True) $ tail $ cards
