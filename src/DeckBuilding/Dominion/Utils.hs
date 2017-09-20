@@ -22,10 +22,10 @@ deal num p = do
   gs <- get
   let (enoughDeck, newDiscard)
           | length (p ^. deck) >= num   = (p ^. deck, p ^. discard)
-          | length (p ^. discard) == 0  = (p ^. deck, [])
-          | otherwise                   = ( (p ^. deck) ++ (shuffle' (p ^. discard) (length (p ^. discard)) (gs ^. random)), [])
+          | null (p ^. discard)         = (p ^. deck, [])
+          | otherwise                   = ( (p ^. deck) ++ shuffle' (p ^. discard) (length (p ^. discard)) (gs ^. random), [])
   let (newHand, newDeck)  = splitAt num enoughDeck
-  let player              = set deck newDeck $ set discard newDiscard $ over hand (++ newHand) $ p
+  let player              = set deck newDeck $ set discard newDiscard $ over hand (++ newHand) p
   put $ over random (snd . split) gs
   updatePlayer player
   return player
@@ -48,7 +48,7 @@ numEmptyDecks = do
 
 decreaseCards :: Card -> Card -> Int -> Int
 decreaseCards  _  _ 0 = 0
-decreaseCards c1 c2 n = if (c1 == c2)
+decreaseCards c1 c2 n = if c1 == c2
     then n - 1
     else n
 
@@ -60,4 +60,4 @@ isCardInPlay c = do
 firstCardInPlay :: [Card] -> State Game (Maybe Card)
 firstCardInPlay cs = do
   cards <- filterM isCardInPlay cs
-  return $ find (\_ -> True) $ tail $ cards
+  return $ find (const True) $ tail cards

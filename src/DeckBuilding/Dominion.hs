@@ -14,6 +14,7 @@ import Data.Foldable (foldrM)
 import System.Random (randoms, newStdGen, mkStdGen)
 import Control.Lens
 import Control.Monad.State
+import Control.Arrow ((&&&))
 
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Cards
@@ -25,7 +26,7 @@ import DeckBuilding.Dominion.Strategies.Basic
 -- Core Engine
 
 newPlayer :: String -> Strategy -> Player
-newPlayer n s = Player n [] ((( (take 7) . repeat ) copperCard) ++ (( (take 3) . repeat) estateCard)) [] [] 1 1 0 0 s
+newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0
 
 evaluateHand' :: Player -> [Card] -> State Game Player
 evaluateHand' p []     = return p
@@ -42,7 +43,7 @@ tallyAllPoints p = evaluateHand $ Player (p ^. playerName) [] [] ((p ^. deck) ++
 sortByPoints :: State Game [Player]
 sortByPoints = do
   gs <- get
-  return $ reverse $ sortBy (\p1 p2 -> compare (p1 ^. victory) (p2 ^. victory)) (gs ^. players)
+  return $ sortBy (flip (\p1 p2 -> compare (p1 ^. victory) (p2 ^. victory))) (gs ^. players)
 
 gameResult' :: [Player] -> Result
 gameResult' players = result ((length . head) grouped) players
@@ -92,22 +93,22 @@ runGame' = do
   done <- doTurns (gs ^. players)
   if done
     then do
-      mapM tallyAllPoints (gs ^. players)
+      mapM_ tallyAllPoints (gs ^. players)
       sortByPoints
       gameResult
     else runGame'
 
-runGame :: [Player] -> IO (Result)
+runGame :: [Player] -> IO Result
 runGame players = do
   g <- newStdGen
-  let result = fst $ runState runGame' $ Game players (basicDecks (length players)) g
-  return $ result
+  let result = evalState runGame' $ Game players (basicDecks (length players)) g
+  return result
 
-runGames :: Int -> [Player] -> IO ([(Result, Int)])
+runGames :: Int -> [Player] -> IO [(Result, Int)]
 runGames num players = do
   g <- newStdGen
   let seeds = take num $ randoms g
   let gens = map mkStdGen seeds
   let gses = map (Game players (basicDecks (length players))) gens
   let results = map (runState runGame') gses
-  return $ map (\l -> (head l, length l)) $ group $ sort $ map fst results
+  return $ map (head &&& length) $ group $ sort $ map fst results

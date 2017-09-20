@@ -23,12 +23,12 @@ canAfford :: Card -> Player -> Bool
 canAfford c p = (c ^. cost) <= (p ^. money)
 
 cardsLeft :: Game -> Card -> Bool
-cardsLeft gs c = (Map.member c (gs ^. decks)) && ((gs ^. decks) Map.! c > 0)
+cardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
 
 alwaysBuy :: Card -> Player -> State Game Bool
 alwaysBuy c p = do
   gs <- get
-  if (canAfford c p) && (cardsLeft gs c)
+  if canAfford c p && cardsLeft gs c
     then do
       buyCard (Just c) p
       return True
@@ -59,11 +59,11 @@ bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
   where retrieveCards = [platinumCard, goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
 
 bigMoneyGain :: Int -> Player -> State Game Player
-bigMoneyGain cost p = gainCard gainCards cost p
+bigMoneyGain = gainCard gainCards
   where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, duchyCard, silverCard]
 
 bigMoneyOrderHand :: Player -> State Game Player
-bigMoneyOrderHand p = return p
+bigMoneyOrderHand = return
 
 bigMoneyThroneRoom :: Player -> State Game (Maybe Card)
 bigMoneyThroneRoom p = return Nothing
@@ -74,33 +74,39 @@ bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyT
 
 bigSmithyBuy :: Player -> State Game Player
 bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards
-  where bigMoneyCards = [(colonyCard, alwaysBuy), (platinumCard, alwaysBuy), (provinceCard, alwaysBuy), (smithyCard, (buyN 2)), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
+  where bigMoneyCards = [(colonyCard, alwaysBuy), (platinumCard, alwaysBuy), (provinceCard, alwaysBuy), (smithyCard, buyN 2), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
 
 bigSmithyGain :: Int -> Player -> State Game Player
-bigSmithyGain cost p = gainCard gainCards cost p
+bigSmithyGain = gainCard gainCards
   where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, smithyCard, silverCard, duchyCard]
 
 bigSmithyThroneRoom :: Player -> State Game (Maybe Card)
-bigSmithyThroneRoom p = findFirstCard throneRoomCards p
+bigSmithyThroneRoom = findFirstCard throneRoomCards
   where throneRoomCards = [smithyCard]
 
 -- Strategy helpers
 
+prefCards :: Int -> [Card] -> [Card] -> [Card]
+prefCards max cs h= take max $ intersect h cs
+
+prefPlusCards :: (Int, Int) -> [Card] -> [Card] -> [Card]
+prefPlusCards (min, max) cs h
+    | length pref > min = pref
+    | otherwise         = take min $ pref ++ cs
+  where pref = prefCards max cs h
+
+removeFromCards :: [Card] -> [Card] -> [Card]
+removeFromCards = foldr delete
+
 doDiscard :: (Int, Int) -> [Card] -> Player -> State Game Player
-doDiscard (min, max) cards p = updatePlayer (over discard (++ toDiscard) (set hand newHand p))
-  where pref = take max $ intersect (p ^. hand) cards
-        toDiscard
-          | length pref > min = pref
-          | otherwise         = take min $ pref ++ (p ^. hand)
-        newHand = foldr (\c acc -> delete c acc) (p ^. hand) toDiscard
+doDiscard minmax cards p = updatePlayer (over discard (++ toDiscard) (set hand newHand p))
+  where toDiscard = prefPlusCards minmax cards (p ^. hand)
+        newHand = removeFromCards (p ^. hand) toDiscard
 
 doTrash :: (Int, Int) -> [Card] -> Player -> State Game Player
-doTrash (min, max) cards p = updatePlayer (set hand newHand p)
-  where pref = take max $ intersect (p ^. hand) cards
-        toDiscard
-          | length pref > min = pref
-          | otherwise         = take min $ pref ++ (p ^. hand)
-        newHand = foldr (\c acc -> delete c acc) (p ^. hand) toDiscard
+doTrash minmax cards p = updatePlayer (set hand newHand p)
+  where toTrash = prefPlusCards minmax cards (p ^. hand)
+        newHand = removeFromCards (p ^. hand) toTrash
 
 doRetrieveDiscard :: (Int, Int) -> [Card] -> Player -> State Game Player
 doRetrieveDiscard (min, max) cards p = updatePlayer (over deck (toRetrieve ++) (set discard newDiscard p))
@@ -108,18 +114,18 @@ doRetrieveDiscard (min, max) cards p = updatePlayer (over deck (toRetrieve ++) (
         toRetrieve
           | length pref > min = pref
           | otherwise         = take min $ pref ++ (p ^. discard)
-        newDiscard = foldr (\c acc -> delete c acc) (p  ^. discard) toRetrieve
+        newDiscard = foldr delete (p  ^. discard) toRetrieve
 
 findFirstCard :: [Card] -> Player -> State Game (Maybe Card)
 findFirstCard cards p = return $ getFirst pref
-  where pref = intersect (p ^. hand) cards
+  where pref = (p ^. hand) `intersect` cards
         getFirst []     = Nothing
         getFirst (x:xs) = Just x
 
 gainCard :: [Card] -> Int -> Player -> State Game Player
 gainCard cards highestPrice p = do
   gs <- get
-  let nonEmptyDecks = filter (\c -> (Map.member c (gs ^. decks)) && (gs ^. decks) Map.! c > 0) cards
+  let nonEmptyDecks = filter (\c -> Map.member c (gs ^. decks) && (gs ^. decks) Map.! c > 0) cards
   let highestCostCard = find (\c -> (c ^. cost) <= highestPrice) cards
   p' <- obtain highestCostCard
   updatePlayer p'
@@ -135,9 +141,9 @@ gainCard cards highestPrice p = do
 doBuy :: Int -> Int -> [Card] -> [Maybe Card]
 doBuy 0 _ _ = []
 doBuy n 0 _ = []
-doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - (mcost findHighCostCard)) cs
+doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - mcost findHighCostCard) cs
   where findHighCostCard = find (\c -> (c ^. cost) <= m) cs
-        mcost (Just c)   = (c ^. cost)
+        mcost (Just c)   = c ^. cost
         mcost Nothing    = 0
 
 buyCard ::  Maybe Card -> Player -> State Game Player
@@ -145,8 +151,8 @@ buyCard Nothing  p = return p
 buyCard (Just c) p = do
   gs <- get
   put $ over decks (Map.mapWithKey (decreaseCards c)) gs
-  let p' = over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) $ p
-  updatePlayer $ p'
+  let p' = over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) p
+  updatePlayer p'
   return p'
 
 doBuys' :: Player -> [(Card, Card -> Player -> State Game Bool)] -> State Game Bool

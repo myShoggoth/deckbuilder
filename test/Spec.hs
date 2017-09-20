@@ -26,45 +26,45 @@ main = do
 
     describe "DeckBuilding.Dominion.Cards.deal" $ do
       it "deals the correct number of cards" $ do
-        (length (p1AfterDeal  ^. hand)) `shouldBe` 5
-        (length (p1AfterDeal ^. deck)) `shouldBe` 5
-        (length (p1AfterDeal ^. discard)) `shouldBe` 0
+        length (p1AfterDeal  ^. hand) `shouldBe` 5
+        length (p1AfterDeal ^. deck) `shouldBe` 5
+        length (p1AfterDeal ^. discard) `shouldBe` 0
 
-      it "has a total of seven copper" $ do
-        (length (filter (== copperCard) ((p1AfterDeal ^. hand) ++ (p1AfterDeal ^. deck)))) `shouldBe` 7
+      it "has a total of seven copper" $
+        length (filter (== copperCard) ((p1AfterDeal ^. hand) ++ (p1AfterDeal ^. deck))) `shouldBe` 7
 
-      it "has a total of three estates" $ do
-        (length (filter (== estateCard) ((p1AfterDeal ^. hand) ++ (p1AfterDeal ^. deck)))) `shouldBe` 3
+      it "has a total of three estates" $
+        length (filter (== estateCard) ((p1AfterDeal ^. hand) ++ (p1AfterDeal ^. deck))) `shouldBe` 3
 
     describe "DeckBuilding.Dominion.evaluateHand" $ do
       it "has no more cards in hand" $ do
-        (length (p1AfterEvaluate ^. played)) `shouldBe` 5
-        (length (p1AfterEvaluate ^. hand)) `shouldBe` 0
-        (length (p1AfterDeal ^. discard)) `shouldBe` 0
+        length (p1AfterEvaluate ^. played) `shouldBe` 5
+        length (p1AfterEvaluate ^. hand) `shouldBe` 0
+        length (p1AfterDeal ^. discard) `shouldBe` 0
 
-      it "calculates the right amount of money" $ do
-        (p1AfterEvaluate ^. money) `shouldBe` (length (filter (== copperCard) (p1AfterEvaluate ^. played)))
+      it "calculates the right amount of money" $
+        p1AfterEvaluate ^. money `shouldBe` length (filter (== copperCard) (p1AfterEvaluate ^. played))
 
-      it "calcualtes the right amount of victory" $ do
-        (p1AfterEvaluate ^. victory) `shouldBe` (length (filter (== estateCard) (p1AfterEvaluate ^. played)))
+      it "calcualtes the right amount of victory" $
+        p1AfterEvaluate ^. victory `shouldBe` length (filter (== estateCard) (p1AfterEvaluate ^. played))
 
     describe "DeckBuilding.Dominion.resetTurn" $ do
-      it "has an empty played pile" $ do
-        (length (p1AfterReset ^. played)) `shouldBe` 0
+      it "has an empty played pile" $
+        length (p1AfterReset ^. played) `shouldBe` 0
 
-      it "has zero money" $ do
+      it "has zero money" $
         (p1AfterReset ^. money) `shouldBe` 0
 
-      it "has zero victory" $ do
+      it "has zero victory" $
         (p1AfterReset ^. victory) `shouldBe` 0
 
-      it "has an empty hand" $ do
-        (length (p1AfterReset ^. hand)) `shouldBe` 0
+      it "has an empty hand" $
+        length (p1AfterReset ^. hand) `shouldBe` 0
 
-      it "has only one buy" $ do
+      it "has only one buy" $
         (p1AfterReset ^. buys) `shouldBe` 1
 
-      it "has only one action" $ do
+      it "has only one action" $
         (p1AfterReset ^. actions) `shouldBe` 1
 
     describe "DeckBuilding.Dominion.Cards.valueCard" $ do
@@ -99,24 +99,24 @@ main = do
     describe "DeckBuilding.Dominion.Cards.basicCardAction" $ do
       it "it works with market" $ do
         let (p1AfterCard, afterCard) = runState ((marketCard ^. action) marketCard p1AfterDeal) afterDeal
-        (length (p1AfterCard ^. hand)) `shouldBe` 6
+        length (p1AfterCard ^. hand) `shouldBe` 6
         (p1AfterCard ^. actions) `shouldBe` 1
         (p1AfterCard ^. buys) `shouldBe` 2
         (p1AfterCard ^. money) `shouldBe` 1
 
       it "it works with moat" $ do
         let (p1AfterCard, afterCard) = runState ((moatCard ^. action) moatCard p1AfterDeal) afterDeal
-        (length (p1AfterCard ^. hand)) `shouldBe` 7
+        length (p1AfterCard ^. hand) `shouldBe` 7
         (p1AfterCard ^. actions) `shouldBe` 0
 
       it "it works with smithy" $ do
         let (p1AfterCard, afterCard) = runState ((smithyCard ^. action) smithyCard p1AfterDeal) afterDeal
-        (length (p1AfterCard ^. hand)) `shouldBe` 8
+        length (p1AfterCard ^. hand) `shouldBe` 8
         (p1AfterCard ^. actions) `shouldBe` 0
 
       it "it works with village" $ do
         let (p1AfterCard, afterCard) = runState ((villageCard ^. action) villageCard p1AfterDeal) afterDeal
-        (length (p1AfterCard ^. hand)) `shouldBe` 6
+        length (p1AfterCard ^. hand) `shouldBe` 6
         (p1AfterCard ^. actions) `shouldBe` 2
 
       it "it works with festival" $ do
@@ -127,38 +127,32 @@ main = do
 
       it "it works with laboratory" $ do
         let (p1AfterCard, afterCard) = runState ((laboratoryCard ^. action) laboratoryCard p1AfterDeal) afterDeal
-        (length (p1AfterCard ^. hand)) `shouldBe` 7
+        length (p1AfterCard ^. hand) `shouldBe` 7
         (p1AfterCard ^. actions) `shouldBe` 1
 
-      it "it works with woodcutter" $ do
-        let (p1AfterCard, afterCard) = runState ((woodcutterCard ^. action) woodcutterCard p1AfterDeal) afterDeal
-        (p1AfterCard ^. actions) `shouldBe` 1
-        (p1AfterCard ^. buys) `shouldBe` 2
-        (p1AfterCard ^. money) `shouldBe` 2
-
-    describe "DeckBuilding.Dominion.Cards.cellarCardAction" $ do
+    describe "DeckBuilding.Dominion.Cards.cellarCardAction" $
       it "discards all starting cards" $ do
         let (p1AfterCard, afterCard) = runState ((cellarCard ^. action) cellarCard p1AfterDeal) afterDeal
-        (length (p1AfterCard ^. hand)) `shouldBe` 5
-        (length (p1AfterCard ^. discard)) `shouldBe` 5
-        (length (p1AfterCard ^. played)) `shouldBe` 1
+        length (p1AfterCard ^. hand) `shouldBe` 5
+        length (p1AfterCard ^. discard) `shouldBe` 5
+        length (p1AfterCard ^. played) `shouldBe` 1
         (p1AfterCard ^. actions) `shouldBe` 0
 
-    describe "DeckBuilding.Dominion.Cards.chapelCardAction" $ do
+    describe "DeckBuilding.Dominion.Cards.chapelCardAction" $
       it "trashes 4 of the starting cards" $ do
         let (p1AfterCard, afterCard) = runState ((chapelCard ^. action) chapelCard p1AfterDeal) afterDeal
-        (length (p1AfterCard ^. hand)) `shouldBe` 1
-        (length (p1AfterCard ^. discard)) `shouldBe` 0
-        (length (p1AfterCard ^. played)) `shouldBe` 1
-        (length (p1AfterCard ^. played ++ p1AfterCard ^. discard ++ p1AfterCard ^. hand ++ p1AfterCard ^. deck)) `shouldBe` 7
+        length (p1AfterCard ^. hand) `shouldBe` 1
+        length (p1AfterCard ^. discard) `shouldBe` 0
+        length (p1AfterCard ^. played) `shouldBe` 1
+        length (p1AfterCard ^. played ++ p1AfterCard ^. discard ++ p1AfterCard ^. hand ++ p1AfterCard ^. deck) `shouldBe` 7
         (p1AfterCard ^. actions) `shouldBe` 0
 
-    describe "DeckBuilding.Dominion.Cards.harbingerCardAction" $ do
+    describe "DeckBuilding.Dominion.Cards.harbingerCardAction" $
       it "takes a silver from the discard pile and puts it on the deck" $ do
         let (p1BeforeCard, beforeCard)  = runState (updatePlayer (over discard (silverCard:) p1AfterDeal)) afterDeal
         let (p1AfterCard, afterCard)    = runState ((harbingerCard ^. action) harbingerCard p1BeforeCard) beforeCard
-        (head (p1AfterCard ^. deck)) `shouldBe` silverCard
-        (length (p1AfterCard ^. hand)) `shouldBe` 6
+        head (p1AfterCard ^. deck) `shouldBe` silverCard
+        length (p1AfterCard ^. hand) `shouldBe` 6
         (p1AfterCard ^. actions) `shouldBe` 1
 
     describe "DeckBuilding.Dominion.Cards.merchantCardAction" $ do
@@ -177,28 +171,28 @@ main = do
         (p1AfterCard ^. money) `shouldBe` 4
         (p1AfterCard ^. actions) `shouldBe` 1
 
-    describe "DeckBuilding.Dominion.Cards.vassalCardAction" $ do
+    describe "DeckBuilding.Dominion.Cards.vassalCardAction" $
       it "draws a value card" $ do
-        let forcedDeal = Player "Vassal Deal" (take 5 (repeat copperCard)) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigMoneyStrategy
+        let forcedDeal = Player "Vassal Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigMoneyStrategy
         let (p1AfterCard, afterCard) = runState (evaluateHand forcedDeal) $ Game [forcedDeal] (basicDecks 2) g
         (p1AfterCard ^. money) `shouldBe` 4
-        (length (p1AfterCard ^. hand)) `shouldBe` 0
-        (length (p1AfterCard ^. played)) `shouldBe` 5
-        (length (p1AfterCard ^. deck)) `shouldBe` 4
-        (length (p1AfterCard ^. discard)) `shouldBe` 1
+        length (p1AfterCard ^. hand) `shouldBe` 0
+        length (p1AfterCard ^. played) `shouldBe` 5
+        length (p1AfterCard ^. deck) `shouldBe` 4
+        length (p1AfterCard ^. discard) `shouldBe` 1
         (p1AfterCard ^. actions) `shouldBe` 0
 
     describe "DeckBuilding.Dominion.Cards.bureaucratCardAction" $ do
-      let forcedDeal = Player "Bureaurat Deal" (take 5 (repeat copperCard)) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigMoneyStrategy
+      let forcedDeal = Player "Bureaurat Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigMoneyStrategy
       let (p1AfterCard, afterCard) = runState ((bureaucratCard ^. action) bureaucratCard p1AfterDeal) $ Game [p1AfterDeal, forcedDeal] (basicDecks 2) g
       it "puts a silver on the deck" $ do
         head (p1AfterCard ^. deck) `shouldBe` silverCard
         (p1AfterCard ^. actions) `shouldBe` 0
       it "makes other players discard a victory card" $ do
         let (Just p2') = find (== forcedDeal) (afterCard ^. players)
-        (length (p2' ^. hand)) `shouldBe` 4
+        length (p2' ^. hand) `shouldBe` 4
 
-    describe "DeckBuilding.Dominion.Cards.gardensCardAction" $ do
+    describe "DeckBuilding.Dominion.Cards.gardensCardAction" $
       it "gives 1 point for the starting deck" $ do
         let (p1AfterCard, afterCard) = runState ((gardensCard ^. action) gardensCard p1AfterDeal) afterDeal
         (p1AfterCard ^. victory) `shouldBe` 1
@@ -211,14 +205,14 @@ main = do
         (p1AfterCard ^. actions) `shouldBe` 0
       it "makes other players discard down to three cards" $ do
         let (Just p2') = find (== p2) (afterCard ^. players)
-        (length (p2' ^. hand)) `shouldBe` 3
+        length (p2' ^. hand) `shouldBe` 3
 
     describe "DeckBuilding.Dominion.Cards.moneylenderCardAction" $ do
       let (p1AfterCard, afterCard) = runState ((moneylenderCard ^. action) moneylenderCard p1AfterDeal) afterDeal2
       it "gives 3 money" $ do
         (p1AfterCard ^. money) `shouldBe` 3
         (p1AfterCard ^. actions) `shouldBe` 0
-      it "trashes a copper" $ do
+      it "trashes a copper" $
         length ((p1AfterCard ^. hand) ++ (p1AfterCard ^. discard) ++ (p1AfterCard ^. played) ++ (p1AfterCard ^. deck)) `shouldBe` 10 -- includes the moneylender card itself
 
     describe "DeckBuilding.Dominion.Cards.poacherCardAction" $ do
@@ -240,7 +234,7 @@ main = do
         (p1AfterCard ^. actions) `shouldBe` 1
         length (p1AfterCard ^. hand) `shouldBe` 5
       it "will play Smithy twice in the bigSmithyStrategy" $ do
-        let forcedDeal = Player "Throne Room Deal" (take 5 (repeat copperCard)) [] [throneRoomCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigSmithyStrategy
+        let forcedDeal = Player "Throne Room Deal" (replicate 5 copperCard) [] [throneRoomCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigSmithyStrategy
         let (p1AfterCard, afterCard) = runState (evaluateHand forcedDeal) $ Game [forcedDeal] (basicDecks 2) g
         (p1AfterCard ^. actions) `shouldBe` 0
         length (p1AfterCard ^. hand) `shouldBe` 0
@@ -257,7 +251,7 @@ main = do
         head (p1AfterCard ^. discard) `shouldBe` goldCard
         (p1AfterCard ^. actions) `shouldBe` 0
       it "trashes an opponent's silver" $ do
-        let forcedDeal = Player "Bandit Deal" (silverCard: (take 5 (repeat copperCard))) [] [estateCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigSmithyStrategy
+        let forcedDeal = Player "Bandit Deal" (silverCard: replicate 5 copperCard) [] [estateCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 bigSmithyStrategy
         let (p1AfterCard, afterCard) = runState ((banditCard ^. action) banditCard p1) $ Game [p1, forcedDeal] (basicDecks 2) g
         let (Just fd) = find (== forcedDeal) (afterCard ^. players)
         length (fd ^. discard) `shouldBe` 1
@@ -269,7 +263,7 @@ main = do
       it "draws four cards" $ do
         length (p1AfterCard ^. hand) `shouldBe` 9
         length (p1AfterCard ^. deck) `shouldBe` 1
-      it "causes the other players to draw a card" $ do
+      it "causes the other players to draw a card" $
         length (p2' ^. hand) `shouldBe` 6
 
     describe "DeckBuilding.Dominion.Cards.witchCardAction" $ do
@@ -278,10 +272,10 @@ main = do
       it "draws two cards" $ do
         length (p1AfterCard ^. hand) `shouldBe` 7
         (p1AfterCard ^. actions) `shouldBe` 0
-      it "causes other players to get curses" $ do
+      it "causes other players to get curses" $
         head (p2' ^. discard) `shouldBe` curseCard
 
     describe "DeckBuilding.Dominion.Cards.mineCardAction" $ do
       let (p1AfterCard, afterCard) = runState ((mineCard ^. action) mineCard p1AfterDeal) afterDeal
-      it "upgrades a copper to silver" $ do
+      it "upgrades a copper to silver" $
         head (p1AfterCard ^. hand) `shouldBe` silverCard
