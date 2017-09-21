@@ -17,7 +17,7 @@ import Data.Foldable (foldrM)
 
 -- Big money
 
-bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom
+bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary
 
 canAfford :: Card -> Player -> Bool
 canAfford c p = (c ^. cost) <= (p ^. money)
@@ -68,9 +68,12 @@ bigMoneyOrderHand = return
 bigMoneyThroneRoom :: Player -> State Game (Maybe Card)
 bigMoneyThroneRoom p = return Nothing
 
+bigMoneyLibrary :: Card -> State Game Bool
+bigMoneyLibrary _ = return True
+
 -- Big smithy
 
-bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom
+bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary
 
 bigSmithyBuy :: Player -> State Game Player
 bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards

@@ -279,3 +279,8 @@ main = do
       let (p1AfterCard, afterCard) = runState ((mineCard ^. action) mineCard p1AfterDeal) afterDeal
       it "upgrades a copper to silver" $
         head (p1AfterCard ^. hand) `shouldBe` silverCard
+
+    describe "DeckBuilding.Dominion.Cards.libraryCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((libraryCard ^. action) libraryCard p1AfterDeal) afterDeal
+      it "draws to seven cards" $
+        length (p1AfterCard ^. hand) `shouldBe` 7

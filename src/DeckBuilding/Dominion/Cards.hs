@@ -30,6 +30,7 @@ module DeckBuilding.Dominion.Cards
     , councilRoomCard
     , witchCard
     , mineCard
+    , libraryCard
     , treasureCards
     , victoryCards
     ) where
@@ -43,6 +44,7 @@ import           Data.List                   (delete, find, group, groupBy,
                                               intersect, sort, sortBy, (\\))
 import qualified Data.Map                    as Map
 import           System.Random.Shuffle
+import           Data.Foldable               (foldrM)
 
 -- Cards and their actions
 
@@ -308,3 +310,28 @@ mineCardAction c p = if hasActionsLeft p
           updatePlayer $ over hand (delete c1) $ over hand (c2:) $ over actions (+ (-1)) p
 
 mineCard          = Card "Mine"       5 mineCardAction Action
+
+discardOrPlay :: Card -> Player -> State Game Player
+discardOrPlay c p = do
+  keep <- (p ^. strategy . libraryStrategy) c
+  if (c ^. cardType) == Value || keep
+    then return p
+    else updatePlayer $ over discard (c:) $ over hand (delete c) p
+
+drawTo :: Int -> Player -> State Game Player
+drawTo num p = do
+  let todraw = num - length (p ^. hand)
+  if todraw == 0
+    then return p
+    else do
+      p' <- deal todraw p
+      let (newhand, oldhand) = splitAt todraw (p' ^. hand)
+      p'' <- foldrM discardOrPlay p' newhand
+      drawTo num p''
+
+libraryCardAction :: Card -> Player -> State Game Player
+libraryCardAction c p = if hasActionsLeft p
+    then drawTo 7 $ over actions (+ (-1)) p
+    else return p
+
+libraryCard     = Card "Library"      5 libraryCardAction Action

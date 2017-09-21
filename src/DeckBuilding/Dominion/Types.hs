@@ -32,7 +32,7 @@ instance Eq Card where
   a == b = _cardName a == _cardName b
 
 instance Show Card where
-  show c = _cardName c
+  show = _cardName
 
 data Strategy = Strategy {
   _strategyName       :: String,
@@ -42,11 +42,12 @@ data Strategy = Strategy {
   _retrieveStrategy   :: (Int, Int) -> Player -> State Game Player,
   _orderHand          :: Player -> State Game Player,
   _gainCardStrategy   :: Int -> Player -> State Game Player,
-  _throneRoomStrategy :: Player -> State Game (Maybe Card)
+  _throneRoomStrategy :: Player -> State Game (Maybe Card),
+  _libraryStrategy    :: Card -> State Game Bool
 }
 
 instance Show Strategy where
-  show s = _strategyName s
+  show = _strategyName
 
 instance Eq Strategy where
   a == b = _strategyName a == _strategyName b
