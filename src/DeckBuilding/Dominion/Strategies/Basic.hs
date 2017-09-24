@@ -52,7 +52,8 @@ bigMoneyDiscard rng = doDiscard rng discardCards
 
 bigMoneyTrash :: (Int, Int) -> Player -> State Game Player
 bigMoneyTrash rng = doTrash rng trashCards
-  where trashCards = [curseCard, estateCard, copperCard]
+
+trashCards = [curseCard, estateCard, copperCard]
 
 bigMoneyRetrieve :: (Int, Int) -> Player -> State Game Player
 bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
@@ -74,9 +75,9 @@ bigMoneyLibrary _ = return True
 bigMoneySentry :: [Card] -> Player -> State Game ([Card], [Card], [Card])
 bigMoneySentry cs p = do
   let trash = cs `intersect` trashCards
-  let keep = trash \\ cs
-  return (trash, [], keep)
-  where trashCards = [curseCard, estateCard, copperCard]
+  let disc = (trash \\ cs) `intersect` victoryCards
+  let keep = (trash ++ disc) \\ cs
+  return (trash, disc, keep)
 
 -- Big smithy
 
