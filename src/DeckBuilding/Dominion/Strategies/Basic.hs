@@ -7,7 +7,7 @@ import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Utils
 import DeckBuilding.Dominion.Cards
 
-import Data.List (delete, intersect, find)
+import Data.List (delete, intersect, find, (\\))
 import Control.Lens
 import Control.Monad.State
 import qualified Data.Map as Map
@@ -17,7 +17,7 @@ import Data.Foldable (foldrM)
 
 -- Big money
 
-bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary
+bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry
 
 canAfford :: Card -> Player -> Bool
 canAfford c p = (c ^. cost) <= (p ^. money)
@@ -71,9 +71,16 @@ bigMoneyThroneRoom p = return Nothing
 bigMoneyLibrary :: Card -> State Game Bool
 bigMoneyLibrary _ = return True
 
+bigMoneySentry :: [Card] -> Player -> State Game ([Card], [Card], [Card])
+bigMoneySentry cs p = do
+  let trash = cs `intersect` trashCards
+  let keep = trash \\ cs
+  return (trash, [], keep)
+  where trashCards = [curseCard, estateCard, copperCard]
+
 -- Big smithy
 
-bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary
+bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry
 
 bigSmithyBuy :: Player -> State Game Player
 bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards

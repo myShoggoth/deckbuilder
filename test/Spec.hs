@@ -284,3 +284,9 @@ main = do
       let (p1AfterCard, afterCard) = runState ((libraryCard ^. action) libraryCard p1AfterDeal) afterDeal
       it "draws to seven cards" $
         length (p1AfterCard ^. hand) `shouldBe` 7
+
+    describe "DeckBuilding.Dominion.Cards.sentryCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((sentryCard ^. action) sentryCard p1AfterDeal) afterDeal
+      it "discards coppers and estates from the top of the deck" $ do
+        length (p1AfterCard ^. deck) `shouldBe` 2 -- draw one plus look at two and discard both
+        (p1AfterCard ^. actions) `shouldBe` 1

@@ -30,6 +30,7 @@ module DeckBuilding.Dominion.Cards
     , councilRoomCard
     , witchCard
     , mineCard
+    , sentryCard
     , libraryCard
     , treasureCards
     , victoryCards
@@ -335,3 +336,24 @@ libraryCardAction c p = if hasActionsLeft p
     else return p
 
 libraryCard     = Card "Library"      5 libraryCardAction Action
+
+trashDiscardOrReorder :: [Card] -> Player -> State Game Player
+trashDiscardOrReorder c p = if hasActionsLeft p
+    then do
+      (trash, disc, keep) <- (p ^. strategy . sentryStrategy) c p
+      gs <- get
+      let (Just p') = find (== p) (gs ^. players)
+      updatePlayer $ over discard (disc ++) $ over deck (keep ++) p'
+    else return p
+
+sentryCardAction :: Card -> Player -> State Game Player
+sentryCardAction c p = if hasActionsLeft p
+    then do
+      p' <- basicCardAction 1 0 0 0 0 c p
+      p'' <- deal 2 p'
+      let (newcards, oldhand) = splitAt 2 (p'' ^. hand)
+      p''' <- trashDiscardOrReorder newcards p''
+      updatePlayer $ set hand oldhand p'''
+    else return p
+
+sentryCard    = Card "Sentry"       5 sentryCardAction Action
