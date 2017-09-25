@@ -33,8 +33,11 @@ module DeckBuilding.Dominion.Cards
     , sentryCard
     , libraryCard
     , artisanCard
+    , workshopCard
     , treasureCards
     , victoryCards
+    , kingdomCards2ndEdition
+    , firstGameKingdomCards
     ) where
 
 import           DeckBuilding.Dominion.Types
@@ -82,12 +85,9 @@ curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
 
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> State Game Player
-basicCardAction draw a b m v c p = if hasActionsLeft p
-    then do
-      p' <- deal draw p
-      let player = over hand (delete c) $ over played (c:) $ over actions (+a) $ over buys (+b) $ over money (+m) $ over victory (+v) p'
-      updatePlayer player
-    else return p
+basicCardAction draw a b m v c p = do
+  p' <- updatePlayer $ over hand (delete c) $ over played (c:) $ over actions (+a) $ over buys (+b) $ over money (+m) $ over victory (+v) p
+  deal draw p'
 
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
@@ -102,27 +102,21 @@ festivalCard    = Card "Festival"   5 (basicCardAction 0 1 1 2 0) Action
 laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0) Action
 
 cellarCardAction :: Card -> Player -> State Game Player
-cellarCardAction c p = if hasActionsLeft p
-    then do
-      p' <- (p ^. strategy . discardStrategy) (0, length (p ^. hand)) (over played (c:) (over actions (+ (-1)) (over hand (delete c) p)))
-      deal (length (p ^. hand) - length (p' ^. hand)) p'
-    else return p
+cellarCardAction c p = do
+  p' <- (p ^. strategy . discardStrategy) (0, length (p ^. hand)) (over played (c:) (over actions (+ (-1)) (over hand (delete c) p)))
+  deal (length (p ^. hand) - length (p' ^. hand)) p'
 
 cellarCard      = Card "Cellar"     2 cellarCardAction Action
 
 chapelCardAction :: Card -> Player -> State Game Player
-chapelCardAction c p = if hasActionsLeft p
-    then (p ^. strategy . trashStrategy) (0, 4) (over played (c:) (over actions (+ (-1)) (over hand (delete c) p)))
-    else return p
+chapelCardAction c p = (p ^. strategy . trashStrategy) (0, 4) (over played (c:) (over actions (+ (-1)) (over hand (delete c) p)))
 
 chapelCard     = Card "Chapel"      2 chapelCardAction Action
 
 harbingerCardAction :: Card -> Player -> State Game Player
-harbingerCardAction c p = if hasActionsLeft p
-    then do
-      p' <- deal 1 p
-      (p ^. strategy . retrieveStrategy) (0, 1) (over played (c:) (over hand (delete c) p'))
-    else return p
+harbingerCardAction c p = do
+  p' <- deal 1 p
+  (p ^. strategy . retrieveStrategy) (0, 1) (over played (c:) (over hand (delete c) p'))
 
 harbingerCard   = Card "Harbinger"  3 harbingerCardAction Action
 
@@ -135,21 +129,19 @@ merchantCardAction c p = basicCardAction 1 0 0 (money silverPlayed) 0 c p
 merchantCard    = Card "Merchant"   3 merchantCardAction Action
 
 vassalCardAction :: Card -> Player -> State Game Player
-vassalCardAction c p = if hasActionsLeft p
-    then do
-      gs <- get
-      p' <- basicCardAction 0 (-1) 0 2 0 c p
-      let (enoughDeck, newDiscard)
-              | not (null (p' ^. deck)) = (p' ^. deck, p' ^. discard)
-              | otherwise               = ( (p' ^. deck) ++ shuffle' (p' ^. discard) (length (p' ^. discard)) (gs ^. random), [])
-      let topOfDeck Nothing             = p'
-      let topOfDeck (Just c)            = if (c^. cardType) == Value
-          then updatePlayer (over discard (c:) (set deck (tail enoughDeck) p'))
-          else do
-            p'' <- updatePlayer (over actions (+1) (set discard newDiscard (set hand (delete c enoughDeck) p')))
-            (c ^. action) c p''
-      topOfDeck $ find (const True) enoughDeck
-    else return p
+vassalCardAction c p = do
+  gs <- get
+  p' <- basicCardAction 0 (-1) 0 2 0 c p
+  let (enoughDeck, newDiscard)
+          | not (null (p' ^. deck)) = (p' ^. deck, p' ^. discard)
+          | otherwise               = ( (p' ^. deck) ++ shuffle' (p' ^. discard) (length (p' ^. discard)) (gs ^. random), [])
+  let topOfDeck Nothing             = p'
+  let topOfDeck (Just c)            = if (c^. cardType) == Value
+      then updatePlayer (over discard (c:) (set deck (tail enoughDeck) p'))
+      else do
+        p'' <- updatePlayer (over actions (+1) (set discard newDiscard (set hand (delete c enoughDeck) p')))
+        (c ^. action) c p''
+  topOfDeck $ find (const True) enoughDeck
 
 vassalCard      = Card "Vassal"     3 vassalCardAction Action
 
@@ -158,18 +150,16 @@ defendsAgainstAttack _ p = moatCard `elem` (p ^. hand)
 
 discardVictory :: Player -> State Game Player
 discardVictory p = if defendsAgainstAttack bureaucratCard p
-    then return p
-    else updatePlayer $ found $ find (`elem` victoryCards) (p ^. hand)
+  then return p
+  else updatePlayer $ found $ find (`elem` victoryCards) (p ^. hand)
   where found Nothing   = p
         found (Just c)  = over hand (delete c) $ over discard (c:) p
 
 bureaucratCardAction :: Card -> Player -> State Game Player
-bureaucratCardAction c p = if hasActionsLeft p
-    then do
-      gs <- get
-      mapM_ discardVictory (delete p (gs ^. players))
-      updatePlayer $ over deck (silverCard:) $ over played (c:) $ over actions (+ (-1)) p
-    else return p
+bureaucratCardAction c p = do
+  gs <- get
+  mapM_ discardVictory (delete p (gs ^. players))
+  updatePlayer $ over deck (silverCard:) $ over played (c:) $ over actions (+ (-1)) p
 
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
 
@@ -182,59 +172,49 @@ gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
 militiaDiscard :: Player -> State Game Player
 militiaDiscard p = if defendsAgainstAttack militiaCard p
-    then return p
-    else (p ^. strategy . discardStrategy) ( length (p ^. hand) - 3, length (p ^. hand) - 3 ) p
+  then return p
+  else (p ^. strategy . discardStrategy) ( length (p ^. hand) - 3, length (p ^. hand) - 3 ) p
 
 militiaCardAction :: Card -> Player -> State Game Player
-militiaCardAction c p = if hasActionsLeft p
-    then do
-      gs <- get
-      mapM_ militiaDiscard (delete p (gs ^. players))
-      updatePlayer $ over money (+2) $ over played (c:) $ over actions (+ (-1)) p
-    else return p
+militiaCardAction c p = do
+  gs <- get
+  mapM_ militiaDiscard (delete p (gs ^. players))
+  updatePlayer $ over money (+2) $ over played (c:) $ over actions (+ (-1)) p
 
 militiaCard     = Card "Militia"    4 militiaCardAction Action
 
 moneylenderCardAction :: Card -> Player -> State Game Player
-moneylenderCardAction c p = if hasActionsLeft p
-    then return $ copper $ find (== copperCard) (p ^. hand)
-    else return p
+moneylenderCardAction c p = return $ copper $ find (== copperCard) (p ^. hand)
   where copper Nothing    = over discard (c:) p
         copper (Just cop) = over hand (delete cop) $ over money (+3) $ over played (c:) $ over actions (+ (-1)) p
 
 moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action
 
 poacherCardAction :: Card -> Player -> State Game Player
-poacherCardAction c p = if hasActionsLeft p
-    then do
-      p' <- basicCardAction 1 0 0 1 0 c p
-      emptyDecks <- numEmptyDecks
-      (p' ^. strategy . discardStrategy) (emptyDecks, emptyDecks) p'
-    else return p
+poacherCardAction c p = do
+  p' <- basicCardAction 1 0 0 1 0 c p
+  emptyDecks <- numEmptyDecks
+  (p' ^. strategy . discardStrategy) (emptyDecks, emptyDecks) p'
 
 poacherCard     = Card "Poacher"      4 poacherCardAction Action
 
 remodelCardAction :: Card -> Player -> State Game Player
-remodelCardAction c p = if hasActionsLeft p
+remodelCardAction c p = do
+  p' <- (p ^. strategy . trashStrategy) (0, 1) p
+  let diff = (p ^. hand) \\ (p' ^. hand)
+  if length diff == 1
     then do
-      p' <- (p ^. strategy . trashStrategy) (0, 1) p
-      let diff = (p ^. hand) \\ (p' ^. hand)
-      if length diff == 1
-        then do
-          let p'' = over played (c:) p'
-          updatePlayer p''
-          (p'' ^. strategy . gainCardStrategy) (head diff ^. cost + 2) p''
-        else return p'
-    else return p
+      let p'' = over played (c:) p'
+      updatePlayer p''
+      (p'' ^. strategy . gainCardStrategy) (head diff ^. cost + 2) p''
+    else return p'
 
 remodelCard     = Card "Remodel"      4 remodelCardAction Action
 
 throneRoomCardAction :: Card -> Player -> State Game Player
-throneRoomCardAction c p = if hasActionsLeft p
-    then do
-      mc <- (p ^. strategy . throneRoomStrategy) p
-      playCard mc
-    else return p
+throneRoomCardAction c p = do
+  mc <- (p ^. strategy . throneRoomStrategy) p
+  playCard mc
   where playCard Nothing      = return p
         playCard (Just card)  = do
           p' <- updatePlayer $ over actions (+1) $ over played (c:) $ over hand (delete c) $ over hand (card:) p
@@ -246,59 +226,51 @@ throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action
 
 banditDiscard :: Player -> State Game Player
 banditDiscard p = if defendsAgainstAttack militiaCard p
-    then return p
-    else do
-      let (toptwo, therest) = splitAt 2 (p ^. deck)
-      let totrash           = take 1 $ intersect toptwo (delete copperCard (reverse treasureCards))
-      let todiscard         = toptwo \\ totrash
-      updatePlayer $ set deck therest $ over discard (todiscard++) p
+  then return p
+  else do
+    let (toptwo, therest) = splitAt 2 (p ^. deck)
+    let totrash           = take 1 $ intersect toptwo (delete copperCard (reverse treasureCards))
+    let todiscard         = toptwo \\ totrash
+    updatePlayer $ set deck therest $ over discard (todiscard++) p
 
 banditCardAction :: Card -> Player -> State Game Player
-banditCardAction c p = if hasActionsLeft p
-    then do
-      gs <- get
-      mapM_ banditDiscard (delete p (gs ^. players))
-      updatePlayer $ over discard (goldCard:) $ over played (c:) $ over actions (+ (-1)) p
-    else return p
+banditCardAction c p = do
+  gs <- get
+  mapM_ banditDiscard (delete p (gs ^. players))
+  updatePlayer $ over discard (goldCard:) $ over played (c:) $ over actions (+ (-1)) p
 
 banditCard      = Card "Bandit"       5 banditCardAction Action
 
 councilRoomDraw :: Player -> State Game Player
 councilRoomDraw p = do
-    p' <- deal 1 p
-    updatePlayer p'
+  p' <- deal 1 p
+  updatePlayer p'
 
 councilRoomCardAction :: Card -> Player -> State Game Player
-councilRoomCardAction c p = if hasActionsLeft p
-    then do
-      gs <- get
-      mapM_ councilRoomDraw (delete p (gs ^. players))
-      basicCardAction 4 (-1) 0 0 0 c p
-    else return p
+councilRoomCardAction c p = do
+  gs <- get
+  mapM_ councilRoomDraw (delete p (gs ^. players))
+  basicCardAction 4 (-1) 0 0 0 c p
 
 councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action
 
 gainCurse :: Player -> State Game Player
 gainCurse p = if defendsAgainstAttack witchCard p
-    then return p
-    else updatePlayer $ over discard (curseCard:) p
+  then return p
+  else updatePlayer $ over discard (curseCard:) p
 
 witchCardAction :: Card -> Player -> State Game Player
-witchCardAction c p = if hasActionsLeft p
-    then do
-      gs <- get
-      mapM_ gainCurse (delete p (gs ^. players))
-      basicCardAction 2 (-1) 0 0 0 c p
-    else return p
+witchCardAction c p = do
+  gs <- get
+  mapM_ gainCurse (delete p (gs ^. players))
+  basicCardAction 2 (-1) 0 0 0 c p
 
 witchCard       = Card "Witch"        5 witchCardAction Action
 
 mineCardAction :: Card -> Player -> State Game Player
-mineCardAction c p = if hasActionsLeft p
-    then do
-      mc <- firstCardInPlay $ intersect (p ^. hand) treasureCards
-      mine mc
-    else return p
+mineCardAction c p = do
+  mc <- firstCardInPlay $ intersect (p ^. hand) treasureCards
+  mine mc
   where mine Nothing            = return p
         mine (Just c)           = mine' c
         mine' card
@@ -332,41 +304,81 @@ drawTo num p = do
       drawTo num p''
 
 libraryCardAction :: Card -> Player -> State Game Player
-libraryCardAction c p = if hasActionsLeft p
-    then drawTo 7 $ over actions (+ (-1)) p
-    else return p
+libraryCardAction c p = drawTo 7 $ over actions (+ (-1)) p
 
 libraryCard     = Card "Library"      5 libraryCardAction Action
 
 trashDiscardOrReorder :: [Card] -> Player -> State Game Player
-trashDiscardOrReorder c p = if hasActionsLeft p
-    then do
-      (trash, disc, keep) <- (p ^. strategy . sentryStrategy) c p
-      gs <- get
-      let (Just p') = find (== p) (gs ^. players)
-      updatePlayer $ over discard (disc ++) $ over deck (keep ++) p'
-    else return p
+trashDiscardOrReorder c p = do
+  (trash, disc, keep) <- (p ^. strategy . sentryStrategy) c p
+  gs <- get
+  let (Just p') = find (== p) (gs ^. players)
+  updatePlayer $ over discard (disc ++) $ over deck (keep ++) p'
 
 sentryCardAction :: Card -> Player -> State Game Player
-sentryCardAction c p = if hasActionsLeft p
-    then do
-      p' <- basicCardAction 1 0 0 0 0 c p
-      p'' <- deal 2 p'
-      let (newcards, oldhand) = splitAt 2 (p'' ^. hand)
-      p''' <- trashDiscardOrReorder newcards p''
-      updatePlayer $ set hand oldhand p'''
-    else return p
+sentryCardAction c p = do
+  p' <- basicCardAction 1 0 0 0 0 c p
+  p'' <- deal 2 p'
+  let (newcards, oldhand) = splitAt 2 (p'' ^. hand)
+  p''' <- trashDiscardOrReorder newcards p''
+  updatePlayer $ set hand oldhand p'''
 
 sentryCard    = Card "Sentry"       5 sentryCardAction Action
 
 artisanCardAction :: Card -> Player -> State Game Player
-artisanCardAction c p = if hasActionsLeft p
-    then do
-      p' <- updatePlayer $ over played (c:) $ over actions (+ (-1)) p
-      p'' <- (p' ^. strategy . gainCardStrategy) 5 p'
-      let newcard = head (p'' ^. discard)
-      p''' <- updatePlayer $ over hand (newcard:) $ over discard (delete newcard) p''
-      (p''' ^. strategy . handToDeckStrategy) 1 p'''
-    else return p
+artisanCardAction c p = do
+  p' <- updatePlayer $ over played (c:) $ over actions (+ (-1)) p
+  p'' <- (p' ^. strategy . gainCardStrategy) 5 p'
+  let newcard = head (p'' ^. discard)
+  p''' <- updatePlayer $ over hand (newcard:) $ over discard (delete newcard) p''
+  (p''' ^. strategy . handToDeckStrategy) 1 p'''
 
 artisanCard   = Card "Artisan"      6 artisanCardAction Action
+
+workshopCardAction :: Card -> Player -> State Game Player
+workshopCardAction c p = do
+  p' <- updatePlayer $ over played (c:) $ over actions (+ (-1)) p
+  (p' ^. strategy . gainCardStrategy) 4 p'
+
+workshopCard  = Card "Workshop"     3 workshopCardAction Action
+
+kingdomCards2ndEdition = [
+    marketCard
+  , moatCard
+  , smithyCard
+  , villageCard
+  , festivalCard
+  , laboratoryCard
+  , cellarCard
+  , chapelCard
+  , harbingerCard
+  , merchantCard
+  , vassalCard
+  , bureaucratCard
+  , gardensCard
+  , militiaCard
+  , moneylenderCard
+  , poacherCard
+  , remodelCard
+  , throneRoomCard
+  , banditCard
+  , councilRoomCard
+  , witchCard
+  , mineCard
+  , sentryCard
+  , libraryCard
+  , artisanCard
+  ]
+
+firstGameKingdomCards = [
+    cellarCard
+  , marketCard
+  , merchantCard
+  , militiaCard
+  , mineCard
+  , moatCard
+  , remodelCard
+  , smithyCard
+  , villageCard
+  , workshopCard
+  ]

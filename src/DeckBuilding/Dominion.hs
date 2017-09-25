@@ -6,6 +6,7 @@ module DeckBuilding.Dominion
     , basicDecks
     , resetTurn
     , evaluateHand
+    , makeDecks
     ) where
 
 import qualified Data.Map as Map
@@ -21,6 +22,9 @@ import DeckBuilding.Dominion.Cards
 import DeckBuilding.Dominion.Utils
 import DeckBuilding.Dominion.Strategies.Basic
 
+import Debug.Trace
+
+
 -- Dominion
 
 -- Core Engine
@@ -30,6 +34,10 @@ newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] 
 
 evaluateHand' :: Player -> [Card] -> State Game Player
 evaluateHand' p []     = return p
+evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
+  p' <- (x ^. action) x p
+  evaluateHand' p' xs
+evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _) (_:xs)  = evaluateHand' p xs
 evaluateHand' p (x:xs) = do
   p' <- (x ^. action) x p
   evaluateHand' p' (p' ^. hand)
@@ -55,6 +63,9 @@ gameResult :: State Game Result
 gameResult = do
   players <- sortByPoints
   return $ gameResult' players
+
+makeDecks :: [Card] -> Map.Map Card Int
+makeDecks cs = Map.fromList $ map (\c -> (c, 10)) cs
 
 basicDecks :: Int -> Map.Map Card Int
 basicDecks numPlayers
@@ -101,7 +112,7 @@ runGame' = do
 runGame :: [Player] -> IO Result
 runGame players = do
   g <- newStdGen
-  let result = evalState runGame' $ Game players (basicDecks (length players)) g
+  let result = evalState runGame' $ Game players (basicDecks (length players) `Map.union` makeDecks firstGameKingdomCards) g
   return result
 
 runGames :: Int -> [Player] -> IO [(Result, Int)]
@@ -109,6 +120,6 @@ runGames num players = do
   g <- newStdGen
   let seeds = take num $ randoms g
   let gens = map mkStdGen seeds
-  let gses = map (Game players (basicDecks (length players))) gens
+  let gses = map (Game players (basicDecks (length players) `Map.union` makeDecks firstGameKingdomCards)) gens
   let results = map (runState runGame') gses
   return $ map (head &&& length) $ group $ sort $ map fst results

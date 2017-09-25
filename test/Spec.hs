@@ -19,7 +19,7 @@ main = do
   hspec $ do
     let p1                                = newPlayer "Player 1" bigMoneyStrategy
     let p2                                = newPlayer "Player 2" bigSmithyStrategy
-    let (p1AfterDeal, afterDeal)          = runState (deal 5 p1) $ Game [p1, p2] (basicDecks 2) g
+    let (p1AfterDeal, afterDeal)          = runState (deal 5 p1) $ Game [p1, p2] ((basicDecks 2) `Map.union` makeDecks firstGameKingdomCards) g
     let (p2AfterDeal, afterDeal2)         = runState (deal 5 p2) afterDeal
     let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
     let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
@@ -297,4 +297,3 @@ main = do
         length (p1AfterCard ^. deck) `shouldBe` 6
         length (p1AfterCard ^. hand) `shouldBe` 5
         (p1AfterCard ^. actions) `shouldBe` 0
-    
