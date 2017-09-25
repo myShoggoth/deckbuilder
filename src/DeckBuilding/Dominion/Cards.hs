@@ -32,6 +32,7 @@ module DeckBuilding.Dominion.Cards
     , mineCard
     , sentryCard
     , libraryCard
+    , artisanCard
     , treasureCards
     , victoryCards
     ) where
@@ -72,7 +73,7 @@ colonyCard      = Card "Colony"     11 (valueCard 0 10) Value
 
 provinceCard    = Card "Province"   8 (valueCard 0 6) Value
 
-duchyCard       = Card "Province"   5 (valueCard 0 3) Value
+duchyCard       = Card "Duchy"      5 (valueCard 0 3) Value
 
 estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 
@@ -357,3 +358,15 @@ sentryCardAction c p = if hasActionsLeft p
     else return p
 
 sentryCard    = Card "Sentry"       5 sentryCardAction Action
+
+artisanCardAction :: Card -> Player -> State Game Player
+artisanCardAction c p = if hasActionsLeft p
+    then do
+      p' <- updatePlayer $ over played (c:) $ over actions (+ (-1)) p
+      p'' <- (p' ^. strategy . gainCardStrategy) 5 p'
+      let newcard = head (p'' ^. discard)
+      p''' <- updatePlayer $ over hand (newcard:) $ over discard (delete newcard) p''
+      (p''' ^. strategy . handToDeckStrategy) 1 p'''
+    else return p
+
+artisanCard   = Card "Artisan"      6 artisanCardAction Action

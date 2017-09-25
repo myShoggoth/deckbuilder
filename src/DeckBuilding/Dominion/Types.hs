@@ -44,7 +44,8 @@ data Strategy = Strategy {
   _gainCardStrategy   :: Int -> Player -> State Game Player,
   _throneRoomStrategy :: Player -> State Game (Maybe Card),
   _libraryStrategy    :: Card -> State Game Bool,
-  _sentryStrategy     :: [Card] -> Player -> State Game ([Card], [Card], [Card])
+  _sentryStrategy     :: [Card] -> Player -> State Game ([Card], [Card], [Card]),
+  _handToDeckStrategy :: Int -> Player -> State Game Player
 }
 
 instance Show Strategy where

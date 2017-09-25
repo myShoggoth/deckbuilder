@@ -17,7 +17,7 @@ import Data.Foldable (foldrM)
 
 -- Big money
 
-bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry
+bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck
 
 canAfford :: Card -> Player -> Bool
 canAfford c p = (c ^. cost) <= (p ^. money)
@@ -79,9 +79,15 @@ bigMoneySentry cs p = do
   let keep = (trash ++ disc) \\ cs
   return (trash, disc, keep)
 
+bigMoneyHandToDeck :: Int -> Player -> State Game Player
+bigMoneyHandToDeck n p = do
+  let cards = take n $ (p ^. hand) `intersect` handToDeckCards
+  updatePlayer $ over deck (cards ++) $ set hand ((p ^. hand) \\ cards) p
+  where handToDeckCards = [estateCard, copperCard, smithyCard]
+
 -- Big smithy
 
-bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry
+bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck
 
 bigSmithyBuy :: Player -> State Game Player
 bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards
@@ -137,7 +143,7 @@ gainCard :: [Card] -> Int -> Player -> State Game Player
 gainCard cards highestPrice p = do
   gs <- get
   let nonEmptyDecks = filter (\c -> Map.member c (gs ^. decks) && (gs ^. decks) Map.! c > 0) cards
-  let highestCostCard = find (\c -> (c ^. cost) <= highestPrice) cards
+  let highestCostCard = find (\c -> (c ^. cost) < highestPrice) cards
   p' <- obtain highestCostCard
   updatePlayer p'
   return p'

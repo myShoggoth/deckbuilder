@@ -290,3 +290,11 @@ main = do
       it "discards coppers and estates from the top of the deck" $ do
         length (p1AfterCard ^. deck) `shouldBe` 2 -- draw one plus look at two and discard both
         (p1AfterCard ^. actions) `shouldBe` 1
+
+    describe "DeckBuilding.Dominion.Cards.artisanCardAction" $ do
+      let (p1AfterCard, afterCard) = runState ((artisanCard ^. action) artisanCard p1AfterDeal) afterDeal
+      it "gains a card to the hand and puts another onto the deck" $ do
+        length (p1AfterCard ^. deck) `shouldBe` 6
+        length (p1AfterCard ^. hand) `shouldBe` 5
+        (p1AfterCard ^. actions) `shouldBe` 0
+    
