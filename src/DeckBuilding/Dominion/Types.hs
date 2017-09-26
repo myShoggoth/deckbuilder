@@ -128,6 +128,8 @@ data Player = Player {
   -- | Number of victory points in the hand. Not relevant until the end of the
   --  game.
   _victory    :: Int,
+  -- | How many turns has this player completed?
+  _turns      :: Int,
   -- | The Strategy used by this player.
   _strategy   :: Strategy
 } deriving Show
@@ -136,7 +138,9 @@ instance Eq Player where
   a == b = _playerName a == _playerName b
 
 instance Ord Player where
-  compare p1 p2 = compare (_playerName p1) (_playerName p2)
+  compare p1 p2
+    | _victory p1 == _victory p2  = _turns p1 `compare` _turns p2
+    | otherwise                   = _victory p2 `compare` _victory p1 
 
 -- | The result of a game. Either Left "Player Name" who is the winner, or
 --  Right Int which is the number of players that tied for the lead.

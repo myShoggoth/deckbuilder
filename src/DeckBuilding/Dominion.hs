@@ -19,15 +19,18 @@ module DeckBuilding.Dominion
     , resetTurn
     , evaluateHand
     , makeDecks
+    , randomKingdomDecks
     ) where
 
 import qualified Data.Map as Map
 import Data.List (delete, find, sortBy, group, sort, groupBy, intersect)
 import Data.Foldable (foldrM)
-import System.Random (randoms, newStdGen, mkStdGen)
+import System.Random (randoms, newStdGen, mkStdGen, StdGen)
+import System.Random.Shuffle (shuffle')
 import Control.Lens
 import Control.Monad.State
 import Control.Arrow ((&&&))
+import Data.Ord (comparing)
 
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Cards
@@ -43,7 +46,7 @@ import Debug.Trace
 
 -- | Creates a new player with a name and strategy and the default started deck.
 newPlayer :: String -> Strategy -> Player
-newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0
+newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 0
 
 {- |
   Evaluates the cards in the deck. Since cards can cause more to be drawn,
@@ -55,10 +58,10 @@ newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] 
 -}
 evaluateHand' :: Player -> [Card] -> State Game Player
 evaluateHand' p []     = return p
-evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
+evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
   p' <- (x ^. action) x p
   evaluateHand' p' xs
-evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _) (_:xs)  = evaluateHand' p xs
+evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand' p xs
 evaluateHand' p (x:xs) = do
   p' <- (x ^. action) x p
   evaluateHand' p' (p' ^. hand)
@@ -70,17 +73,17 @@ evaluateHand p = evaluateHand' p (p ^. hand)
 -- | Runs all the cards in the player's deck to determine the total number of
 --   victory points.
 tallyAllPoints :: Player -> State Game Player
-tallyAllPoints p = evaluateHand $ Player (p ^. playerName) [] [] ((p ^. deck) ++ (p ^. discard) ++ (p ^. hand) ++ (p ^. played)) [] 1 1 0 0 (p ^. strategy)
+tallyAllPoints p = evaluateHand $ Player (p ^. playerName) [] [] ((p ^. deck) ++ (p ^. discard) ++ (p ^. hand) ++ (p ^. played)) [] 1 1 0 0 (p ^. turns) (p ^. strategy)
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: State Game [Player]
 sortByPoints = do
   gs <- get
-  return $ sortBy (flip (\p1 p2 -> compare (p1 ^. victory) (p2 ^. victory))) (gs ^. players)
+  return $ sort (gs ^. players)
 
 gameResult' :: [Player] -> Result
 gameResult' players = result ((length . head) grouped) players
-  where grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory)) players
+  where grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players
         result 1 l = Left $ _playerName $ head l
         result n _ = Right n
 
@@ -89,6 +92,10 @@ gameResult :: State Game Result
 gameResult = do
   players <- sortByPoints
   return $ gameResult' players
+
+-- | Given a set of potential kingdom cards, pick a random ten to play with.
+randomKingdomDecks :: [Card] -> StdGen -> [Card]
+randomKingdomDecks cs g = take 10 $ shuffle' cs (length cs) g
 
 -- | Turns a list of cards into a Map of type (Card, Number in deck)
 makeDecks :: [Card] -> Map.Map Card Int
@@ -102,7 +109,7 @@ basicDecks numPlayers
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
 resetTurn :: Player -> State Game Player
-resetTurn p = updatePlayer $ Player (p ^. playerName) (p ^. deck) (p ^. discard ++ p ^. played) (p ^. hand) [] 1 1 0 0 (p ^. strategy)
+resetTurn p = updatePlayer $ Player (p ^. playerName) (p ^. deck) (p ^. discard ++ p ^. played) (p ^. hand) [] 1 1 0 0 (p ^. turns + 1) (p ^. strategy)
 
 {-|
   The core of the engine, on each turn we:
@@ -155,19 +162,19 @@ runGame' = do
       gameResult
     else runGame'
 
--- | Run a single game with a set of players.
-runGame :: [Player] -> IO Result
-runGame players = do
+-- | Run a single game with a set of players and kingdom cards.
+runGame :: [Player] -> [Card] -> IO Result
+runGame players kingdom = do
   g <- newStdGen
-  let result = evalState runGame' $ Game players (basicDecks (length players) `Map.union` makeDecks firstGameKingdomCards) g
+  let result = evalState runGame' $ Game players (basicDecks (length players) `Map.union` makeDecks kingdom) g
   return result
 
--- | Run n games with a set of players.
-runGames :: Int -> [Player] -> IO [(Result, Int)]
-runGames num players = do
+-- | Run n games with a set of players and kingdom cards.
+runGames :: Int -> [Player] -> [Card] -> IO [(Result, Int)]
+runGames num players kingdom = do
   g <- newStdGen
   let seeds = take num $ randoms g
   let gens = map mkStdGen seeds
-  let gses = map (Game players (basicDecks (length players) `Map.union` makeDecks firstGameKingdomCards)) gens
+  let gses = map (Game players (basicDecks (length players) `Map.union` makeDecks kingdom)) gens
   let results = map (runState runGame') gses
   return $ map (head &&& length) $ group $ sort $ map fst results

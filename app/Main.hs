@@ -4,8 +4,25 @@ import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion
 import DeckBuilding.Dominion.Utils
 import DeckBuilding.Dominion.Strategies.Basic
+import DeckBuilding.Dominion.Cards
 
+import System.Random
+import Control.Lens
+
+showStrategies :: [Player] -> IO ()
+showStrategies [] = return ()
+showStrategies (x:xs) = do
+  print $ show (x ^. playerName) ++ " is using strategy: " ++ show (x ^. strategy . strategyName)
+  showStrategies xs
+
+-- | Basic usage of the library, pick some kingdom cards and run a few
+--  thousand games to test the strategies against each other.
 main :: IO ()
 main = do
-  result <- runGames 1000 [newPlayer "Player 1" bigMoneyStrategy, newPlayer "Player 2" bigSmithyStrategy]
-  print $ show $ result
+  g <- newStdGen
+  let kingdom = randomKingdomDecks kingdomCards2ndEdition g
+  print $ "Kingdom: " ++ show kingdom
+  let players = [newPlayer "Player 1" bigMoneyStrategy, newPlayer "Player 2" bigSmithyStrategy]
+  result <- runGames 5000 players kingdom
+  showStrategies players
+  print $ show result
