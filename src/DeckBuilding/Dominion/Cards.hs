@@ -53,6 +53,7 @@ import           Data.Foldable               (foldrM)
 
 -- Cards and their actions
 
+-- | For value cards, pass money and victory point values.
 valueCard :: Int -> Int -> Card -> Player -> State Game Player
 valueCard m v c p = updatePlayer $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) p
 
@@ -60,6 +61,7 @@ platinumCard    = Card "Platinum"   9 (valueCard 5 0) Value
 
 goldCard        = Card "Gold"       6 (valueCard 3 0) Value
 
+-- | Silver cards need extra logic to make Merchant work in all cases.
 silverCardAction :: Card -> Player -> State Game Player
 silverCardAction c p    = doSilver merchantPlayed
   where merchantPlayed  = merchantCard `elem` (p ^.played)
@@ -82,8 +84,10 @@ estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 
 curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 
+-- | Cards that affect victory values.
 victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
 
+-- | For basic card values: draw cards, +actions, +buys, +money, +victory
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> State Game Player
 basicCardAction draw a b m v c p = do
   p' <- updatePlayer $ over hand (delete c) $ over played (c:) $ over actions (+a) $ over buys (+b) $ over money (+m) $ over victory (+v) p
@@ -342,6 +346,7 @@ workshopCardAction c p = do
 
 workshopCard  = Card "Workshop"     3 workshopCardAction Action
 
+-- | The kingdom cards from Dominion 2nd edition.
 kingdomCards2ndEdition = [
     marketCard
   , moatCard
@@ -370,6 +375,7 @@ kingdomCards2ndEdition = [
   , artisanCard
   ]
 
+-- | The ten kingdom cards recommended for a player's first game.
 firstGameKingdomCards = [
     cellarCard
   , marketCard

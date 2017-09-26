@@ -1,7 +1,6 @@
 module DeckBuilding.Dominion.Utils
     ( deal
     , updatePlayer
-    , hasActionsLeft
     , numEmptyDecks
     , firstCardInPlay
     , decreaseCards
@@ -16,6 +15,7 @@ import Control.Lens
 import Control.Monad.State
 import Control.Monad (filterM)
 
+-- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> Player -> State Game Player
 deal 0   p = return p
 deal num p = do
@@ -30,6 +30,7 @@ deal num p = do
   updatePlayer player
   return player
 
+-- | Update the player in the game state.
 updatePlayer :: Player -> State Game Player
 updatePlayer p = do
   gs <- get
@@ -37,26 +38,26 @@ updatePlayer p = do
   put $ over players (set (element index) p) gs
   return p
 
-hasActionsLeft :: Player -> Bool
-hasActionsLeft (Player _ _ _ _ _ 0 _ _ _ _) = False
-hasActionsLeft _                            = True
-
+-- | How many of the game's decks have been emptied?
 numEmptyDecks :: State Game Int
 numEmptyDecks = do
   gs <- get
   return $ length $ Map.filter (== 0) (gs ^. decks)
 
+-- | If the cards are the same, return number of cards - 1.
 decreaseCards :: Card -> Card -> Int -> Int
 decreaseCards  _  _ 0 = 0
 decreaseCards c1 c2 n = if c1 == c2
     then n - 1
     else n
 
+-- | Is this card part of this game, and if so are there any left?
 isCardInPlay :: Card -> State Game Bool
 isCardInPlay c = do
   gs <- get
   return $ c `Map.member` (gs ^. decks) && (gs ^. decks) Map.! c > 0
 
+-- | Find the first card, if any, in the list which is still in play.
 firstCardInPlay :: [Card] -> State Game (Maybe Card)
 firstCardInPlay cs = do
   cards <- filterM isCardInPlay cs
