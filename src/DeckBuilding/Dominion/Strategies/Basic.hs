@@ -52,7 +52,7 @@ buyN n c p = if countCards c p < n
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: Player -> State Game Player
 bigMoneyBuy p = doBuys p (p ^. buys) bigMoneyCards
-  where bigMoneyCards = [(colonyCard, alwaysBuy), (platinumCard, alwaysBuy), (provinceCard, alwaysBuy), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
+  where bigMoneyCards = [(provinceCard, alwaysBuy), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
 
 -- | If you can discard a card, get rid of victory cards and coppers.
 bigMoneyDiscard :: (Int, Int) -> Player -> State Game Player
@@ -72,13 +72,13 @@ trashCards = [curseCard, estateCard, copperCard]
 --  worth it.
 bigMoneyRetrieve :: (Int, Int) -> Player -> State Game Player
 bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
-  where retrieveCards = [platinumCard, goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
+  where retrieveCards = [goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
 
 -- | When you're given the opportunity to gain a card, the is the list in
 --  descending cost order. Would be good to make this better ala buy.
 bigMoneyGain :: Int -> Player -> State Game Player
 bigMoneyGain = gainCard gainCards
-  where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, duchyCard, silverCard]
+  where gainCards = [provinceCard, goldCard, duchyCard, silverCard]
 
 -- | We never have anything, so why bother?
 bigMoneyOrderHand :: Player -> State Game Player
@@ -117,12 +117,12 @@ bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyT
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: Player -> State Game Player
 bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards
-  where bigMoneyCards = [(colonyCard, alwaysBuy), (platinumCard, alwaysBuy), (provinceCard, alwaysBuy), (smithyCard, buyN 2), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
+  where bigMoneyCards = [(provinceCard, alwaysBuy), (smithyCard, buyN 2), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
 
 -- | Just like big money buy we also gain smithy cards.
 bigSmithyGain :: Int -> Player -> State Game Player
 bigSmithyGain = gainCard gainCards
-  where gainCards = [colonyCard, platinumCard, provinceCard, goldCard, smithyCard, silverCard, duchyCard]
+  where gainCards = [provinceCard, goldCard, smithyCard, silverCard, duchyCard]
 
 -- | If we somehow had a throne room, definitely double the smithy.
 bigSmithyThroneRoom :: Player -> State Game (Maybe Card)

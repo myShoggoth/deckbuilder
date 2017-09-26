@@ -27,9 +27,9 @@ To create a new playing strategy:
 
 To implement the cards for an expansion:
 
-1. Create a src/DeckBuilding/Dominion/Cards directory that has a Haskell file
-  named ExpansionName.hs
-2. Implement the cards, see src/DeckBuilding/Dominion/Cards.hs for lots of
+1. Create a Haskell file in the src/DeckBuilding/Dominion/Cards directory
+  called ExpansionName.hs.
+2. Implement the cards, see src/DeckBuilding/Dominion/Cards/Base.hs for lots of
   examples and helper functions.
 3. If you need to make data or algorithm changes, let me know so we can discuss
   design ideas.
