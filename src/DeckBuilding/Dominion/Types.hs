@@ -14,6 +14,8 @@ data Game = Game {
   _players  :: [Player],
   -- | All the decks, basic and Kingdom: (Card, Number Left)
   _decks    :: Map.Map Card Int,
+  -- | The trash pile.
+  _trash    :: [Card],
   -- | The current random number generator, needs to be updated when used.
   _random   :: StdGen
 } deriving Show
@@ -140,7 +142,7 @@ instance Eq Player where
 instance Ord Player where
   compare p1 p2
     | _victory p1 == _victory p2  = _turns p1 `compare` _turns p2
-    | otherwise                   = _victory p2 `compare` _victory p1 
+    | otherwise                   = _victory p2 `compare` _victory p1
 
 -- | The result of a game. Either Left "Player Name" who is the winner, or
 --  Right Int which is the number of players that tied for the lead.

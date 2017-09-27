@@ -10,7 +10,7 @@ of the basic game.
 
 How to get it up and running:
 
-1. Clone the repository
+1. Clone or fork the repository
 2. Install the stack tool (https://docs.haskellstack.org/en/stable/README/)
 3. Change to the root directory for the repository and use `stack build`.
 4. Once it is built, you can run `stack exec -- deckbuilder-exe` to try it out.

@@ -158,7 +158,10 @@ doDiscard minmax cards p = updatePlayer (over discard (++ toDiscard) (set hand n
 -- | Core for a simple trashing logic. (min, max) and the list of
 --  preferred cards to trash.
 doTrash :: (Int, Int) -> [Card] -> Player -> State Game Player
-doTrash minmax cards p = updatePlayer (set hand newHand p)
+doTrash minmax cards p = do
+  gs <- get
+  put $ over trash (toTrash ++) gs
+  updatePlayer (set hand newHand p)
   where toTrash = prefPlusCards minmax cards (p ^. hand)
         newHand = removeFromCards (p ^. hand) toTrash
 

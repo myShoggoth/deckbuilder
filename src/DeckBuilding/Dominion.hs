@@ -166,7 +166,7 @@ runGame' = do
 runGame :: [Player] -> [Card] -> IO Result
 runGame players kingdom = do
   g <- newStdGen
-  let result = evalState runGame' $ Game players (basicDecks (length players) `Map.union` makeDecks kingdom) g
+  let result = evalState runGame' $ Game players (basicDecks (length players) `Map.union` makeDecks kingdom) [] g
   return result
 
 -- | Run n games with a set of players and kingdom cards.
@@ -175,6 +175,6 @@ runGames num players kingdom = do
   g <- newStdGen
   let seeds = take num $ randoms g
   let gens = map mkStdGen seeds
-  let gses = map (Game players (basicDecks (length players) `Map.union` makeDecks kingdom)) gens
+  let gses = map (Game players (basicDecks (length players) `Map.union` makeDecks kingdom) []) gens
   let results = map (runState runGame') gses
   return $ map (head &&& length) $ group $ sort $ map fst results

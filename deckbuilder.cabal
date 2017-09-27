@@ -20,6 +20,7 @@ library
                      , DeckBuilding.Dominion.Utils
                      , DeckBuilding.Dominion.Cards
                      , DeckBuilding.Dominion.Cards.Base
+                     , DeckBuilding.Dominion.Cards.Utils
                      , DeckBuilding.Dominion.Strategies.Basic
   build-depends:       base >= 4.7 && < 5
                      , random-shuffle

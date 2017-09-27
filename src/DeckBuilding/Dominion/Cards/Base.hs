@@ -40,6 +40,7 @@ module DeckBuilding.Dominion.Cards.Base
 
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
+import           DeckBuilding.Dominion.Cards.Utils
 
 import           Control.Lens
 import           Control.Monad.State
@@ -50,10 +51,6 @@ import           System.Random.Shuffle
 import           Data.Foldable               (foldrM)
 
 -- Cards and their actions
-
--- | For value cards, pass money and victory point values.
-valueCard :: Int -> Int -> Card -> Player -> State Game Player
-valueCard m v c p = updatePlayer $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) p
 
 goldCard        = Card "Gold"       6 (valueCard 3 0) Value
 
@@ -80,12 +77,6 @@ curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 
 -- | Cards that affect victory values.
 victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
-
--- | For basic card values: draw cards, +actions, +buys, +money, +victory
-basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> State Game Player
-basicCardAction draw a b m v c p = do
-  p' <- updatePlayer $ over hand (delete c) $ over played (c:) $ over actions (+a) $ over buys (+b) $ over money (+m) $ over victory (+v) p
-  deal draw p'
 
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
@@ -182,9 +173,15 @@ militiaCardAction c p = do
 militiaCard     = Card "Militia"    4 militiaCardAction Action
 
 moneylenderCardAction :: Card -> Player -> State Game Player
-moneylenderCardAction c p = return $ copper $ find (== copperCard) (p ^. hand)
-  where copper Nothing    = over discard (c:) p
-        copper (Just cop) = over hand (delete cop) $ over money (+3) $ over played (c:) $ over actions (+ (-1)) p
+moneylenderCardAction c p = do
+  gs <- get
+  let mcop = find (== copperCard) (p ^. hand)
+  put $ trashcop mcop gs
+  updatePlayer $ copper mcop
+  where copper Nothing          = over discard (c:) p
+        copper (Just cop)       = over hand (delete cop) $ over money (+3) $ over played (c:) $ over actions (+ (-1)) p
+        trashcop Nothing gs     = gs
+        trashcop (Just cop) gs  = over trash (cop:) gs
 
 moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action
 
@@ -229,6 +226,8 @@ banditDiscard p = if defendsAgainstAttack militiaCard p
     let (toptwo, therest) = splitAt 2 (p ^. deck)
     let totrash           = take 1 $ intersect toptwo (delete copperCard (reverse treasureCards))
     let todiscard         = toptwo \\ totrash
+    gs <- get
+    put $ over trash (totrash ++) gs
     updatePlayer $ set deck therest $ over discard (todiscard++) p
 
 banditCardAction :: Card -> Player -> State Game Player
