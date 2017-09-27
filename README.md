@@ -23,7 +23,7 @@ To create a new playing strategy:
   src/DeckBuilding/Dominion/Types.hs for details.
 3. Try it out/debug it interactively with `stack ghci`
 4. Change app/Main.hs to use your strategy.
-5. If you do and you like it, submit a MR!
+5. If you do and you like it, submit a PR!
 
 To implement the cards for an expansion:
 
@@ -35,4 +35,4 @@ To implement the cards for an expansion:
   design ideas.
 4. Have your module publish the cards, the list of cards, etc.
 5. Write unit tests.
-6. Submit a MR!
+6. Submit a PR!
