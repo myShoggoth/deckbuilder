@@ -105,7 +105,7 @@ bigMoneySentry cs p = do
 bigMoneyHandToDeck :: Int -> Player -> State Game Player
 bigMoneyHandToDeck n p = do
   let cards = take n $ (p ^. hand) `intersect` handToDeckCards
-  updatePlayer $ over deck (cards ++) $ set hand ((p ^. hand) \\ cards) p
+  return $ over deck (cards ++) $ set hand ((p ^. hand) \\ cards) p
   where handToDeckCards = [estateCard, copperCard, smithyCard]
 
 -- Big smithy
@@ -151,7 +151,7 @@ removeFromCards = foldr delete
 -- | Core for a simple discarding logic. (min, max) and the list of
 --  preferred cards to discard.
 doDiscard :: (Int, Int) -> [Card] -> Player -> State Game Player
-doDiscard minmax cards p = updatePlayer (over discard (++ toDiscard) (set hand newHand p))
+doDiscard minmax cards p = updatePlayer $ over discard (++ toDiscard) $ set hand newHand p
   where toDiscard = prefPlusCards minmax cards (p ^. hand)
         newHand = removeFromCards (p ^. hand) toDiscard
 
@@ -161,14 +161,14 @@ doTrash :: (Int, Int) -> [Card] -> Player -> State Game Player
 doTrash minmax cards p = do
   gs <- get
   put $ over trash (toTrash ++) gs
-  updatePlayer (set hand newHand p)
+  return $ set hand newHand p
   where toTrash = prefPlusCards minmax cards (p ^. hand)
         newHand = removeFromCards (p ^. hand) toTrash
 
 -- | Core for a simple card retrieving from the discard pile logic. (min, max)
 --  and the list of preferred cards to retrieve.
 doRetrieveDiscard :: (Int, Int) -> [Card] -> Player -> State Game Player
-doRetrieveDiscard (min, max) cards p = updatePlayer (over deck (toRetrieve ++) (set discard newDiscard p))
+doRetrieveDiscard (min, max) cards p = return $ over deck (toRetrieve ++) $ set discard newDiscard p
   where pref = take max $ intersect (p ^. discard ) cards
         toRetrieve
           | length pref > min = pref
@@ -190,16 +190,13 @@ gainCard cards highestPrice p = do
   gs <- get
   let nonEmptyDecks = filter (\c -> Map.member c (gs ^. decks) && (gs ^. decks) Map.! c > 0) cards
   let highestCostCard = find (\c -> (c ^. cost) < highestPrice) cards
-  p' <- obtain highestCostCard
-  updatePlayer p'
-  return p'
+  obtain highestCostCard
   where obtain :: Maybe Card -> State Game Player
         obtain Nothing  = return p
         obtain (Just c) = do
           gs <- get
           put $ over decks (Map.mapWithKey (decreaseCards c)) gs
-          let p'' = over discard (c:) p
-          return p''
+          return $ over discard (c:) p
 
 -- | Core engine for simple buying cards. Call for each buy the player has
 --  with the remaining money available, return a list of cards the engine
@@ -219,9 +216,7 @@ buyCard Nothing  p = return p
 buyCard (Just c) p = do
   gs <- get
   put $ over decks (Map.mapWithKey (decreaseCards c)) gs
-  let p' = over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) p
-  updatePlayer p'
-  return p'
+  return $ over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) p
 
 -- | Given a list of cards and buy functions, call the buy functions until one
 --  is bought and return True. If none are bought, return False.

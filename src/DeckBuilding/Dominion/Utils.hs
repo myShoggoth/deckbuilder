@@ -25,10 +25,8 @@ deal num p = do
           | null (p ^. discard)         = (p ^. deck, [])
           | otherwise                   = ( (p ^. deck) ++ shuffle' (p ^. discard) (length (p ^. discard)) (gs ^. random), [])
   let (newHand, newDeck)  = splitAt num enoughDeck
-  let player              = set deck newDeck $ set discard newDiscard $ over hand (++ newHand) p
   put $ over random (snd . split) gs
-  updatePlayer player
-  return player
+  updatePlayer $ set deck newDeck $ set discard newDiscard $ over hand (++ newHand) p
 
 -- | Update the player in the game state.
 updatePlayer :: Player -> State Game Player
