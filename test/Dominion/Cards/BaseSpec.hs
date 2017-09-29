@@ -27,7 +27,7 @@ spec = do
   let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
   let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
 
-  describe "DeckBuilding.Dominion.Cards.Base.cellarCardAction" $
+  describe "cellarCardAction" $
     it "discards all starting cards" $ do
       let (p1AfterCard, afterCard) = runState ((cellarCard ^. action) cellarCard p1AfterDeal) afterDeal
       length (p1AfterCard ^. hand) `shouldBe` 5
@@ -35,7 +35,7 @@ spec = do
       length (p1AfterCard ^. played) `shouldBe` 1
       (p1AfterCard ^. actions) `shouldBe` 0
 
-  describe "DeckBuilding.Dominion.Cards.Base.chapelCardAction" $
+  describe "chapelCardAction" $
     it "trashes 4 of the starting cards" $ do
       let (p1AfterCard, afterCard) = runState ((chapelCard ^. action) chapelCard p1AfterDeal) afterDeal
       length (p1AfterCard ^. hand) `shouldBe` 1
@@ -45,7 +45,7 @@ spec = do
       (p1AfterCard ^. actions) `shouldBe` 0
       length (afterCard ^. trash) `shouldBe` 4
 
-  describe "DeckBuilding.Dominion.Cards.Base.harbingerCardAction" $
+  describe "harbingerCardAction" $
     it "takes a silver from the discard pile and puts it on the deck" $ do
       let (p1BeforeCard, beforeCard)  = runState (updatePlayer (over discard (silverCard:) p1AfterDeal)) afterDeal
       let (p1AfterCard, afterCard)    = runState ((harbingerCard ^. action) harbingerCard p1BeforeCard) beforeCard
@@ -53,7 +53,7 @@ spec = do
       length (p1AfterCard ^. hand) `shouldBe` 6
       (p1AfterCard ^. actions) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.merchantCardAction" $ do
+  describe "merchantCardAction" $ do
     it "adds one money if there is no silver played" $ do
       let (p1AfterCard, afterCard) = runState ((merchantCard ^. action) merchantCard p1AfterDeal) afterDeal
       (p1AfterCard ^. money) `shouldBe` 1
@@ -69,7 +69,7 @@ spec = do
       (p1AfterCard ^. money) `shouldBe` 4
       (p1AfterCard ^. actions) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.vassalCardAction" $
+  describe "vassalCardAction" $
     it "draws a value card" $ do
       let forcedDeal = Player "Vassal Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
       let (p1AfterCard, afterCard) = runState (evaluateHand forcedDeal) $ Game [forcedDeal] (basicDecks 2) [] g
@@ -80,7 +80,7 @@ spec = do
       length (p1AfterCard ^. discard) `shouldBe` 1
       (p1AfterCard ^. actions) `shouldBe` 0
 
-  describe "DeckBuilding.Dominion.Cards.Base.bureaucratCardAction" $ do
+  describe "bureaucratCardAction" $ do
     let forcedDeal = Player "Bureaurat Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
     let (p1AfterCard, afterCard) = runState ((bureaucratCard ^. action) bureaucratCard p1AfterDeal) $ Game [p1AfterDeal, forcedDeal] (basicDecks 2) [] g
     it "puts a silver on the deck" $ do
@@ -90,13 +90,13 @@ spec = do
       let (Just p2') = find (== forcedDeal) (afterCard ^. players)
       length (p2' ^. hand) `shouldBe` 4
 
-  describe "DeckBuilding.Dominion.Cards.Base.gardensCardAction" $
+  describe "gardensCardAction" $
     it "gives 1 point for the starting deck" $ do
       let (p1AfterCard, afterCard) = runState ((gardensCard ^. action) gardensCard p1AfterDeal) afterDeal
       (p1AfterCard ^. victory) `shouldBe` 1
       (p1AfterCard ^. actions) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.militiaCardAction" $ do
+  describe "militiaCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((militiaCard ^. action) militiaCard p1AfterDeal) afterDeal2
     it "gives two money" $ do
       (p1AfterCard ^. money) `shouldBe` 2
@@ -105,7 +105,7 @@ spec = do
       let (Just p2') = find (== p2) (afterCard ^. players)
       length (p2' ^. hand) `shouldBe` 3
 
-  describe "DeckBuilding.Dominion.Cards.Base.moneylenderCardAction" $ do
+  describe "moneylenderCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((moneylenderCard ^. action) moneylenderCard p1AfterDeal) afterDeal2
     it "gives 3 money" $ do
       (p1AfterCard ^. money) `shouldBe` 3
@@ -114,7 +114,7 @@ spec = do
       length ((p1AfterCard ^. hand) ++ (p1AfterCard ^. discard) ++ (p1AfterCard ^. played) ++ (p1AfterCard ^. deck)) `shouldBe` 10 -- includes the moneylender card itself
       length (afterCard ^. trash) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.poacherCardAction" $ do
+  describe "poacherCardAction" $ do
     it "gives a card, action, and money" $ do
       let (p1AfterCard, afterCard) = runState ((poacherCard ^. action) poacherCard p1AfterDeal) afterDeal
       length (p1AfterCard ^. hand) `shouldBe` 6
@@ -127,7 +127,7 @@ spec = do
       (p1AfterCard ^. money) `shouldBe` 1
       (p1AfterCard ^. actions) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.throneRoomCardAction" $ do
+  describe "throneRoomCardAction" $ do
     it "will not play if there are no actions left in the hand" $ do
       let (p1AfterCard, afterCard) = runState ((throneRoomCard ^. action) throneRoomCard p1AfterDeal) afterDeal
       (p1AfterCard ^. actions) `shouldBe` 1
@@ -143,7 +143,7 @@ spec = do
       (p1AfterCard ^. money) `shouldBe` 7
       (p1AfterCard ^. victory) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.banditCardAction" $ do
+  describe "banditCardAction" $ do
     it "gives a gold onto the discard pile" $ do
       let (p1AfterCard, afterCard) = runState ((banditCard ^. action) banditCard p1AfterDeal) afterDeal
       length (p1AfterCard ^. discard) `shouldBe` 1
@@ -157,7 +157,7 @@ spec = do
       length (fd ^. deck) `shouldBe` 4
       length (afterCard ^. trash) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.councilRoomCardAction" $ do
+  describe "councilRoomCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((councilRoomCard ^. action) councilRoomCard p1AfterDeal) afterDeal2
     let (Just p2') = find (== p2) (afterCard ^. players)
     it "draws four cards" $ do
@@ -166,7 +166,7 @@ spec = do
     it "causes the other players to draw a card" $
       length (p2' ^. hand) `shouldBe` 6
 
-  describe "DeckBuilding.Dominion.Cards.Base.witchCardAction" $ do
+  describe "witchCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((witchCard ^. action) witchCard p1AfterDeal) afterDeal2
     let (Just p2') = find (== p2) (afterCard ^. players)
     it "draws two cards" $ do
@@ -175,23 +175,23 @@ spec = do
     it "causes other players to get curses" $
       head (p2' ^. discard) `shouldBe` curseCard
 
-  describe "DeckBuilding.Dominion.Cards.Base.mineCardAction" $ do
+  describe "mineCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((mineCard ^. action) mineCard p1AfterDeal) afterDeal
     it "upgrades a copper to silver" $
       head (p1AfterCard ^. hand) `shouldBe` silverCard
 
-  describe "DeckBuilding.Dominion.Cards.Base.libraryCardAction" $ do
+  describe "libraryCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((libraryCard ^. action) libraryCard p1AfterDeal) afterDeal
     it "draws to seven cards" $
       length (p1AfterCard ^. hand) `shouldBe` 7
 
-  describe "DeckBuilding.Dominion.Cards.Base.sentryCardAction" $ do
+  describe "sentryCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((sentryCard ^. action) sentryCard p1AfterDeal) afterDeal
     it "discards coppers and estates from the top of the deck" $ do
       length (p1AfterCard ^. deck) `shouldBe` 2 -- draw one plus look at two and discard both
       (p1AfterCard ^. actions) `shouldBe` 1
 
-  describe "DeckBuilding.Dominion.Cards.Base.artisanCardAction" $ do
+  describe "artisanCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((artisanCard ^. action) artisanCard p1AfterDeal) afterDeal
     it "gains a card to the hand and puts another onto the deck" $ do
       length (p1AfterCard ^. deck) `shouldBe` 6

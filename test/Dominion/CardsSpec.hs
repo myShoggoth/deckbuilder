@@ -26,7 +26,7 @@ spec = do
   let (p2AfterDeal, afterDeal2)         = runState (deal 5 p2) afterDeal
   let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
   let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
-  describe "DeckBuilding.Dominion.Cards.Util.valueCard" $ do
+  describe "Utils.valueCard" $ do
     it "gives money for a copper" $ do
       let (p1AfterCard, afterCard) = runState ((copperCard ^. action) copperCard p1AfterDeal) afterDeal
       (p1AfterCard ^. money) `shouldBe` 1
@@ -55,7 +55,7 @@ spec = do
       let (p1AfterCard, afterCard) = runState ((curseCard ^. action) curseCard p1AfterDeal) afterDeal
       (p1AfterCard ^. victory) `shouldBe` (-1)
 
-  describe "DeckBuilding.Dominion.Cards.Utils.basicCardAction" $ do
+  describe "Utils.basicCardAction" $ do
     it "it works with market" $ do
       let (p1AfterCard, afterCard) = runState ((marketCard ^. action) marketCard p1AfterDeal) afterDeal
       length (p1AfterCard ^. hand) `shouldBe` 6

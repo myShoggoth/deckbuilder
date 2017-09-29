@@ -27,13 +27,13 @@ spec = do
   let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
   let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
 
-  describe "DeckBuilding.Dominion.Cards.Intrigue.courtyardCardAction" $ do
+  describe "courtyardCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((courtyardCard ^. action) courtyardCard p1AfterDeal) afterDeal
     it "draws three cards and puts one back on the deck" $ do
       length (p1AfterCard ^. deck) `shouldBe` 3
       length (p1AfterCard ^. hand) `shouldBe` 7
 
-  describe "DeckBuilding.Dominion.Cards.Intrigue.lurkerCardAction" $ do
+  describe "lurkerCardAction" $ do
     let (p1AfterCard, afterCard) = runState ((lurkerCard ^. action) artisanCard p1AfterDeal) afterDeal
     it "trashes an action card from supply" $ do
       length (afterCard ^. trash) `shouldBe` 1

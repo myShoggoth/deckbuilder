@@ -26,7 +26,7 @@ spec = do
   let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
   let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
 
-  describe "DeckBuilding.Dominion.Utils.deal" $ do
+  describe "Utils.deal" $ do
     it "deals the correct number of cards" $ do
       length (p1AfterDeal  ^. hand) `shouldBe` 5
       length (p1AfterDeal ^. deck) `shouldBe` 5
@@ -38,7 +38,7 @@ spec = do
     it "has a total of three estates" $
       length (filter (== estateCard) ((p1AfterDeal ^. hand) ++ (p1AfterDeal ^. deck))) `shouldBe` 3
 
-  describe "DeckBuilding.Dominion.evaluateHand" $ do
+  describe "evaluateHand" $ do
     it "has no more cards in hand" $ do
       length (p1AfterEvaluate ^. played) `shouldBe` 5
       length (p1AfterEvaluate ^. hand) `shouldBe` 0
@@ -50,7 +50,7 @@ spec = do
     it "calcualtes the right amount of victory" $
       p1AfterEvaluate ^. victory `shouldBe` length (filter (== estateCard) (p1AfterEvaluate ^. played))
 
-  describe "DeckBuilding.Dominion.resetTurn" $ do
+  describe "resetTurn" $ do
     it "has an empty played pile" $
       length (p1AfterReset ^. played) `shouldBe` 0
 
