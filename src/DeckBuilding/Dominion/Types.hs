@@ -101,7 +101,10 @@ data Strategy = Strategy {
   _sentryStrategy     :: [Card] -> Player -> State Game ([Card], [Card], [Card]),
   -- | For cards like Artisan, pick n cards that the player would like to put
   --  back onto the top of their deck. The function does that work.
-  _handToDeckStrategy :: Int -> Player -> State Game Player
+  _handToDeckStrategy :: Int -> Player -> State Game Player,
+  -- | For the Lurker card, either pick an Action card from supply (Left) or
+  --  gain a card from the trash (Right)
+  _lurkerStrategy     :: Card -> Player -> State Game (Either Card Card)
 }
 
 instance Show Strategy where

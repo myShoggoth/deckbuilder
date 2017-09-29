@@ -19,7 +19,7 @@ import Data.Foldable (foldrM)
 
 -- | The most basic Dominion strategy: buy the best money you can afford
 --  and provinces.
-bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck
+bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
 
 -- | Can this player afford this card?
 canAfford :: Card -> Player -> Bool
@@ -108,11 +108,20 @@ bigMoneyHandToDeck n p = do
   return $ over deck (cards ++) $ set hand ((p ^. hand) \\ cards) p
   where handToDeckCards = [estateCard, copperCard, smithyCard]
 
+findInPlayAction :: Map.Map Card Int -> Card
+findInPlayAction decks = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. cardType == Action) && v > 0) decks
+
+-- | Just need something
+bigMoneyLurker :: Card -> Player -> State Game (Either Card Card)
+bigMoneyLurker c p = do
+  gs <- get
+  return $ Left $ findInPlayAction (gs ^. decks)
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
 --  crap out of big money.
-bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck
+bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: Player -> State Game Player

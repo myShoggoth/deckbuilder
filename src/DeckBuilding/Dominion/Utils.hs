@@ -4,6 +4,7 @@ module DeckBuilding.Dominion.Utils
     , numEmptyDecks
     , firstCardInPlay
     , decreaseCards
+    , isCardInPlay
     ) where
 
 import DeckBuilding.Dominion.Types
