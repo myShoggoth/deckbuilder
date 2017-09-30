@@ -3,10 +3,12 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , lurkerCard
     , shantyTownCard
     , conspiratorCard
+    , ironworksCard
     ) where
 
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Cards.Utils
+import DeckBuilding.Dominion.Cards.Base
 import DeckBuilding.Dominion.Utils
 
 import Control.Lens
@@ -62,3 +64,15 @@ conspiratorCardAction c p = if hasActionCards 2 (p ^. played)
   else basicCardAction 0 (-1) 0 2 0 c p
 
 conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action
+
+ironworksCardAction :: Card -> Player -> State Game Player
+ironworksCardAction c p = do
+  p' <- (p ^. strategy . gainCardStrategy) 4 p
+  bonus (head (p' ^. discard)) p'
+  where bonus c p
+          | (c ^. cardType) == Action = basicCardAction 0 0 0 0 0 ironworksCard p
+          | c `elem` treasureCards    = basicCardAction 0 (-1) 0 1 0 ironworksCard p
+          | c `elem` victoryCards     = basicCardAction 1 (-1) 0 0 0 ironworksCard p
+          | otherwise                 = basicCardAction 0 (-1) 0 0 0 ironworksCard p
+
+ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action

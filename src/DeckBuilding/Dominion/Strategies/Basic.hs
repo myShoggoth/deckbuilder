@@ -1,11 +1,26 @@
 module DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyStrategy
     , bigSmithyStrategy
+    , bigMoneyBuy
+    , bigMoneyDiscard
+    , bigMoneyTrash
+    , bigMoneyRetrieve
+    , bigMoneyOrderHand
+    , bigMoneyGain
+    , bigMoneyThroneRoom
+    , bigMoneyLibrary
+    , bigMoneySentry
+    , bigMoneyHandToDeck
+    , bigMoneyLurker
+    , bigSmithyBuy
+    , bigSmithyGain
+    , bigSmithyThroneRoom
     ) where
 
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Utils
 import DeckBuilding.Dominion.Cards
+import DeckBuilding.Dominion.Cards.Utils
 
 import Data.List (delete, intersect, find, (\\))
 import Control.Lens
@@ -190,22 +205,6 @@ findFirstCard cards p = return $ getFirst pref
   where pref = (p ^. hand) `intersect` cards
         getFirst []     = Nothing
         getFirst (x:xs) = Just x
-
--- | Given a list of cards in descending priorty order to gain and a max price,
---  gain the first card in the list that's available that is under the max
---  price.
-gainCard :: [Card] -> Int -> Player -> State Game Player
-gainCard cards highestPrice p = do
-  gs <- get
-  let nonEmptyDecks = filter (\c -> Map.member c (gs ^. decks) && (gs ^. decks) Map.! c > 0) cards
-  let highestCostCard = find (\c -> (c ^. cost) < highestPrice) cards
-  obtain highestCostCard
-  where obtain :: Maybe Card -> State Game Player
-        obtain Nothing  = return p
-        obtain (Just c) = do
-          gs <- get
-          put $ over decks (Map.mapWithKey (decreaseCards c)) gs
-          return $ over discard (c:) p
 
 -- | Core engine for simple buying cards. Call for each buy the player has
 --  with the remaining money available, return a list of cards the engine
