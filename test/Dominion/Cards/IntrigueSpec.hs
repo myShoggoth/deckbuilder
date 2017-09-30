@@ -44,3 +44,17 @@ spec = do
     it "gets two cards and two actions with no action cards in hand" $ do
       length (p1AfterCard ^. hand) `shouldBe` 7
       (p1AfterCard ^. actions) `shouldBe` 2
+
+  describe "conspiratorCardAction" $ do
+    let (p1AfterCard, afterCard) = runState ((conspiratorCard ^. action) conspiratorCard p1AfterDeal) afterDeal
+    it "gets only two money when fewer than two actions have been played" $ do
+      length (p1AfterCard ^. hand) `shouldBe` 5
+      (p1AfterCard ^. actions) `shouldBe` 0
+      (p1AfterCard ^. money) `shouldBe` 2
+    it "gets one card, one action, and two cards when two actions have been played" $ do
+      let p1Prepped = over played ([conspiratorCard, conspiratorCard] ++) p1
+      let (p1BeforeConspirator, startConspirator) = runState (deal 5 p1Prepped) $ Game [p1Prepped, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+      let (p1AfterConspirator, afterConspirator) = runState ((conspiratorCard ^. action) conspiratorCard p1BeforeConspirator) startConspirator
+      length (p1AfterConspirator ^. hand) `shouldBe` 6
+      (p1AfterConspirator ^. actions) `shouldBe` 1
+      (p1AfterConspirator ^. money) `shouldBe` 2
