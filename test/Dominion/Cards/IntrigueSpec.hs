@@ -34,7 +34,13 @@ spec = do
       length (p1AfterCard ^. hand) `shouldBe` 7
 
   describe "lurkerCardAction" $ do
-    let (p1AfterCard, afterCard) = runState ((lurkerCard ^. action) artisanCard p1AfterDeal) afterDeal
+    let (p1AfterCard, afterCard) = runState ((lurkerCard ^. action) lurkerCard p1AfterDeal) afterDeal
     it "trashes an action card from supply" $ do
       length (afterCard ^. trash) `shouldBe` 1
       head (afterCard ^. trash) ^. cardType `shouldBe` Action
+
+  describe "shantyTownCardAction" $ do
+    let (p1AfterCard, afterCard) = runState ((shantyTownCard ^. action) shantyTownCard p1AfterDeal) afterDeal
+    it "gets two cards and two actions with no action cards in hand" $ do
+      length (p1AfterCard ^. hand) `shouldBe` 7
+      (p1AfterCard ^. actions) `shouldBe` 2

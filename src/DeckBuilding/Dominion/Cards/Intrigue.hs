@@ -1,6 +1,7 @@
 module DeckBuilding.Dominion.Cards.Intrigue
     ( courtyardCard
     , lurkerCard
+    , shantyTownCard
     ) where
 
 import DeckBuilding.Dominion.Types
@@ -43,3 +44,11 @@ lurkerCardAction c p = do
   lurk ec p
 
 lurkerCard      = Card "Lurker"   2 lurkerCardAction Action
+
+shantyTownCardAction :: Card -> Player -> State Game Player
+shantyTownCardAction c p = if hasActionCards (p ^. hand)
+  then basicCardAction 0 1 0 0 0 c p
+  else basicCardAction 2 1 0 0 0 c p
+  where hasActionCards cs = any (\c -> (c ^. cardType) == Action) cs
+
+shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action
