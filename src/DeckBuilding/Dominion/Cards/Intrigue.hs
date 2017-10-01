@@ -5,6 +5,7 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , conspiratorCard
     , ironworksCard
     , dukeCard
+    , haremCard
     ) where
 
 import DeckBuilding.Dominion.Types
@@ -83,3 +84,5 @@ dukeCardAction c p = valueCard 0 points c p
   where points = length $ filter (== duchyCard) ( (p ^. hand) ++ (p ^. discard) ++ (p ^. played) ++ (p ^. deck) )
 
 dukeCard        = Card "Duke"         5 dukeCardAction Action
+
+haremCard       = Card "Harem"        6 (valueCard 2 2) Value
