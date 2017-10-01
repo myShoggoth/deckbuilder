@@ -4,6 +4,7 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , shantyTownCard
     , conspiratorCard
     , ironworksCard
+    , dukeCard
     ) where
 
 import DeckBuilding.Dominion.Types
@@ -76,3 +77,9 @@ ironworksCardAction c p = do
           | otherwise                 = basicCardAction 0 (-1) 0 0 0 ironworksCard p
 
 ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action
+
+dukeCardAction :: Card -> Player -> State Game Player
+dukeCardAction c p = valueCard 0 points c p
+  where points = length $ filter (== duchyCard) ( (p ^. hand) ++ (p ^. discard) ++ (p ^. played) ++ (p ^. deck) )
+
+dukeCard        = Card "Duke"         5 dukeCardAction Action

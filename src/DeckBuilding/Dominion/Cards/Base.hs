@@ -153,9 +153,8 @@ bureaucratCardAction c p = do
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
 
 gardensCardAction :: Card -> Player -> State Game Player
-gardensCardAction c p = do
-  let points = length ( (p ^. hand) ++ (p ^. discard) ++ (p ^. played) ++ (p ^. deck) ) `div` 10
-  return $ over victory (+ points) $ over played (c:) p
+gardensCardAction c p = valueCard 0 points c p
+  where points = length ( (p ^. hand) ++ (p ^. discard) ++ (p ^. played) ++ (p ^. deck) ) `div` 10
 
 gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
