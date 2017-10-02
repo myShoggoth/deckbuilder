@@ -22,22 +22,25 @@ module DeckBuilding.Dominion
     , randomKingdomDecks
     ) where
 
-import qualified Data.Map as Map
-import Data.List (delete, find, sortBy, group, sort, groupBy, intersect)
-import Data.Foldable (foldrM)
-import System.Random (randoms, newStdGen, mkStdGen, StdGen)
-import System.Random.Shuffle (shuffle')
-import Control.Lens
-import Control.Monad.State
-import Control.Arrow ((&&&))
-import Data.Ord (comparing)
+import           Control.Arrow                          ((&&&))
+import           Control.Lens
+import           Control.Monad.State
+import           Data.Foldable                          (foldrM)
+import           Data.List                              (delete, find, group,
+                                                         groupBy, intersect,
+                                                         sort, sortBy)
+import qualified Data.Map                               as Map
+import           Data.Ord                               (comparing)
+import           System.Random                          (StdGen, mkStdGen,
+                                                         newStdGen, randoms)
+import           System.Random.Shuffle                  (shuffle')
 
-import DeckBuilding.Dominion.Types
-import DeckBuilding.Dominion.Cards
-import DeckBuilding.Dominion.Utils
-import DeckBuilding.Dominion.Strategies.Basic
+import           DeckBuilding.Dominion.Cards
+import           DeckBuilding.Dominion.Strategies.Basic
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
 
-import Debug.Trace
+import           Debug.Trace
 
 
 -- Dominion

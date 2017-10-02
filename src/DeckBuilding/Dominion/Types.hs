@@ -4,20 +4,20 @@ module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
     ) where
 
-import qualified Data.Map as Map
-import System.Random
-import Control.Lens
-import Control.Monad.State
+import           Control.Lens
+import           Control.Monad.State
+import qualified Data.Map            as Map
+import           System.Random
 
 data Game = Game {
   -- | The players of the game.
-  _players  :: [Player],
+  _players :: [Player],
   -- | All the decks, basic and Kingdom: (Card, Number Left)
-  _decks    :: Map.Map Card Int,
+  _decks   :: Map.Map Card Int,
   -- | The trash pile.
-  _trash    :: [Card],
+  _trash   :: [Card],
   -- | The current random number generator, needs to be updated when used.
-  _random   :: StdGen
+  _random  :: StdGen
 } deriving Show
 
 data CardType = Value | Action

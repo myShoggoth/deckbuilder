@@ -38,17 +38,18 @@ module DeckBuilding.Dominion.Cards.Base
     , firstGameKingdomCards
     ) where
 
+import           DeckBuilding.Dominion.Cards.Utils
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
-import           DeckBuilding.Dominion.Cards.Utils
 
 import           Control.Lens
 import           Control.Monad.State
-import           Data.List                   (delete, find, group, groupBy,
-                                              intersect, sort, sortBy, (\\))
-import qualified Data.Map                    as Map
+import           Data.Foldable                     (foldrM)
+import           Data.List                         (delete, find, group,
+                                                    groupBy, intersect, sort,
+                                                    sortBy, (\\))
+import qualified Data.Map                          as Map
 import           System.Random.Shuffle
-import           Data.Foldable               (foldrM)
 
 -- Cards and their actions
 

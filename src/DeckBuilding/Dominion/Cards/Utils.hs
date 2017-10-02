@@ -4,13 +4,13 @@ module DeckBuilding.Dominion.Cards.Utils
     , gainCard
     ) where
 
-import DeckBuilding.Dominion.Types
-import DeckBuilding.Dominion.Utils
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
 
-import Control.Monad.State
-import Control.Lens
-import Data.List
-import qualified Data.Map as Map
+import           Control.Lens
+import           Control.Monad.State
+import           Data.List
+import qualified Data.Map                    as Map
 
 -- | For value cards, pass money and victory point values.
 valueCard :: Int -> Int -> Card -> Player -> State Game Player

@@ -7,14 +7,14 @@ module DeckBuilding.Dominion.Utils
     , isCardInPlay
     ) where
 
-import DeckBuilding.Dominion.Types
-import System.Random.Shuffle
-import System.Random (split)
-import Data.List (delete, find, elemIndex)
-import qualified Data.Map as Map
-import Control.Lens
-import Control.Monad.State
-import Control.Monad (filterM)
+import           Control.Lens
+import           Control.Monad               (filterM)
+import           Control.Monad.State
+import           Data.List                   (delete, elemIndex, find)
+import qualified Data.Map                    as Map
+import           DeckBuilding.Dominion.Types
+import           System.Random               (split)
+import           System.Random.Shuffle
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> Player -> State Game Player

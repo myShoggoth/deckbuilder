@@ -17,16 +17,17 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigSmithyThroneRoom
     ) where
 
-import DeckBuilding.Dominion.Types
-import DeckBuilding.Dominion.Utils
-import DeckBuilding.Dominion.Cards
-import DeckBuilding.Dominion.Cards.Utils
+import           DeckBuilding.Dominion.Cards
+import           DeckBuilding.Dominion.Cards.Utils
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
 
-import Data.List (delete, intersect, find, (\\))
-import Control.Lens
-import Control.Monad.State
-import qualified Data.Map as Map
-import Data.Foldable (foldrM)
+import           Control.Lens
+import           Control.Monad.State
+import           Data.Foldable                     (foldrM)
+import           Data.List                         (delete, find, intersect,
+                                                    (\\))
+import qualified Data.Map                          as Map
 
 -- Strategies
 

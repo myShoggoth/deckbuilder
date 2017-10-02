@@ -8,15 +8,15 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , haremCard
     ) where
 
-import DeckBuilding.Dominion.Types
-import DeckBuilding.Dominion.Cards.Utils
-import DeckBuilding.Dominion.Cards.Base
-import DeckBuilding.Dominion.Utils
+import           DeckBuilding.Dominion.Cards.Base
+import           DeckBuilding.Dominion.Cards.Utils
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
 
-import Control.Lens
-import Control.Monad.State
-import qualified Data.Map                    as Map
-import Data.List (delete)
+import           Control.Lens
+import           Control.Monad.State
+import           Data.List                         (delete)
+import qualified Data.Map                          as Map
 
 courtyardCardAction :: Card -> Player -> State Game Player
 courtyardCardAction c p = do
@@ -51,7 +51,7 @@ lurkerCardAction c p = do
 lurkerCard      = Card "Lurker"   2 lurkerCardAction Action
 
 hasActionCards :: Int -> [Card] -> Bool
-hasActionCards num cs = (num <= length (filter (\c -> (c ^. cardType) == Action) cs))
+hasActionCards num cs = num <= length (filter (\c -> (c ^. cardType) == Action) cs)
 
 shantyTownCardAction :: Card -> Player -> State Game Player
 shantyTownCardAction c p = if hasActionCards 1 (p ^. hand)

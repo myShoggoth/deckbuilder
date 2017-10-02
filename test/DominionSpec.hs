@@ -2,19 +2,19 @@ module DominionSpec
     ( spec
     ) where
 
-import DeckBuilding.Dominion
-import DeckBuilding.Dominion.Types
-import DeckBuilding.Dominion.Utils
-import DeckBuilding.Dominion.Strategies.Basic
-import DeckBuilding.Dominion.Cards.Base
-import System.Random
-import Data.List
-import Test.Hspec
-import qualified Test.QuickCheck as QC
-import Control.Exception (evaluate)
-import Control.Lens
-import Control.Monad.State
-import qualified Data.Map as Map
+import           Control.Exception                      (evaluate)
+import           Control.Lens
+import           Control.Monad.State
+import           Data.List
+import qualified Data.Map                               as Map
+import           DeckBuilding.Dominion
+import           DeckBuilding.Dominion.Cards.Base
+import           DeckBuilding.Dominion.Strategies.Basic
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
+import           System.Random
+import           Test.Hspec
+import qualified Test.QuickCheck                        as QC
 
 spec :: Spec
 spec = do
