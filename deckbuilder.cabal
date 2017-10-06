@@ -23,6 +23,7 @@ library
                      , DeckBuilding.Dominion.Cards.Intrigue
                      , DeckBuilding.Dominion.Cards.Utils
                      , DeckBuilding.Dominion.Strategies.Basic
+                     , DeckBuilding.Dominion.Strategies.Utils
   build-depends:       base >= 4.7 && < 5
                      , random-shuffle
                      , MonadRandom

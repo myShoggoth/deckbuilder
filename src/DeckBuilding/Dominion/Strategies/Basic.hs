@@ -21,6 +21,7 @@ import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Cards.Utils
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
+import           DeckBuilding.Dominion.Strategies.Utils
 
 import           Control.Lens
 import           Control.Monad.State
@@ -36,34 +37,6 @@ import qualified Data.Map                          as Map
 -- | The most basic Dominion strategy: buy the best money you can afford
 --  and provinces.
 bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
-
--- | Can this player afford this card?
-canAfford :: Card -> Player -> Bool
-canAfford c p = (c ^. cost) <= (p ^. money)
-
--- | Are there any of this card left in the game?
-cardsLeft :: Game -> Card -> Bool
-cardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
-
--- | Helper function when you always want to buy a card if you can afford it.
-alwaysBuy :: Card -> Player -> State Game Bool
-alwaysBuy c p = do
-  gs <- get
-  if canAfford c p && cardsLeft gs c
-    then do
-      buyCard (Just c) p
-      return True
-    else return False
-
--- | How many of this card does the player have?
-countCards :: Card -> Player -> Int
-countCards c p = length $ filter (== c) $ (p ^. hand) ++ (p ^. deck) ++ (p ^. discard) ++ (p ^. played)
-
--- | Helper function for a card where you only want to buy up to N of them.
-buyN :: Int -> Card -> Player -> State Game Bool
-buyN n c p = if countCards c p < n
-    then alwaysBuy c p
-    else return False
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: Player -> State Game Player
@@ -206,26 +179,6 @@ findFirstCard cards p = return $ getFirst pref
   where pref = (p ^. hand) `intersect` cards
         getFirst []     = Nothing
         getFirst (x:xs) = Just x
-
--- | Core engine for simple buying cards. Call for each buy the player has
---  with the remaining money available, return a list of cards the engine
---  should buy for that player.
-doBuy :: Int -> Int -> [Card] -> [Maybe Card]
-doBuy 0 _ _ = []
-doBuy n 0 _ = []
-doBuy n m cs = findHighCostCard : doBuy (n - 1) (m - mcost findHighCostCard) cs
-  where findHighCostCard = find (\c -> (c ^. cost) <= m) cs
-        mcost (Just c)   = c ^. cost
-        mcost Nothing    = 0
-
--- | Decrease the amount of the cards in the game deck, subtract the money
---  from the player, and add the card to the player's discard pile.
-buyCard ::  Maybe Card -> Player -> State Game Player
-buyCard Nothing  p = return p
-buyCard (Just c) p = do
-  gs <- get
-  put $ over decks (Map.mapWithKey (decreaseCards c)) gs
-  return $ over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) p
 
 -- | Given a list of cards and buy functions, call the buy functions until one
 --  is bought and return True. If none are bought, return False.
