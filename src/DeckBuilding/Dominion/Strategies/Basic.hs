@@ -15,6 +15,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigSmithyBuy
     , bigSmithyGain
     , bigSmithyThroneRoom
+    , villageSmithyEngine4
     ) where
 
 import           DeckBuilding.Dominion.Cards
@@ -41,7 +42,7 @@ bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTras
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: Player -> State Game Player
 bigMoneyBuy p = doBuys p (p ^. buys) bigMoneyCards
-  where bigMoneyCards = [(provinceCard, alwaysBuy), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
+  where bigMoneyCards = [(provinceCard, alwaysBuy), (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4), (goldCard, alwaysBuy), (duchyCard, buyIfNumberOfCardIsBelow provinceCard 5), (estateCard, buyIfNumberOfCardIsBelow provinceCard 2), (silverCard, alwaysBuy), (estateCard, buyIfNumberOfCardIsBelow provinceCard 3)]
 
 -- | If you can discard a card, get rid of victory cards and coppers.
 bigMoneyDiscard :: (Int, Int) -> Player -> State Game Player
@@ -126,6 +127,17 @@ bigSmithyGain = gainCard gainCards
 bigSmithyThroneRoom :: Player -> State Game (Maybe Card)
 bigSmithyThroneRoom = findFirstCard throneRoomCards
   where throneRoomCards = [smithyCard]
+
+
+-- Village/Smithy engine #4 from https://dominionstrategy.com/2012/07/30/building-the-first-game-engine/
+
+villageSmithyEngine4 = Strategy "Village/Smithy Engine 4" villageSmithyEngine4Buy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
+
+-- | The buy strategy
+villageSmithyEngine4Buy :: Player -> State Game Player
+villageSmithyEngine4Buy p = doBuys p (p ^. buys) bigVillageSmithyEngine4Cards
+  where bigVillageSmithyEngine4Cards = [(provinceCard, alwaysBuy), (duchyCard, buyIfNumberOfCardIsBelow provinceCard 3), (estateCard, buyIfNumberOfCardIsBelow provinceCard 2), (goldCard, buyN 2), (marketCard, buyN 5), (remodelCard, buyN 1), (militiaCard, buyN 1), (villageCard, buyIfLowerThanTerminalActions), (smithyCard, alwaysBuy), (villageCard, alwaysBuy), (cellarCard, buyN 2)]
+
 
 -- Strategy helpers
 

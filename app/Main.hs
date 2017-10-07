@@ -22,7 +22,7 @@ main = do
   g <- newStdGen
   let kingdom = randomKingdomDecks kingdomCards2ndEdition g
   print $ "Kingdom: " ++ show kingdom
-  let players = [newPlayer "Player 1" bigMoneyStrategy, newPlayer "Player 2" bigSmithyStrategy]
+  let players = [newPlayer "Big Money" bigMoneyStrategy, newPlayer "Big Smithy" bigSmithyStrategy, newPlayer "Village/Smithy Engine 4" villageSmithyEngine4]
   result <- runGames 5000 players kingdom
   showStrategies players
   print $ show result

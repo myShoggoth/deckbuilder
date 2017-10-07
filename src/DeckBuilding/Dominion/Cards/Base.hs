@@ -36,6 +36,7 @@ module DeckBuilding.Dominion.Cards.Base
     , victoryCards
     , kingdomCards2ndEdition
     , firstGameKingdomCards
+    , baseSetActionTerminators
     ) where
 
 import           DeckBuilding.Dominion.Cards.Utils
@@ -378,4 +379,23 @@ firstGameKingdomCards = [
   , smithyCard
   , villageCard
   , workshopCard
+  ]
+
+baseSetActionTerminators = [
+    chapelCard
+  , moatCard
+  , vassalCard
+  , workshopCard
+  , bureaucratCard
+  , militiaCard
+  , moneylenderCard
+  , remodelCard
+  , smithyCard
+  , throneRoomCard
+  , banditCard
+  , councilRoomCard
+  , libraryCard
+  , mineCard
+  , witchCard
+  , artisanCard
   ]

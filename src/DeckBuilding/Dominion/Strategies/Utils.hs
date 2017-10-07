@@ -9,11 +9,15 @@ module DeckBuilding.Dominion.Strategies.Utils
     , buyNIf
     , buyNAfterTotalDeckOf
     , buyCard
+    , buyIfNumberOfCardIsBelow
+    , buyIfLowerThanTerminalActions
     ) where
 
 import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Utils
+import DeckBuilding.Dominion.Cards
 
+import           Data.List                         (intersect)
 import qualified Data.Map                          as Map
 import Control.Monad.State
 import Control.Lens
@@ -22,9 +26,14 @@ import Control.Lens
 canAfford :: Card -> Player -> Bool
 canAfford c p = (c ^. cost) <= (p ^. money)
 
+cardsLeft :: Game -> Card -> Int
+cardsLeft gs c = if Map.member c (gs ^. decks)
+  then (gs ^. decks) Map.! c
+  else 0
+
 -- | Are there any of this card left in the game?
-cardsLeft :: Game -> Card -> Bool
-cardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
+areCardsLeft :: Game -> Card -> Bool
+areCardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
 
 -- | Buy the card if it satisfies the passed in function, the player can
 --  afford it, and there are some left in the supply.
@@ -32,7 +41,7 @@ buyIf :: Card -> Player -> (Card -> Player -> State Game Bool) -> State Game Boo
 buyIf c p f = do
   gs <- get
   iff <- f c p
-  if iff && canAfford c p && cardsLeft gs c
+  if iff && canAfford c p && areCardsLeft gs c
     then do
       buyCard (Just c) p
       return True
@@ -42,12 +51,15 @@ buyIf c p f = do
 alwaysBuy :: Card -> Player -> State Game Bool
 alwaysBuy c p = buyIf c p (\_ _ -> return True)
 
+allCards :: Player -> [Card]
+allCards p = (p ^. hand) ++ (p ^. deck) ++ (p ^. discard) ++ (p ^. played)
+
 -- | How many of this card does the player have?
 countCards :: Card -> Player -> Int
-countCards c p = length $ filter (== c) $ (p ^. hand) ++ (p ^. deck) ++ (p ^. discard) ++ (p ^. played)
+countCards c p = length $ filter (== c) $ allCards p
 
 countDeck :: Player -> Int
-countDeck p = length $ (p ^. hand) ++ (p ^. deck) ++ (p ^. discard) ++ (p ^. played)
+countDeck p = length $ allCards p
 
 -- | Helper function for a card where you only want to buy up to N of them.
 buyN :: Int -> Card -> Player -> State Game Bool
@@ -64,6 +76,26 @@ buyNIf n c p f = do
 -- | Buy N of the card as long as the player's total deck size is D.
 buyNAfterTotalDeckOf :: Int -> Int -> Card -> Player -> State Game Bool
 buyNAfterTotalDeckOf n d c p = buyNIf n c p (\c' p' -> return (countDeck p' >= d))
+
+isDeckBelowN :: Card -> Int -> State Game Bool
+isDeckBelowN c n = do
+  gs <- get
+  if n > cardsLeft gs c
+    then return True
+    else return False
+
+buyIfNumberOfCardIsBelow :: Card -> Int -> Card -> Player -> State Game Bool
+buyIfNumberOfCardIsBelow cd n c p = do
+  db <- isDeckBelowN cd n
+  if db
+    then alwaysBuy c p
+    else return False
+
+actionTerminators :: Player -> Int
+actionTerminators p =  length $ allCards p `intersect` actionTerminatorCards
+
+buyIfLowerThanTerminalActions :: Card -> Player -> State Game Bool
+buyIfLowerThanTerminalActions c p = return $ countCards c p < actionTerminators p
 
 -- | Decrease the amount of the cards in the game deck, subtract the money
 --  from the player, and add the card to the player's discard pile.
