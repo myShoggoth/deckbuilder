@@ -31,18 +31,38 @@ import           Data.List                         (delete, find, intersect,
                                                     (\\))
 import qualified Data.Map                          as Map
 
+-- import Debug.Trace
+
 -- Strategies
 
 -- Big money
 
 -- | The most basic Dominion strategy: buy the best money you can afford
 --  and provinces.
-bigMoneyStrategy = Strategy "Big Money" bigMoneyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigMoneyGain bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
+bigMoneyStrategy = Strategy "Big Money"
+                            bigMoneyBuy
+                            bigMoneyDiscard
+                            bigMoneyTrash
+                            bigMoneyRetrieve
+                            bigMoneyOrderHand
+                            bigMoneyGain
+                            bigMoneyThroneRoom
+                            bigMoneyLibrary
+                            bigMoneySentry
+                            bigMoneyHandToDeck
+                            bigMoneyLurker
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: Player -> State Game Player
 bigMoneyBuy p = doBuys p (p ^. buys) bigMoneyCards
-  where bigMoneyCards = [(provinceCard, alwaysBuy), (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4), (goldCard, alwaysBuy), (duchyCard, buyIfNumberOfCardIsBelow provinceCard 5), (estateCard, buyIfNumberOfCardIsBelow provinceCard 2), (silverCard, alwaysBuy), (estateCard, buyIfNumberOfCardIsBelow provinceCard 3)]
+  where bigMoneyCards = [ (provinceCard, alwaysBuy)
+                        , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
+                        , (goldCard, alwaysBuy)
+                        , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 5)
+                        , (estateCard, buyIfNumberOfCardIsBelow provinceCard 2)
+                        , (silverCard, alwaysBuy)
+                        , (estateCard, buyIfNumberOfCardIsBelow provinceCard 3)
+                        ]
 
 -- | If you can discard a card, get rid of victory cards and coppers.
 bigMoneyDiscard :: (Int, Int) -> Player -> State Game Player
@@ -62,13 +82,25 @@ trashCards = [curseCard, estateCard, copperCard]
 --  worth it.
 bigMoneyRetrieve :: (Int, Int) -> Player -> State Game Player
 bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
-  where retrieveCards = [goldCard, marketCard, festivalCard, villageCard, laboratoryCard, smithyCard, moatCard, silverCard]
+  where retrieveCards = [ goldCard
+                        , marketCard
+                        , festivalCard
+                        , villageCard
+                        , laboratoryCard
+                        , smithyCard
+                        , moatCard
+                        , silverCard
+                        ]
 
 -- | When you're given the opportunity to gain a card, the is the list in
 --  descending cost order. Would be good to make this better ala buy.
 bigMoneyGain :: Int -> Player -> State Game Player
 bigMoneyGain = gainCard gainCards
-  where gainCards = [provinceCard, goldCard, duchyCard, silverCard]
+  where gainCards = [ provinceCard
+                    , goldCard
+                    , duchyCard
+                    , silverCard
+                    ]
 
 -- | We never have anything, so why bother?
 bigMoneyOrderHand :: Player -> State Game Player
@@ -96,7 +128,10 @@ bigMoneyHandToDeck :: Int -> Player -> State Game Player
 bigMoneyHandToDeck n p = do
   let cards = take n $ (p ^. hand) `intersect` handToDeckCards
   return $ over deck (cards ++) $ set hand ((p ^. hand) \\ cards) p
-  where handToDeckCards = [estateCard, copperCard, smithyCard]
+  where handToDeckCards = [ estateCard
+                          , copperCard
+                          , smithyCard
+                          ]
 
 findInPlayAction :: Map.Map Card Int -> Card
 findInPlayAction decks = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. cardType == Action) && v > 0) decks
@@ -111,17 +146,37 @@ bigMoneyLurker c p = do
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
 --  crap out of big money.
-bigSmithyStrategy = Strategy "Big Smithy" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
+bigSmithyStrategy = Strategy "Big Smithy"
+                             bigSmithyBuy
+                             bigMoneyDiscard
+                             bigMoneyTrash
+                             bigMoneyRetrieve
+                             bigMoneyOrderHand
+                             bigSmithyGain
+                             bigSmithyThroneRoom
+                             bigMoneyLibrary
+                             bigMoneySentry
+                             bigMoneyHandToDeck
+                             bigMoneyLurker
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: Player -> State Game Player
 bigSmithyBuy p = doBuys p (p ^. buys) bigMoneyCards
-  where bigMoneyCards = [(provinceCard, alwaysBuy), (smithyCard, buyN 2), (goldCard, alwaysBuy), (silverCard, alwaysBuy)]
+  where bigMoneyCards = [ (provinceCard, alwaysBuy)
+                        , (smithyCard, buyN 2)
+                        , (goldCard, alwaysBuy)
+                        , (silverCard, alwaysBuy)
+                        ]
 
 -- | Just like big money buy we also gain smithy cards.
 bigSmithyGain :: Int -> Player -> State Game Player
 bigSmithyGain = gainCard gainCards
-  where gainCards = [provinceCard, goldCard, smithyCard, silverCard, duchyCard]
+  where gainCards = [ provinceCard
+                    , goldCard
+                    , smithyCard
+                    , silverCard
+                    , duchyCard
+                    ]
 
 -- | If we somehow had a throne room, definitely double the smithy.
 bigSmithyThroneRoom :: Player -> State Game (Maybe Card)
@@ -131,12 +186,35 @@ bigSmithyThroneRoom = findFirstCard throneRoomCards
 
 -- Village/Smithy engine #4 from https://dominionstrategy.com/2012/07/30/building-the-first-game-engine/
 
-villageSmithyEngine4 = Strategy "Village/Smithy Engine 4" villageSmithyEngine4Buy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand bigSmithyGain bigSmithyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
+villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
+                                villageSmithyEngine4Buy
+                                bigMoneyDiscard
+                                bigMoneyTrash
+                                bigMoneyRetrieve
+                                bigMoneyOrderHand
+                                bigSmithyGain
+                                bigSmithyThroneRoom
+                                bigMoneyLibrary
+                                bigMoneySentry
+                                bigMoneyHandToDeck
+                                bigMoneyLurker
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: Player -> State Game Player
 villageSmithyEngine4Buy p = doBuys p (p ^. buys) bigVillageSmithyEngine4Cards
-  where bigVillageSmithyEngine4Cards = [(provinceCard, alwaysBuy), (duchyCard, buyIfNumberOfCardIsBelow provinceCard 3), (estateCard, buyIfNumberOfCardIsBelow provinceCard 2), (goldCard, buyN 2), (marketCard, buyN 5), (remodelCard, buyN 1), (militiaCard, buyN 1), (villageCard, buyIfLowerThanTerminalActions), (smithyCard, alwaysBuy), (villageCard, alwaysBuy), (cellarCard, buyN 2)]
+  where bigVillageSmithyEngine4Cards =  [
+                                          (provinceCard, alwaysBuy)
+                                        , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 3)
+                                        , (estateCard, buyIfNumberOfCardIsBelow provinceCard 2)
+                                        , (goldCard, buyN 2)
+                                        , (marketCard, buyN 5)
+                                        , (remodelCard, buyN 1)
+                                        , (militiaCard, buyN 1)
+                                        , (villageCard, buyIfLowerThanTerminalActions)
+                                        , (smithyCard, alwaysBuy)
+                                        , (villageCard, alwaysBuy)
+                                        , (cellarCard, buyN 2)
+                                        ]
 
 
 -- Strategy helpers
@@ -206,6 +284,7 @@ doBuys' p ( (c, a):xs) = do
 --  and a buy function, buy as many as possible given the number of buys and
 --  the amount of money the player has.
 doBuys :: Player -> Int -> [(Card, Card -> Player -> State Game Bool)] -> State Game Player
+-- doBuys p b cs | trace ("doBuys: " ++ show (p ^. playerName) ++ " (" ++ show b ++ ")") False = undefined
 doBuys p 0 _      = return p
 doBuys p b cards = do
   bought <- doBuys' p cards

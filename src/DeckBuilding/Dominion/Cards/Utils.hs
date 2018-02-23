@@ -14,7 +14,7 @@ import qualified Data.Map                    as Map
 
 -- | For value cards, pass money and victory point values.
 valueCard :: Int -> Int -> Card -> Player -> State Game Player
-valueCard m v c p = return $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) p
+valueCard m v c p = updatePlayer $ over hand (delete c) $ over played (c:) $ over money (+m) $ over victory (+v) p
 
 -- | For basic card values: draw cards, +actions, +buys, +money, +victory
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Player -> State Game Player

@@ -15,6 +15,7 @@ module DeckBuilding.Dominion
     , runGame
     , newPlayer
     , doTurn
+    , doTurns
     , basicDecks
     , resetTurn
     , evaluateHand
@@ -40,8 +41,7 @@ import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 
-import           Debug.Trace
-
+import Debug.Trace
 
 -- Dominion
 
@@ -49,6 +49,7 @@ import           Debug.Trace
 
 -- | Creates a new player with a name and strategy and the default started deck.
 newPlayer :: String -> Strategy -> Player
+-- newPlayer n | trace ("newPlayer: " ++ show n) False = undefined
 newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 0
 
 {- |
@@ -60,6 +61,7 @@ newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] 
   require actions), and skip all cards that require actions.
 -}
 evaluateHand' :: Player -> [Card] -> State Game Player
+-- evaluateHand' p h | trace ("evaluateHand: " ++ show (p ^. playerName) ++ ": " ++ show h) False = undefined
 evaluateHand' p []     = return p
 evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
   p' <- (x ^. action) x p
@@ -125,6 +127,7 @@ resetTurn p = updatePlayer $ Player (p ^. playerName) (p ^. deck) (p ^. discard 
   6. Determine if the game is now over.
 -}
 doTurn :: Player -> State Game Bool
+doTurn p | trace ("Running turn for " ++ show (p ^. playerName)) False = undefined
 doTurn p = do
   p' <- (p ^. strategy . orderHand) p
   p'' <- evaluateHand p'
@@ -135,6 +138,7 @@ doTurn p = do
 
 -- | Run turns for each player until all players have gone or the game ends.
 doTurns :: [Player] -> State Game Bool
+doTurns [] | trace ("Finished full round of turns.") False = undefined
 doTurns [] = return False
 doTurns (x:xs) = do
   done <- doTurn x
@@ -167,6 +171,7 @@ runGame' = do
 
 -- | Run a single game with a set of players and kingdom cards.
 runGame :: [Player] -> [Card] -> IO Result
+runGame players kingdom | trace ("Starting new game with " ++ show (length players)) False = undefined
 runGame players kingdom = do
   g <- newStdGen
   let result = evalState runGame' $ Game players (basicDecks (length players) `Map.union` makeDecks kingdom) [] g
@@ -174,6 +179,7 @@ runGame players kingdom = do
 
 -- | Run n games with a set of players and kingdom cards.
 runGames :: Int -> [Player] -> [Card] -> IO [(Result, Int)]
+runGames num players kingdom | trace ("Starting " ++ show num ++ " new games with " ++ show (length players)) False = undefined
 runGames num players kingdom = do
   g <- newStdGen
   let seeds = take num $ randoms g

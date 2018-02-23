@@ -22,8 +22,11 @@ import qualified Data.Map                          as Map
 import Control.Monad.State
 import Control.Lens
 
+import Debug.Trace
+
 -- | Can this player afford this card?
 canAfford :: Card -> Player -> Bool
+-- canAfford c p | trace ("canAfford: " ++ show (c ^. cardName) ++ " by " ++ show (p ^. playerName) ++ " with " ++ show (p ^. money) ++ " money") False = undefined
 canAfford c p = (c ^. cost) <= (p ^. money)
 
 cardsLeft :: Game -> Card -> Int
@@ -38,6 +41,7 @@ areCardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
 -- | Buy the card if it satisfies the passed in function, the player can
 --  afford it, and there are some left in the supply.
 buyIf :: Card -> Player -> (Card -> Player -> State Game Bool) -> State Game Bool
+-- buyIf c p f | trace ("buyIf: " ++ show (p ^. playerName) ++ " checking " ++ show (c ^. cardName)) False = undefined
 buyIf c p f = do
   gs <- get
   iff <- f c p
@@ -100,8 +104,10 @@ buyIfLowerThanTerminalActions c p = return $ countCards c p < actionTerminators 
 -- | Decrease the amount of the cards in the game deck, subtract the money
 --  from the player, and add the card to the player's discard pile.
 buyCard ::  Maybe Card -> Player -> State Game Player
+--buyCard (Just c) p | trace ("buyCard: " ++ show (p ^. playerName) ++ " buying " ++ show (c ^. cardName)) False = undefined
+--buyCard Nothing p | trace ("buyCard: " ++ show (p ^. playerName) ++ " buying Nothing") False = undefined
 buyCard Nothing  p = return p
 buyCard (Just c) p = do
   gs <- get
   put $ over decks (Map.mapWithKey (decreaseCards c)) gs
-  return $ over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) p
+  updatePlayer $ over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) p

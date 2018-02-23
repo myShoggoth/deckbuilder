@@ -47,7 +47,7 @@ spec = do
     it "calculates the right amount of money" $
       p1AfterEvaluate ^. money `shouldBe` length (filter (== copperCard) (p1AfterEvaluate ^. played))
 
-    it "calcualtes the right amount of victory" $
+    it "calculates the right amount of victory" $
       p1AfterEvaluate ^. victory `shouldBe` length (filter (== estateCard) (p1AfterEvaluate ^. played))
 
   describe "resetTurn" $ do
@@ -68,3 +68,14 @@ spec = do
 
     it "has only one action" $
       (p1AfterReset ^. actions) `shouldBe` 1
+
+  describe "doTurn" $ do
+    let (gamedone, afterDoTurn)  = runState (doTurn ((afterDeal2 ^. players) !! 0)) afterDeal2
+
+    it "bought a card" $ do
+      length ((afterDoTurn ^. players) !! 0 ^. discard) `shouldBe` 6
+
+  describe "doTurns" $ do
+    let (gamedone, afterDoTurns)  = runState (doTurns (afterDeal2 ^. players)) afterDeal2
+    it "has players with more cards" $ do
+      length ((afterDoTurns ^. players) !! 0 ^. discard) `shouldBe` 6
