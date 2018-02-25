@@ -20,71 +20,84 @@ import qualified Test.QuickCheck                        as QC
 spec :: Spec
 spec = do
   let g = mkStdGen 45752345316
-  let p1                                = newPlayer "Player 1" bigMoneyStrategy
-  let p2                                = newPlayer "Player 2" bigSmithyStrategy
-  let (p1AfterDeal, afterDeal)          = runState (deal 5 p1) $ Game [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
-  let (p2AfterDeal, afterDeal2)         = runState (deal 5 p2) afterDeal
-  let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
-  let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
+  let p1            = newPlayer "Player 1" bigMoneyStrategy
+  let p2            = newPlayer "Player 2" bigSmithyStrategy
+  let afterDeal     = execState (deal 5 0) $ Game [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+  let afterDeal2    = execState (deal 5 1) afterDeal
+  let afterEvaluate = execState (evaluateHand 0) afterDeal2
+  let afterReset    = execState (resetTurn 0) afterEvaluate
   describe "Utils.valueCard" $ do
     it "gives money for a copper" $ do
-      let (p1AfterCard, afterCard) = runState ((copperCard ^. action) copperCard p1AfterDeal) afterDeal
+      let afterCard = execState ((copperCard ^. action) copperCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard ^. money) `shouldBe` 1
 
     it "gives money for a silver" $ do
-      let (p1AfterCard, afterCard) = runState ((silverCard ^. action) silverCard p1AfterDeal) afterDeal
+      let afterCard = execState ((silverCard ^. action) silverCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard ^. money) `shouldBe` 2
 
     it "gives money for a gold" $ do
-      let (p1AfterCard, afterCard) = runState ((goldCard ^. action) goldCard p1AfterDeal) afterDeal
+      let afterCard = execState ((goldCard ^. action) goldCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard ^. money) `shouldBe` 3
 
     it "gives victory for an estate" $ do
-      let (p1AfterCard, afterCard) = runState ((estateCard ^. action) estateCard p1AfterDeal) afterDeal
+      let afterCard = execState ((estateCard ^. action) estateCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard ^. victory) `shouldBe` 1
 
     it "gives victory for a duchy" $ do
-      let (p1AfterCard, afterCard) = runState ((duchyCard ^. action) duchyCard p1AfterDeal) afterDeal
+      let afterCard = execState ((duchyCard ^. action) duchyCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard ^. victory) `shouldBe` 3
 
     it "gives victory for a province" $ do
-      let (p1AfterCard, afterCard) = runState ((provinceCard ^. action) provinceCard p1AfterDeal) afterDeal
+      let afterCard = execState ((provinceCard ^. action) provinceCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard  ^. victory) `shouldBe` 6
 
     it "takes victory for a curse" $ do
-      let (p1AfterCard, afterCard) = runState ((curseCard ^. action) curseCard p1AfterDeal) afterDeal
+      let afterCard = execState ((curseCard ^. action) curseCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard ^. victory) `shouldBe` (-1)
 
   describe "Utils.basicCardAction" $ do
     it "it works with market" $ do
-      let (p1AfterCard, afterCard) = runState ((marketCard ^. action) marketCard p1AfterDeal) afterDeal
+      let afterCard = execState ((marketCard ^. action) marketCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       length (p1AfterCard ^. hand) `shouldBe` 6
       (p1AfterCard ^. actions) `shouldBe` 1
       (p1AfterCard ^. buys) `shouldBe` 2
       (p1AfterCard ^. money) `shouldBe` 1
 
     it "it works with moat" $ do
-      let (p1AfterCard, afterCard) = runState ((moatCard ^. action) moatCard p1AfterDeal) afterDeal
+      let afterCard = execState ((moatCard ^. action) moatCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       length (p1AfterCard ^. hand) `shouldBe` 7
       (p1AfterCard ^. actions) `shouldBe` 0
 
     it "it works with smithy" $ do
-      let (p1AfterCard, afterCard) = runState ((smithyCard ^. action) smithyCard p1AfterDeal) afterDeal
+      let afterCard = execState ((smithyCard ^. action) smithyCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       length (p1AfterCard ^. hand) `shouldBe` 8
       (p1AfterCard ^. actions) `shouldBe` 0
 
     it "it works with village" $ do
-      let (p1AfterCard, afterCard) = runState ((villageCard ^. action) villageCard p1AfterDeal) afterDeal
+      let afterCard = execState ((villageCard ^. action) villageCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       length (p1AfterCard ^. hand) `shouldBe` 6
       (p1AfterCard ^. actions) `shouldBe` 2
 
     it "it works with festival" $ do
-      let (p1AfterCard, afterCard) = runState ((festivalCard ^. action) festivalCard p1AfterDeal) afterDeal
+      let afterCard = execState ((festivalCard ^. action) festivalCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       (p1AfterCard ^. actions) `shouldBe` 2
       (p1AfterCard ^. buys) `shouldBe` 2
       (p1AfterCard ^. money) `shouldBe` 2
 
     it "it works with laboratory" $ do
-      let (p1AfterCard, afterCard) = runState ((laboratoryCard ^. action) laboratoryCard p1AfterDeal) afterDeal
+      let afterCard = execState ((laboratoryCard ^. action) laboratoryCard 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? players . ix 0
       length (p1AfterCard ^. hand) `shouldBe` 7
       (p1AfterCard ^. actions) `shouldBe` 1

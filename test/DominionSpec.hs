@@ -19,12 +19,15 @@ import qualified Test.QuickCheck                        as QC
 spec :: Spec
 spec = do
   let g = mkStdGen 45752345316
-  let p1                                = newPlayer "Player 1" bigMoneyStrategy
-  let p2                                = newPlayer "Player 2" bigSmithyStrategy
-  let (p1AfterDeal, afterDeal)          = runState (deal 5 p1) $ Game [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
-  let (p2AfterDeal, afterDeal2)         = runState (deal 5 p2) afterDeal
-  let (p1AfterEvaluate, afterEvaluate)  = runState (evaluateHand p1AfterDeal) afterDeal2
-  let (p1AfterReset, afterReset)        = runState (resetTurn p1) afterEvaluate
+  let p1                      = newPlayer "Player 1" bigMoneyStrategy
+  let p2                      = newPlayer "Player 2" bigSmithyStrategy
+  let afterDeal               = execState (deal 5 0) $ Game [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+  let (Just p1AfterDeal)      = afterDeal ^? players . ix 0
+  let afterDeal2              = execState (deal 5 1) afterDeal
+  let afterEvaluate           = execState (evaluateHand 0) afterDeal2
+  let (Just p1AfterEvaluate)  = afterEvaluate ^? players . ix 0
+  let afterReset              = execState (resetTurn 0) afterEvaluate
+  let (Just p1AfterReset)     = afterReset ^? players . ix 0
 
   describe "Utils.deal" $ do
     it "deals the correct number of cards" $ do
@@ -70,12 +73,12 @@ spec = do
       (p1AfterReset ^. actions) `shouldBe` 1
 
   describe "doTurn" $ do
-    let (gamedone, afterDoTurn)  = runState (doTurn ((afterDeal2 ^. players) !! 0)) afterDeal2
+    let afterDoTurn = execState (doTurn 0) afterDeal2
 
     it "bought a card" $ do
       length ((afterDoTurn ^. players) !! 0 ^. discard) `shouldBe` 6
 
   describe "doTurns" $ do
-    let (gamedone, afterDoTurns)  = runState (doTurns (afterDeal2 ^. players)) afterDeal2
+    let afterDoTurns = execState (doTurns [0..1]) afterDeal2
     it "has players with more cards" $ do
       length ((afterDoTurns ^. players) !! 0 ^. discard) `shouldBe` 6

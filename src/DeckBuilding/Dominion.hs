@@ -29,7 +29,7 @@ import           Control.Monad.State
 import           Data.Foldable                          (foldrM)
 import           Data.List                              (delete, find, group,
                                                          groupBy, intersect,
-                                                         sort, sortBy)
+                                                         sort, sortBy, (\\))
 import qualified Data.Map                               as Map
 import           Data.Ord                               (comparing)
 import           System.Random                          (StdGen, mkStdGen,
@@ -60,25 +60,36 @@ newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] 
   If The player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand' :: Player -> [Card] -> State Game Player
--- evaluateHand' p h | trace ("evaluateHand: " ++ show (p ^. playerName) ++ ": " ++ show h) False = undefined
-evaluateHand' p []     = return p
-evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
-  p' <- (x ^. action) x p
-  evaluateHand' p' xs
-evaluateHand' p@(Player _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand' p xs
-evaluateHand' p (x:xs) = do
-  p' <- (x ^. action) x p
-  evaluateHand' p' (p' ^. hand)
+evaluateHand' :: Int -> Player -> [Card] -> State Game Int
+--evaluateHand' pnum p h | trace ("evaluateHand for " ++ show (p ^. playerName) ++ " (" ++ show (p ^. actions) ++ " actions): " ++ show h) False = undefined
+evaluateHand' pnum p []     = return pnum
+evaluateHand' pnum p@(Player _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
+  (x ^. action) x pnum
+  (Just player) <- preuse (players . ix pnum)
+  evaluateHand' pnum player xs
+evaluateHand' pnum p@(Player _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand' pnum p xs
+evaluateHand' pnum p h@(x:xs) = do
+  (x ^. action) x pnum
+  (Just player) <- preuse (players . ix pnum)
+  if null (h \\ (player ^. hand)) -- If the player's hand is identical we're done
+    then return pnum
+    else evaluateHand' pnum player (player ^. hand)
 
 -- | Runs the cards in the deck by offloading the work to evaluateHand'
-evaluateHand :: Player -> State Game Player
-evaluateHand p = evaluateHand' p (p ^. hand)
+evaluateHand :: Int -> State Game Int
+evaluateHand p = do
+  (Just player) <- preuse (players . ix p)
+  evaluateHand' p player (player ^. hand)
 
 -- | Runs all the cards in the player's deck to determine the total number of
 --   victory points.
-tallyAllPoints :: Player -> State Game Player
-tallyAllPoints p = evaluateHand $ Player (p ^. playerName) [] [] ((p ^. deck) ++ (p ^. discard) ++ (p ^. hand) ++ (p ^. played)) [] 1 1 0 0 (p ^. turns) (p ^. strategy)
+tallyAllPoints :: Int -> State Game Int
+tallyAllPoints p = do
+  (Just player) <- preuse (players . ix p)
+  (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
+  evaluateHand p
+  (Just p') <- preuse (players . ix p)
+  return $ p' ^. victory
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: State Game [Player]
@@ -113,8 +124,17 @@ basicDecks numPlayers
     | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
-resetTurn :: Player -> State Game Player
-resetTurn p = updatePlayer $ Player (p ^. playerName) (p ^. deck) (p ^. discard ++ p ^. played) (p ^. hand) [] 1 1 0 0 (p ^. turns + 1) (p ^. strategy)
+resetTurn :: Int -> State Game Int
+resetTurn p = do
+  (Just player) <- preuse (players . ix p)
+  (players . ix p . discard) %= ( (player ^. played)++)
+  (players . ix p . played) .= []
+  (players . ix p . actions) .= 1
+  (players . ix p . buys) .= 1
+  (players . ix p . money) .= 0
+  (players . ix p . victory) .= 0
+  (players . ix p . turns) += 1
+  return p
 
 {-|
   The core of the engine, on each turn we:
@@ -126,19 +146,20 @@ resetTurn p = updatePlayer $ Player (p ^. playerName) (p ^. deck) (p ^. discard 
   5. Reset the player for the next turn.
   6. Determine if the game is now over.
 -}
-doTurn :: Player -> State Game Bool
-doTurn p | trace ("Running turn for " ++ show (p ^. playerName)) False = undefined
+doTurn :: Int -> State Game Bool
+--doTurn p | trace ("Running turn for player #" ++ show p) False = undefined
 doTurn p = do
-  p' <- (p ^. strategy . orderHand) p
-  p'' <- evaluateHand p'
-  p''' <- (p'' ^. strategy . buyStrategy) p''
-  p'''' <- deal 5 p'''
-  _ <- resetTurn p''''
+  (Just player) <- preuse (players . ix p)
+  (player ^. strategy . orderHand) p
+  evaluateHand p
+  (player ^. strategy . buyStrategy) p
+  deal 5 p
+  resetTurn p
   isGameOver
 
 -- | Run turns for each player until all players have gone or the game ends.
-doTurns :: [Player] -> State Game Bool
-doTurns [] | trace ("Finished full round of turns.") False = undefined
+doTurns :: [Int] -> State Game Bool
+--doTurns [] | trace ("Finished full round of turns.") False = undefined
 doTurns [] = return False
 doTurns (x:xs) = do
   done <- doTurn x
@@ -149,6 +170,7 @@ doTurns (x:xs) = do
 -- | Return if the game is over (all provinces are gone or there are three
 --  empty decks).
 isGameOver :: State Game Bool
+--isGameover | trace ("Is game over?") False = undefined
 isGameOver = do
   gs <- get
   emptyDecks <- numEmptyDecks
@@ -160,11 +182,11 @@ isGameOver = do
 -}
 runGame' :: State Game Result
 runGame' = do
-  gs <- get
-  done <- doTurns (gs ^. players)
+  players <- use players
+  done <- doTurns [0.. (length players) - 1]
   if done
     then do
-      mapM_ tallyAllPoints (gs ^. players)
+      mapM_ tallyAllPoints [0.. (length players) - 1]
       sortByPoints
       gameResult
     else runGame'

@@ -40,19 +40,20 @@ areCardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
 
 -- | Buy the card if it satisfies the passed in function, the player can
 --  afford it, and there are some left in the supply.
-buyIf :: Card -> Player -> (Card -> Player -> State Game Bool) -> State Game Bool
+buyIf :: Card -> Int -> (Card -> Player -> State Game Bool) -> State Game (Maybe Card)
 -- buyIf c p f | trace ("buyIf: " ++ show (p ^. playerName) ++ " checking " ++ show (c ^. cardName)) False = undefined
 buyIf c p f = do
+  (Just player) <- preuse (players . ix p)
   gs <- get
-  iff <- f c p
-  if iff && canAfford c p && areCardsLeft gs c
+  iff <- f c player
+  if iff && canAfford c player && areCardsLeft gs c
     then do
       buyCard (Just c) p
-      return True
-    else return False
+      return $ Just c
+    else return Nothing
 
 -- | Helper function when you always want to buy a card if you can afford it.
-alwaysBuy :: Card -> Player -> State Game Bool
+alwaysBuy :: Card -> Int -> State Game (Maybe Card)
 alwaysBuy c p = buyIf c p (\_ _ -> return True)
 
 allCards :: Player -> [Card]
@@ -66,19 +67,20 @@ countDeck :: Player -> Int
 countDeck p = length $ allCards p
 
 -- | Helper function for a card where you only want to buy up to N of them.
-buyN :: Int -> Card -> Player -> State Game Bool
+buyN :: Int -> Card -> Int -> State Game (Maybe Card)
 buyN n c p = buyNIf n c p (\_ _ -> return True)
 
 -- | Buy up to N of the card as long as it satisfies the passed in function.
-buyNIf :: Int -> Card -> Player -> (Card -> Player -> State Game Bool) -> State Game Bool
+buyNIf :: Int -> Card -> Int -> (Card -> Player -> State Game Bool) -> State Game (Maybe Card)
 buyNIf n c p f = do
-  iff <- f c p
+  (Just player) <- preuse (players . ix p)
+  iff <- f c player
   if iff
     then buyIf c p (\c p -> return (countCards c p < n))
-    else return False
+    else return Nothing
 
 -- | Buy N of the card as long as the player's total deck size is D.
-buyNAfterTotalDeckOf :: Int -> Int -> Card -> Player -> State Game Bool
+buyNAfterTotalDeckOf :: Int -> Int -> Card -> Int -> State Game (Maybe Card)
 buyNAfterTotalDeckOf n d c p = buyNIf n c p (\c' p' -> return (countDeck p' >= d))
 
 isDeckBelowN :: Card -> Int -> State Game Bool
@@ -88,26 +90,32 @@ isDeckBelowN c n = do
     then return True
     else return False
 
-buyIfNumberOfCardIsBelow :: Card -> Int -> Card -> Player -> State Game Bool
+buyIfNumberOfCardIsBelow :: Card -> Int -> Card -> Int -> State Game (Maybe Card)
 buyIfNumberOfCardIsBelow cd n c p = do
   db <- isDeckBelowN cd n
   if db
     then alwaysBuy c p
-    else return False
+    else return Nothing
 
 actionTerminators :: Player -> Int
 actionTerminators p =  length $ allCards p `intersect` actionTerminatorCards
 
-buyIfLowerThanTerminalActions :: Card -> Player -> State Game Bool
-buyIfLowerThanTerminalActions c p = return $ countCards c p < actionTerminators p
+buyIfLowerThanTerminalActions :: Card -> Int -> State Game (Maybe Card)
+buyIfLowerThanTerminalActions c p = do
+  (Just player) <- preuse (players . ix p)
+  if countCards c player < actionTerminators player
+    then alwaysBuy c p
+    else return Nothing
 
 -- | Decrease the amount of the cards in the game deck, subtract the money
 --  from the player, and add the card to the player's discard pile.
-buyCard ::  Maybe Card -> Player -> State Game Player
+buyCard ::  Maybe Card -> Int -> State Game Int
 --buyCard (Just c) p | trace ("buyCard: " ++ show (p ^. playerName) ++ " buying " ++ show (c ^. cardName)) False = undefined
 --buyCard Nothing p | trace ("buyCard: " ++ show (p ^. playerName) ++ " buying Nothing") False = undefined
 buyCard Nothing  p = return p
 buyCard (Just c) p = do
-  gs <- get
-  put $ over decks (Map.mapWithKey (decreaseCards c)) gs
-  updatePlayer $ over discard (c:) $ over buys (+ (-1)) $ over money (\m -> m - (c ^. cost)) p
+  decks %= (Map.mapWithKey (decreaseCards c))
+  (players . ix p . discard) %= (c:)
+  (players . ix p . buys) -= 1
+  (players . ix p . money) -= (c ^. cost)
+  return p

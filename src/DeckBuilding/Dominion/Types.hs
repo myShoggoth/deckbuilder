@@ -34,12 +34,12 @@ data Card = Card {
     core of the whole engine.
 
     Card: The card being played.
-    Player: The player that is playing the card.
+    Int: The number of the player that is playing the card.
 
     Updates the game state based on what the card does, then returns the
-    updated version of the player within the State Monad.
+    player number.
   -}
-  _action   :: Card -> Player -> State Game Player,
+  _action   :: Card -> Int -> State Game Int,
   -- | Value or Action
   _cardType :: CardType
 }
@@ -73,38 +73,38 @@ data Strategy = Strategy {
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
-  _buyStrategy        :: Player -> State Game Player,
+  _buyStrategy        :: Int -> State Game [Card],
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
-  _discardStrategy    :: (Int, Int) -> Player -> State Game Player,
+  _discardStrategy    :: (Int, Int) -> Int -> State Game [Card],
   -- | like discardStrategy, except for trashing cards.
-  _trashStrategy      :: (Int, Int) -> Player -> State Game Player,
+  _trashStrategy      :: (Int, Int) -> Int -> State Game [Card],
   -- | Like discardStrategy, except for retrieving cards from the player's
   --  discard pile.
-  _retrieveStrategy   :: (Int, Int) -> Player -> State Game Player,
+  _retrieveStrategy   :: (Int, Int) -> Int -> State Game [Card],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  _orderHand          :: Player -> State Game Player,
+  _orderHand          :: Int -> State Game [Card],
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
-  _gainCardStrategy   :: Int -> Player -> State Game Player,
+  _gainCardStrategy   :: Int -> Int -> State Game (Maybe Card),
   -- | Specifically for the Throne Room card, lets the strategy pick which
   --  card (Just Card) to play twice, or none if Nothing. Pick a card remaining
   --  in the player's hand.
-  _throneRoomStrategy :: Player -> State Game (Maybe Card),
+  _throneRoomStrategy :: Int -> State Game (Maybe Card),
   -- | For the Library card, called when the player draws an action and returns
   --  whether or not the player wants to skip that card.
   _libraryStrategy    :: Card -> State Game Bool,
   -- | For the Sentry card, gives the top two cards of the player's deck, then
   --  says which ones that player wants to (trash, discard, keep).
-  _sentryStrategy     :: [Card] -> Player -> State Game ([Card], [Card], [Card]),
+  _sentryStrategy     :: [Card] -> Int -> State Game ([Card], [Card], [Card]),
   -- | For cards like Artisan, pick n cards that the player would like to put
   --  back onto the top of their deck. The function does that work.
-  _handToDeckStrategy :: Int -> Player -> State Game Player,
+  _handToDeckStrategy :: Int -> Int -> State Game [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  _lurkerStrategy     :: Card -> Player -> State Game (Either Card Card)
+  _lurkerStrategy     :: Card -> Int -> State Game (Either Card Card)
 }
 
 instance Show Strategy where
