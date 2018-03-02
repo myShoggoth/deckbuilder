@@ -7,6 +7,8 @@ import           Control.Lens
 import           Control.Monad.State
 import           Data.List
 import qualified Data.Map                               as Map
+import           DeckBuilding
+import           DeckBuilding.Types
 import           DeckBuilding.Dominion
 import           DeckBuilding.Dominion.Cards.Base
 import           DeckBuilding.Dominion.Strategies.Basic
@@ -21,7 +23,7 @@ spec = do
   let g = mkStdGen 45752345316
   let p1                      = newPlayer "Player 1" bigMoneyStrategy
   let p2                      = newPlayer "Player 2" bigSmithyStrategy
-  let afterDeal               = execState (deal 5 0) $ Game [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+  let afterDeal               = execState (deal 5 0) $ DominionGame [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
   let (Just p1AfterDeal)      = afterDeal ^? players . ix 0
   let afterDeal2              = execState (deal 5 1) afterDeal
   let afterEvaluate           = execState (evaluateHand 0) afterDeal2
@@ -73,12 +75,12 @@ spec = do
       (p1AfterReset ^. actions) `shouldBe` 1
 
   describe "doTurn" $ do
-    let afterDoTurn = execState (doTurn 0) afterDeal2
+    let afterDoTurn = execState (runTurn 0) afterDeal2
 
     it "bought a card" $ do
       length ((afterDoTurn ^. players) !! 0 ^. discard) `shouldBe` 6
 
   describe "doTurns" $ do
-    let afterDoTurns = execState (doTurns [0..1]) afterDeal2
+    let afterDoTurns = execState (runTurns [0..1] False) afterDeal2
     it "has players with more cards" $ do
       length ((afterDoTurns ^. players) !! 0 ^. discard) `shouldBe` 6

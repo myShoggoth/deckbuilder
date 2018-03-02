@@ -18,7 +18,7 @@ import           Control.Monad.State
 import           Data.List                         (delete)
 import qualified Data.Map                          as Map
 
-courtyardCardAction :: Card -> Int -> State Game Int
+courtyardCardAction :: Card -> Int -> State DominionGame Int
 courtyardCardAction c p = do
   (Just player) <- preuse (players . ix p)
   (player ^. strategy . handToDeckStrategy) 1 p
@@ -26,7 +26,7 @@ courtyardCardAction c p = do
 
 courtyardCard   = Card "Courtyard"    2 courtyardCardAction Action
 
-lurk :: Either Card Card -> Int -> State Game Int
+lurk :: Either Card Card -> Int -> State DominionGame Int
 lurk (Left c) p                       = do
   icip <- isCardInPlay c
   if icip
@@ -46,7 +46,7 @@ lurk (Right c@(Card _ _ _ Action)) p  = do
     else return p
 lurk (Right c) p                      = return p
 
-lurkerCardAction :: Card -> Int -> State Game Int
+lurkerCardAction :: Card -> Int -> State DominionGame Int
 lurkerCardAction c p = do
   (Just player) <- preuse (players . ix p)
   ec <- (player ^. strategy . lurkerStrategy) c p
@@ -58,7 +58,7 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action
 hasActionCards :: Int -> [Card] -> Bool
 hasActionCards num cs = num <= length (filter (\c -> (c ^. cardType) == Action) cs)
 
-shantyTownCardAction :: Card -> Int -> State Game Int
+shantyTownCardAction :: Card -> Int -> State DominionGame Int
 shantyTownCardAction c p = do
   (Just player) <- preuse (players . ix p)
   if hasActionCards 1 (player ^. hand)
@@ -67,7 +67,7 @@ shantyTownCardAction c p = do
 
 shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action
 
-conspiratorCardAction :: Card -> Int -> State Game Int
+conspiratorCardAction :: Card -> Int -> State DominionGame Int
 conspiratorCardAction c p = do
   (Just player) <- preuse (players . ix p)
   if hasActionCards 2 (player ^. played)
@@ -76,7 +76,7 @@ conspiratorCardAction c p = do
 
 conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action
 
-ironworksCardAction :: Card -> Int -> State Game Int
+ironworksCardAction :: Card -> Int -> State DominionGame Int
 ironworksCardAction c p = do
   (Just player) <- preuse (players . ix p)
   mc <- (player ^. strategy . gainCardStrategy) 4 p
@@ -90,7 +90,7 @@ ironworksCardAction c p = do
 
 ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action
 
-dukeCardAction :: Card -> Int -> State Game Int
+dukeCardAction :: Card -> Int -> State DominionGame Int
 dukeCardAction c p = do
   (Just player) <- preuse (players . ix p)
   let points = length $ filter (== duchyCard) ( (player ^. hand) ++ (player ^. discard) ++ (player ^. played) ++ (player ^. deck) )

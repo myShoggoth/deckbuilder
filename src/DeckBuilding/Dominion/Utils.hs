@@ -16,7 +16,7 @@ import           System.Random               (split)
 import           System.Random.Shuffle
 
 -- | Deal n cards, reshuffling the player's deck if needed.
-deal :: Int -> Int -> State Game [Card]
+deal :: Int -> Int -> State DominionGame [Card]
 deal 0   _    = return []
 deal num pnum = do
   (Just p) <- preuse (players . ix pnum)
@@ -33,10 +33,10 @@ deal num pnum = do
   return newCards
 
 -- | How many of the game's decks have been emptied?
-numEmptyDecks :: State Game Int
+numEmptyDecks :: State DominionGame Int
 numEmptyDecks = do
-  gs <- get
-  return $ length $ Map.filter (== 0) (gs ^. decks)
+  decks <- use decks
+  return $ length $ Map.filter (== 0) decks
 
 -- | If the cards are the same, return number of cards - 1.
 decreaseCards :: Card -> Card -> Int -> Int
@@ -46,13 +46,13 @@ decreaseCards c1 c2 n = if c1 == c2
     else n
 
 -- | Is this card part of this game, and if so are there any left?
-isCardInPlay :: Card -> State Game Bool
+isCardInPlay :: Card -> State DominionGame Bool
 isCardInPlay c = do
   gs <- get
   return $ c `Map.member` (gs ^. decks) && (gs ^. decks) Map.! c > 0
 
 -- | Find the first card, if any, in the list which is still in play.
-firstCardInPlay :: [Card] -> State Game (Maybe Card)
+firstCardInPlay :: [Card] -> State DominionGame (Maybe Card)
 firstCardInPlay cs = do
   cards <- filterM isCardInPlay cs
   return $ find (const True) $ tail cards

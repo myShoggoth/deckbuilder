@@ -8,8 +8,9 @@ import           Control.Lens
 import           Control.Monad.State
 import qualified Data.Map            as Map
 import           System.Random
+import           DeckBuilding.Types
 
-data Game = Game {
+data DominionGame = DominionGame {
   -- | The players of the game.
   _players :: [Player],
   -- | All the decks, basic and Kingdom: (Card, Number Left)
@@ -39,7 +40,7 @@ data Card = Card {
     Updates the game state based on what the card does, then returns the
     player number.
   -}
-  _action   :: Card -> Int -> State Game Int,
+  _action   :: Card -> Int -> State DominionGame Int,
   -- | Value or Action
   _cardType :: CardType
 }
@@ -73,38 +74,38 @@ data Strategy = Strategy {
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
-  _buyStrategy        :: Int -> State Game [Card],
+  _buyStrategy        :: Int -> State DominionGame [Card],
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
-  _discardStrategy    :: (Int, Int) -> Int -> State Game [Card],
+  _discardStrategy    :: (Int, Int) -> Int -> State DominionGame [Card],
   -- | like discardStrategy, except for trashing cards.
-  _trashStrategy      :: (Int, Int) -> Int -> State Game [Card],
+  _trashStrategy      :: (Int, Int) -> Int -> State DominionGame [Card],
   -- | Like discardStrategy, except for retrieving cards from the player's
   --  discard pile.
-  _retrieveStrategy   :: (Int, Int) -> Int -> State Game [Card],
+  _retrieveStrategy   :: (Int, Int) -> Int -> State DominionGame [Card],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  _orderHand          :: Int -> State Game [Card],
+  _orderHand          :: Int -> State DominionGame [Card],
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
-  _gainCardStrategy   :: Int -> Int -> State Game (Maybe Card),
+  _gainCardStrategy   :: Int -> Int -> State DominionGame (Maybe Card),
   -- | Specifically for the Throne Room card, lets the strategy pick which
   --  card (Just Card) to play twice, or none if Nothing. Pick a card remaining
   --  in the player's hand.
-  _throneRoomStrategy :: Int -> State Game (Maybe Card),
+  _throneRoomStrategy :: Int -> State DominionGame (Maybe Card),
   -- | For the Library card, called when the player draws an action and returns
   --  whether or not the player wants to skip that card.
-  _libraryStrategy    :: Card -> State Game Bool,
+  _libraryStrategy    :: Card -> State DominionGame Bool,
   -- | For the Sentry card, gives the top two cards of the player's deck, then
   --  says which ones that player wants to (trash, discard, keep).
-  _sentryStrategy     :: [Card] -> Int -> State Game ([Card], [Card], [Card]),
+  _sentryStrategy     :: [Card] -> Int -> State DominionGame ([Card], [Card], [Card]),
   -- | For cards like Artisan, pick n cards that the player would like to put
   --  back onto the top of their deck. The function does that work.
-  _handToDeckStrategy :: Int -> Int -> State Game [Card],
+  _handToDeckStrategy :: Int -> Int -> State DominionGame [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  _lurkerStrategy     :: Card -> Int -> State Game (Either Card Card)
+  _lurkerStrategy     :: Card -> Int -> State DominionGame (Either Card Card)
 }
 
 instance Show Strategy where
@@ -147,12 +148,8 @@ instance Ord Player where
     | _victory p1 == _victory p2  = _turns p1 `compare` _turns p2
     | otherwise                   = _victory p2 `compare` _victory p1
 
--- | The result of a game. Either Left "Player Name" who is the winner, or
---  Right Int which is the number of players that tied for the lead.
-type Result = Either String Int
-
 -- | Control.Lens is used to make updating the data structures easier.
-makeLenses ''Game
+makeLenses ''DominionGame
 makeLenses ''Card
 makeLenses ''Strategy
 makeLenses ''Player

@@ -15,7 +15,9 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     DeckBuilding.Dominion
+  exposed-modules:     DeckBuilding
+                     , DeckBuilding.Types
+                     , DeckBuilding.Dominion
                      , DeckBuilding.Dominion.Types
                      , DeckBuilding.Dominion.Utils
                      , DeckBuilding.Dominion.Cards

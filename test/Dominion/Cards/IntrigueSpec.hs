@@ -18,10 +18,10 @@ import           System.Random
 import           Test.Hspec
 import qualified Test.QuickCheck                        as QC
 
-gainAction :: Int -> Int -> State Game (Maybe Card)
+gainAction :: Int -> Int -> State DominionGame (Maybe Card)
 gainAction = gainCard firstGameKingdomCards
 
-gainVictory :: Int -> Int -> State Game (Maybe Card)
+gainVictory :: Int -> Int -> State DominionGame (Maybe Card)
 gainVictory = gainCard (delete curseCard victoryCards)
 
 spec :: Spec
@@ -29,7 +29,7 @@ spec = do
   let g = mkStdGen 45752345316
   let p1                                = newPlayer "Player 1" bigMoneyStrategy
   let p2                                = newPlayer "Player 2" bigSmithyStrategy
-  let afterDeal           = execState (deal 5 0) $ Game [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+  let afterDeal           = execState (deal 5 0) $ DominionGame [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
   let (Just p1AfterDeal)  = afterDeal ^? players . ix 0
   let afterDeal2          = execState (deal 5 1) afterDeal
   let afterEvaluate       = execState (evaluateHand 0) afterDeal2
@@ -65,7 +65,7 @@ spec = do
       (p1AfterCard ^. money) `shouldBe` 2
     it "gets one card, one action, and two cards when two actions have been played" $ do
       let p1Prepped = over played ([conspiratorCard, conspiratorCard] ++) p1
-      let startConspirator = execState (deal 5 0) $ Game [p1Prepped, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+      let startConspirator = execState (deal 5 0) $ DominionGame [p1Prepped, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let afterConspirator = execState ((conspiratorCard ^. action) conspiratorCard 0) startConspirator
       let (Just p1AfterConspirator) = afterConspirator ^? players . ix 0
       length (p1AfterConspirator ^. hand) `shouldBe` 6
@@ -75,21 +75,21 @@ spec = do
   describe "ironworksCardAction" $ do
     it "gets +action for an action card" $ do
       let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 $ Strategy "Ironworks Action" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand gainAction bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
-      let afterCard = execState ((ironworksCard ^. action) ironworksCard 1) $ Game [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+      let afterCard = execState ((ironworksCard ^. action) ironworksCard 1) $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. actions) `shouldBe` 1
       (p2AfterCard ^. money) `shouldBe` 0
       length (p2AfterCard ^. hand) `shouldBe` 5
     it "gets +money for a treasure card" $ do
       let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [] [copperCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
-      let afterCard = execState ((ironworksCard ^. action) ironworksCard 1) $ Game [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+      let afterCard = execState ((ironworksCard ^. action) ironworksCard 1) $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. actions) `shouldBe` 0
       (p2AfterCard ^. money) `shouldBe` 1
       length (p2AfterCard ^. hand) `shouldBe` 5
     it "gets +card for a victory card" $ do
       let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [] [estateCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 $ Strategy "Ironworks Victory" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand gainVictory bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
-      let afterCard = execState ((ironworksCard ^. action) ironworksCard 1) $ Game [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+      let afterCard = execState ((ironworksCard ^. action) ironworksCard 1) $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. actions) `shouldBe` 0
       (p2AfterCard ^. money) `shouldBe` 0
@@ -103,6 +103,6 @@ spec = do
       (p1AfterCard ^. victory) `shouldBe` 0
     it "is worth one point per duchy" $ do
       let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [duchyCard, duchyCard] [copperCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
-      let afterCard = execState ((dukeCard ^. action) dukeCard 1) $ Game [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+      let afterCard = execState ((dukeCard ^. action) dukeCard 1) $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. victory) `shouldBe` 2

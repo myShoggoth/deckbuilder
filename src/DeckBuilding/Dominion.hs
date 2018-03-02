@@ -11,11 +11,9 @@ Here is a longer description of this module, containing some
 commentary with @some markup@.
 -}
 module DeckBuilding.Dominion
-    ( runGames
-    , runGame
+    ( runDominionGames
+    , runDominionGame
     , newPlayer
-    , doTurn
-    , doTurns
     , basicDecks
     , resetTurn
     , evaluateHand
@@ -36,12 +34,14 @@ import           System.Random                          (StdGen, mkStdGen,
                                                          newStdGen, randoms)
 import           System.Random.Shuffle                  (shuffle')
 
+import           Debug.Trace
+
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
-
-import Debug.Trace
+import           DeckBuilding.Types
+import           DeckBuilding
 
 -- Dominion
 
@@ -60,7 +60,7 @@ newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] 
   If The player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand' :: Int -> Player -> [Card] -> State Game Int
+evaluateHand' :: Int -> Player -> [Card] -> State DominionGame Int
 --evaluateHand' pnum p h | trace ("evaluateHand for " ++ show (p ^. playerName) ++ " (" ++ show (p ^. actions) ++ " actions): " ++ show h) False = undefined
 evaluateHand' pnum p []     = return pnum
 evaluateHand' pnum p@(Player _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
@@ -76,14 +76,14 @@ evaluateHand' pnum p h@(x:xs) = do
     else evaluateHand' pnum player (player ^. hand)
 
 -- | Runs the cards in the deck by offloading the work to evaluateHand'
-evaluateHand :: Int -> State Game Int
+evaluateHand :: Int -> State DominionGame Int
 evaluateHand p = do
   (Just player) <- preuse (players . ix p)
   evaluateHand' p player (player ^. hand)
 
 -- | Runs all the cards in the player's deck to determine the total number of
 --   victory points.
-tallyAllPoints :: Int -> State Game Int
+tallyAllPoints :: Int -> State DominionGame Int
 tallyAllPoints p = do
   (Just player) <- preuse (players . ix p)
   (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
@@ -92,22 +92,10 @@ tallyAllPoints p = do
   return $ p' ^. victory
 
 -- | Returns the list of players in total points order, highest first.
-sortByPoints :: State Game [Player]
+sortByPoints :: State DominionGame [Player]
 sortByPoints = do
-  gs <- get
-  return $ sort (gs ^. players)
-
-gameResult' :: [Player] -> Result
-gameResult' players = result ((length . head) grouped) players
-  where grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players
-        result 1 l = Left $ _playerName $ head l
-        result n _ = Right n
-
--- | Returns the Result of the game.
-gameResult :: State Game Result
-gameResult = do
-  players <- sortByPoints
-  return $ gameResult' players
+  players <- use players
+  return $ sort players
 
 -- | Given a set of potential kingdom cards, pick a random ten to play with.
 randomKingdomDecks :: [Card] -> StdGen -> [Card]
@@ -124,7 +112,7 @@ basicDecks numPlayers
     | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
-resetTurn :: Int -> State Game Int
+resetTurn :: Int -> State DominionGame Int
 resetTurn p = do
   (Just player) <- preuse (players . ix p)
   (players . ix p . discard) %= ( (player ^. played)++)
@@ -136,76 +124,49 @@ resetTurn p = do
   (players . ix p . turns) += 1
   return p
 
-{-|
-  The core of the engine, on each turn we:
-
-  1. Call the strategy to order the hand to determine which cards to run first.
-  2. Evaluate the cards in the hand.
-  3. Call the strategy to buy cards.
-  4. Deal a new hand.
-  5. Reset the player for the next turn.
-  6. Determine if the game is now over.
--}
-doTurn :: Int -> State Game Bool
---doTurn p | trace ("Running turn for player #" ++ show p) False = undefined
-doTurn p = do
-  (Just player) <- preuse (players . ix p)
-  (player ^. strategy . orderHand) p
-  evaluateHand p
-  (player ^. strategy . buyStrategy) p
-  deal 5 p
-  resetTurn p
-  isGameOver
-
--- | Run turns for each player until all players have gone or the game ends.
-doTurns :: [Int] -> State Game Bool
---doTurns [] | trace ("Finished full round of turns.") False = undefined
-doTurns [] = return False
-doTurns (x:xs) = do
-  done <- doTurn x
-  if done
-    then return True
-    else doTurns xs
-
--- | Return if the game is over (all provinces are gone or there are three
---  empty decks).
-isGameOver :: State Game Bool
---isGameover | trace ("Is game over?") False = undefined
-isGameOver = do
-  gs <- get
-  emptyDecks <- numEmptyDecks
-  return $ ((gs ^. decks) Map.! provinceCard == 0) || emptyDecks >= 3
-
-{-|
-  Run the game, do turns for each player until the game is over, then figure
-  out who won.
--}
-runGame' :: State Game Result
-runGame' = do
-  players <- use players
-  done <- doTurns [0.. (length players) - 1]
-  if done
-    then do
-      mapM_ tallyAllPoints [0.. (length players) - 1]
-      sortByPoints
-      gameResult
-    else runGame'
-
 -- | Run a single game with a set of players and kingdom cards.
-runGame :: [Player] -> [Card] -> IO Result
-runGame players kingdom | trace ("Starting new game with " ++ show (length players)) False = undefined
-runGame players kingdom = do
+runDominionGame :: [Player] -> [Card] -> IO Result
+runDominionGame players kingdom | trace ("Starting new game with " ++ show (length players)) False = undefined
+runDominionGame players kingdom = do
   g <- newStdGen
-  let result = evalState runGame' $ Game players (basicDecks (length players) `Map.union` makeDecks kingdom) [] g
+  let result = evalState (runGame False) $ DominionGame players (basicDecks (length players) `Map.union` makeDecks kingdom) [] g
   return result
 
 -- | Run n games with a set of players and kingdom cards.
-runGames :: Int -> [Player] -> [Card] -> IO [(Result, Int)]
-runGames num players kingdom | trace ("Starting " ++ show num ++ " new games with " ++ show (length players)) False = undefined
-runGames num players kingdom = do
+runDominionGames :: Int -> [Player] -> [Card] -> IO [(Result, Int)]
+runDominionGames num players kingdom | trace ("Starting " ++ show num ++ " new games with " ++ show (length players)) False = undefined
+runDominionGames num players kingdom = do
   g <- newStdGen
   let seeds = take num $ randoms g
   let gens = map mkStdGen seeds
-  let gses = map (Game players (basicDecks (length players) `Map.union` makeDecks kingdom) []) gens
-  let results = map (runState runGame') gses
+  let gses = map (DominionGame players (basicDecks (length players) `Map.union` makeDecks kingdom) []) gens
+  let results = map (runState (runGame False)) gses
   return $ map (head &&& length) $ group $ sort $ map fst results
+
+instance Game DominionGame where
+  finished    = do
+    decks <- use decks
+    emptyDecks <- numEmptyDecks
+    return $ (decks Map.! provinceCard == 0) || emptyDecks >= 3
+
+  runTurn p   = do
+    (Just player) <- preuse (players . ix p)
+    (player ^. strategy . orderHand) p
+    evaluateHand p
+    (player ^. strategy . buyStrategy) p
+    deal 5 p
+    resetTurn p
+    finished
+
+  result      = do
+      np <- numPlayers
+      mapM_ tallyAllPoints [0.. np - 1]
+      players <- sortByPoints
+      let grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players
+      return $ result ((length . head) grouped) players
+    where result 1 l = Left $ _playerName $ head l
+          result n _ = Right n
+
+  numPlayers  = do
+    players <- use players
+    return $ length players

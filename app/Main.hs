@@ -23,6 +23,6 @@ main = do
   let kingdom = randomKingdomDecks kingdomCards2ndEdition g
   print $ "Kingdom: " ++ show kingdom
   let players = [newPlayer "Big Money" bigMoneyStrategy, newPlayer "Big Smithy" bigSmithyStrategy, newPlayer "Village/Smithy Engine 4" villageSmithyEngine4]
-  result <- runGames 5000 players kingdom
+  result <- runDominionGames 5000 players kingdom
   showStrategies players
   print $ show result
