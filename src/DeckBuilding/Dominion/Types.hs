@@ -10,6 +10,17 @@ import qualified Data.Map            as Map
 import           System.Random
 import           DeckBuilding.Types
 
+data DominionConfig = DominionConfig {
+  -- | Names and strategies for each player
+  _playerDefs :: [(String, Strategy)],
+  -- | Which kingdom cards to use
+  _kingdomCards :: [Card],
+  -- | How many games to run
+  _games :: Int,
+  -- | One random number generator per game
+  _seeds :: [StdGen]
+} deriving Show
+
 data DominionGame = DominionGame {
   -- | The players of the game.
   _players :: [Player],
@@ -149,6 +160,7 @@ instance Ord Player where
     | otherwise                   = _victory p2 `compare` _victory p1
 
 -- | Control.Lens is used to make updating the data structures easier.
+makeLenses ''DominionConfig
 makeLenses ''DominionGame
 makeLenses ''Card
 makeLenses ''Strategy

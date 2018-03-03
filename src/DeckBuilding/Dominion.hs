@@ -12,7 +12,6 @@ commentary with @some markup@.
 -}
 module DeckBuilding.Dominion
     ( runDominionGames
-    , runDominionGame
     , newPlayer
     , basicDecks
     , resetTurn
@@ -124,24 +123,11 @@ resetTurn p = do
   (players . ix p . turns) += 1
   return p
 
--- | Run a single game with a set of players and kingdom cards.
-runDominionGame :: [Player] -> [Card] -> IO Result
-runDominionGame players kingdom | trace ("Starting new game with " ++ show (length players)) False = undefined
-runDominionGame players kingdom = do
-  g <- newStdGen
-  let result = evalState (runGame False) $ DominionGame players (basicDecks (length players) `Map.union` makeDecks kingdom) [] g
-  return result
-
 -- | Run n games with a set of players and kingdom cards.
-runDominionGames :: Int -> [Player] -> [Card] -> IO [(Result, Int)]
-runDominionGames num players kingdom | trace ("Starting " ++ show num ++ " new games with " ++ show (length players)) False = undefined
-runDominionGames num players kingdom = do
-  g <- newStdGen
-  let seeds = take num $ randoms g
-  let gens = map mkStdGen seeds
-  let gses = map (DominionGame players (basicDecks (length players) `Map.union` makeDecks kingdom) []) gens
-  let results = map (runState (runGame False)) gses
-  return $ map (head &&& length) $ group $ sort $ map fst results
+runDominionGames :: DominionConfig -> [(Result, Int)]
+--runDominionGames c | trace ("Starting " ++ show (c ^. games) ++ " new games with " ++ show (length (c ^. playerDefs))) False = undefined
+runDominionGames c = map (head &&& length) $ group $ sort $ map (evalState (runGame False)) gses
+  where gses = map (DominionGame (map (\p -> newPlayer (fst p) (snd p)) (c ^. playerDefs)) (basicDecks (length (c ^. playerDefs)) `Map.union` makeDecks (c ^. kingdomCards)) []) (c ^. seeds)
 
 instance Game DominionGame where
   finished    = do

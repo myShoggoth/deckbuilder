@@ -1,6 +1,5 @@
 module DeckBuilding.Types
-    ( Game(..)
-    , Result
+    ( module DeckBuilding.Types
     ) where
 
 import Control.Monad.State
