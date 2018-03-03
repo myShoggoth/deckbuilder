@@ -115,7 +115,7 @@ instance Eq Strategy where
   a == b = _strategyName a == _strategyName b
 
 data Player = Player {
-  -- | Player name, mostly used for ebugging.
+  -- | Player name, mostly used for debugging.
   _playerName :: String,
   -- | Player's current deck.
   _deck       :: [Card],
