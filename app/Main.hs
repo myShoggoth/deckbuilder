@@ -6,8 +6,9 @@ import DeckBuilding.Dominion.Utils
 import DeckBuilding.Dominion.Strategies.Basic
 import DeckBuilding.Dominion.Cards
 
-import System.Random
-import Control.Lens
+import           System.Random
+import           Control.Lens
+import qualified Data.DList                             as DL
 
 -- | Basic usage of the library, pick some kingdom cards and run a few
 --  thousand games to test the strategies against each other.
@@ -23,5 +24,6 @@ main = do
               (randomKingdomDecks kingdomCards2ndEdition g1)
               1
               [g2]
-  let result = runDominionGames conf
+  let (result, output) = runDominionGames conf
+  mapM_ (putStrLn . show) $ DL.toList $ DL.concat output
   print $ show result

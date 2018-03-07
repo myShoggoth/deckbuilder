@@ -13,20 +13,18 @@ module DeckBuilding.Dominion.Strategies.Utils
     , buyIfLowerThanTerminalActions
     ) where
 
-import DeckBuilding.Dominion.Types
-import DeckBuilding.Dominion.Utils
-import DeckBuilding.Dominion.Cards
+import           DeckBuilding.Dominion.Cards
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
 
-import           Data.List                         (intersect)
-import qualified Data.Map                          as Map
-import Control.Monad.State
-import Control.Lens
-
-import Debug.Trace
+import           Control.Lens
+import           Control.Monad.RWS
+import qualified Data.DList                  as DL
+import           Data.List                   (intersect)
+import qualified Data.Map                    as Map
 
 -- | Can this player afford this card?
 canAfford :: Card -> Player -> Bool
--- canAfford c p | trace ("canAfford: " ++ show (c ^. cardName) ++ " by " ++ show (p ^. playerName) ++ " with " ++ show (p ^. money) ++ " money") False = undefined
 canAfford c p = (c ^. cost) <= (p ^. money)
 
 cardsLeft :: DominionGame -> Card -> Int
@@ -40,8 +38,7 @@ areCardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
 
 -- | Buy the card if it satisfies the passed in function, the player can
 --  afford it, and there are some left in the supply.
-buyIf :: Card -> Int -> (Card -> Player -> State DominionGame Bool) -> State DominionGame (Maybe Card)
--- buyIf c p f | trace ("buyIf: " ++ show (p ^. playerName) ++ " checking " ++ show (c ^. cardName)) False = undefined
+buyIf :: Card -> Int -> (Card -> Player -> DominionState Bool) -> DominionState (Maybe Card)
 buyIf c p f = do
   (Just player) <- preuse (players . ix p)
   gs <- get
@@ -53,7 +50,7 @@ buyIf c p f = do
     else return Nothing
 
 -- | Helper function when you always want to buy a card if you can afford it.
-alwaysBuy :: Card -> Int -> State DominionGame (Maybe Card)
+alwaysBuy :: Card -> Int -> DominionState (Maybe Card)
 alwaysBuy c p = buyIf c p (\_ _ -> return True)
 
 allCards :: Player -> [Card]
@@ -67,30 +64,30 @@ countDeck :: Player -> Int
 countDeck p = length $ allCards p
 
 -- | Helper function for a card where you only want to buy up to N of them.
-buyN :: Int -> Card -> Int -> State DominionGame (Maybe Card)
+buyN :: Int -> Card -> Int -> DominionState (Maybe Card)
 buyN n c p = buyNIf n c p (\_ _ -> return True)
 
 -- | Buy up to N of the card as long as it satisfies the passed in function.
-buyNIf :: Int -> Card -> Int -> (Card -> Player -> State DominionGame Bool) -> State DominionGame (Maybe Card)
+buyNIf :: Int -> Card -> Int -> (Card -> Player -> DominionState Bool) -> DominionState (Maybe Card)
 buyNIf n c p f = do
   (Just player) <- preuse (players . ix p)
   iff <- f c player
   if iff
-    then buyIf c p (\c p -> return (countCards c p < n))
+    then buyIf c p (\c p -> return ((countCards c p) < n))
     else return Nothing
 
 -- | Buy N of the card as long as the player's total deck size is D.
-buyNAfterTotalDeckOf :: Int -> Int -> Card -> Int -> State DominionGame (Maybe Card)
+buyNAfterTotalDeckOf :: Int -> Int -> Card -> Int -> DominionState (Maybe Card)
 buyNAfterTotalDeckOf n d c p = buyNIf n c p (\c' p' -> return (countDeck p' >= d))
 
-isDeckBelowN :: Card -> Int -> State DominionGame Bool
+isDeckBelowN :: Card -> Int -> DominionState Bool
 isDeckBelowN c n = do
   gs <- get
   if n > cardsLeft gs c
     then return True
     else return False
 
-buyIfNumberOfCardIsBelow :: Card -> Int -> Card -> Int -> State DominionGame (Maybe Card)
+buyIfNumberOfCardIsBelow :: Card -> Int -> Card -> Int -> DominionState (Maybe Card)
 buyIfNumberOfCardIsBelow cd n c p = do
   db <- isDeckBelowN cd n
   if db
@@ -100,20 +97,19 @@ buyIfNumberOfCardIsBelow cd n c p = do
 actionTerminators :: Player -> Int
 actionTerminators p =  length $ allCards p `intersect` actionTerminatorCards
 
-buyIfLowerThanTerminalActions :: Card -> Int -> State DominionGame (Maybe Card)
+buyIfLowerThanTerminalActions :: Card -> Int -> DominionState (Maybe Card)
 buyIfLowerThanTerminalActions c p = do
   (Just player) <- preuse (players . ix p)
-  if countCards c player < actionTerminators player
+  if (countCards c player) < (actionTerminators player)
     then alwaysBuy c p
     else return Nothing
 
 -- | Decrease the amount of the cards in the game deck, subtract the money
 --  from the player, and add the card to the player's discard pile.
-buyCard ::  Maybe Card -> Int -> State DominionGame Int
---buyCard (Just c) p | trace ("buyCard: " ++ show (p ^. playerName) ++ " buying " ++ show (c ^. cardName)) False = undefined
---buyCard Nothing p | trace ("buyCard: " ++ show (p ^. playerName) ++ " buying Nothing") False = undefined
+buyCard ::  Maybe Card -> Int -> DominionState Int
 buyCard Nothing  p = return p
 buyCard (Just c) p = do
+  tell $ DL.singleton $ Buy c
   decks %= (Map.mapWithKey (decreaseCards c))
   (players . ix p . discard) %= (c:)
   (players . ix p . buys) -= 1

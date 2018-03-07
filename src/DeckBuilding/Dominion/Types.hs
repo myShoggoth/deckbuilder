@@ -5,21 +5,39 @@ module DeckBuilding.Dominion.Types
     ) where
 
 import           Control.Lens
-import           Control.Monad.State
-import qualified Data.Map            as Map
-import           System.Random
+import           Control.Monad.RWS
+import qualified Data.DList         as DL
+import qualified Data.Map           as Map
 import           DeckBuilding.Types
+import           System.Random
+
+data DominionMove = Turn Int Player |
+                    Play Card |
+                    Deal Int [Card] |
+                    Discard [Card] |
+                    ThroneRoom Card |
+                    Remodel Card Card |
+                    Buy Card |
+                    Retreive [Card] |
+                    Trash [Card]
+                    deriving (Show, Eq)
+
+type DominionState a = RWS DominionConfig (DL.DList DominionMove) DominionGame a
 
 data DominionConfig = DominionConfig {
   -- | Names and strategies for each player
-  _playerDefs :: [(String, Strategy)],
+  _playerDefs   :: [(String, Strategy)],
   -- | Which kingdom cards to use
   _kingdomCards :: [Card],
   -- | How many games to run
-  _games :: Int,
+  _games        :: Int,
   -- | One random number generator per game
-  _seeds :: [StdGen]
+  _seeds        :: [StdGen]
 } deriving Show
+
+instance Monoid DominionConfig where
+  mempty = DominionConfig [] [] 0 []
+  mappend c1 c2 = DominionConfig ((_playerDefs c1) ++ (_playerDefs c2)) ((_kingdomCards c1) ++ (_kingdomCards c2)) ((_games c1) + (_games c2)) ((_seeds c1) ++ (_seeds c2))
 
 data DominionGame = DominionGame {
   -- | The players of the game.
@@ -51,7 +69,7 @@ data Card = Card {
     Updates the game state based on what the card does, then returns the
     player number.
   -}
-  _action   :: Card -> Int -> State DominionGame Int,
+  _action   :: Card -> Int -> DominionState Int,
   -- | Value or Action
   _cardType :: CardType
 }
@@ -85,38 +103,38 @@ data Strategy = Strategy {
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
-  _buyStrategy        :: Int -> State DominionGame [Card],
+  _buyStrategy        :: Int -> DominionState [Card],
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
-  _discardStrategy    :: (Int, Int) -> Int -> State DominionGame [Card],
+  _discardStrategy    :: (Int, Int) -> Int -> DominionState [Card],
   -- | like discardStrategy, except for trashing cards.
-  _trashStrategy      :: (Int, Int) -> Int -> State DominionGame [Card],
+  _trashStrategy      :: (Int, Int) -> Int -> DominionState [Card],
   -- | Like discardStrategy, except for retrieving cards from the player's
   --  discard pile.
-  _retrieveStrategy   :: (Int, Int) -> Int -> State DominionGame [Card],
+  _retrieveStrategy   :: (Int, Int) -> Int -> DominionState [Card],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  _orderHand          :: Int -> State DominionGame [Card],
+  _orderHand          :: Int -> DominionState [Card],
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
-  _gainCardStrategy   :: Int -> Int -> State DominionGame (Maybe Card),
+  _gainCardStrategy   :: Int -> Int -> DominionState (Maybe Card),
   -- | Specifically for the Throne Room card, lets the strategy pick which
   --  card (Just Card) to play twice, or none if Nothing. Pick a card remaining
   --  in the player's hand.
-  _throneRoomStrategy :: Int -> State DominionGame (Maybe Card),
+  _throneRoomStrategy :: Int -> DominionState (Maybe Card),
   -- | For the Library card, called when the player draws an action and returns
   --  whether or not the player wants to skip that card.
-  _libraryStrategy    :: Card -> State DominionGame Bool,
+  _libraryStrategy    :: Card -> DominionState Bool,
   -- | For the Sentry card, gives the top two cards of the player's deck, then
   --  says which ones that player wants to (trash, discard, keep).
-  _sentryStrategy     :: [Card] -> Int -> State DominionGame ([Card], [Card], [Card]),
+  _sentryStrategy     :: [Card] -> Int -> DominionState ([Card], [Card], [Card]),
   -- | For cards like Artisan, pick n cards that the player would like to put
   --  back onto the top of their deck. The function does that work.
-  _handToDeckStrategy :: Int -> Int -> State DominionGame [Card],
+  _handToDeckStrategy :: Int -> Int -> DominionState [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  _lurkerStrategy     :: Card -> Int -> State DominionGame (Either Card Card)
+  _lurkerStrategy     :: Card -> Int -> DominionState (Either Card Card)
 }
 
 instance Show Strategy where

@@ -4,16 +4,16 @@ module DominionSpec
 
 import           Control.Exception                      (evaluate)
 import           Control.Lens
-import           Control.Monad.State
+import           Control.Monad.RWS
 import           Data.List
 import qualified Data.Map                               as Map
 import           DeckBuilding
-import           DeckBuilding.Types
 import           DeckBuilding.Dominion
 import           DeckBuilding.Dominion.Cards.Base
 import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
+import           DeckBuilding.Types
 import           System.Random
 import           Test.Hspec
 import qualified Test.QuickCheck                        as QC
@@ -21,14 +21,20 @@ import qualified Test.QuickCheck                        as QC
 spec :: Spec
 spec = do
   let g = mkStdGen 45752345316
-  let p1                      = newPlayer "Player 1" bigMoneyStrategy
-  let p2                      = newPlayer "Player 2" bigSmithyStrategy
-  let afterDeal               = execState (deal 5 0) $ DominionGame [p1, p2] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
+  let c = DominionConfig
+              [ ("Player 1", bigMoneyStrategy)
+              , ("Player 2", bigSmithyStrategy)
+              ]
+              firstGameKingdomCards
+              1
+              [g]
+  let dg = configToGame c g
+  let afterDeal               = fst $ execRWS (deal 5 0) c dg
   let (Just p1AfterDeal)      = afterDeal ^? players . ix 0
-  let afterDeal2              = execState (deal 5 1) afterDeal
-  let afterEvaluate           = execState (evaluateHand 0) afterDeal2
+  let afterDeal2              = fst $ execRWS (deal 5 1) c afterDeal
+  let afterEvaluate           = fst $ execRWS (evaluateHand 0) c afterDeal2
   let (Just p1AfterEvaluate)  = afterEvaluate ^? players . ix 0
-  let afterReset              = execState (resetTurn 0) afterEvaluate
+  let afterReset              = fst $ execRWS (resetTurn 0) c afterEvaluate
   let (Just p1AfterReset)     = afterReset ^? players . ix 0
 
   describe "Utils.deal" $ do
@@ -75,12 +81,12 @@ spec = do
       (p1AfterReset ^. actions) `shouldBe` 1
 
   describe "doTurn" $ do
-    let afterDoTurn = execState (runTurn 0) afterDeal2
+    let afterDoTurn = fst $ execRWS ((runTurn 0) :: DominionState Bool) c afterDeal2
 
     it "bought a card" $ do
       length ((afterDoTurn ^. players) !! 0 ^. discard) `shouldBe` 6
 
   describe "doTurns" $ do
-    let afterDoTurns = execState (runTurns [0..1] False) afterDeal2
+    let afterDoTurns = fst $ execRWS ((runTurns [0..1] False) :: DominionState Bool) c afterDeal2
     it "has players with more cards" $ do
       length ((afterDoTurns ^. players) !! 0 ^. discard) `shouldBe` 6

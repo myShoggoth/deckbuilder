@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 {-|
 Module      : DeckBuilding.Dominion
 Description : A deck-building game engine and simulator
@@ -18,11 +21,13 @@ module DeckBuilding.Dominion
     , evaluateHand
     , makeDecks
     , randomKingdomDecks
+    , configToGame
     ) where
 
 import           Control.Arrow                          ((&&&))
 import           Control.Lens
-import           Control.Monad.State
+import           Control.Monad.RWS
+import qualified Data.DList                             as DL
 import           Data.Foldable                          (foldrM)
 import           Data.List                              (delete, find, group,
                                                          groupBy, intersect,
@@ -33,14 +38,12 @@ import           System.Random                          (StdGen, mkStdGen,
                                                          newStdGen, randoms)
 import           System.Random.Shuffle                  (shuffle')
 
-import           Debug.Trace
-
+import           DeckBuilding
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 import           DeckBuilding.Types
-import           DeckBuilding
 
 -- Dominion
 
@@ -59,30 +62,29 @@ newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] 
   If The player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand' :: Int -> Player -> [Card] -> State DominionGame Int
---evaluateHand' pnum p h | trace ("evaluateHand for " ++ show (p ^. playerName) ++ " (" ++ show (p ^. actions) ++ " actions): " ++ show h) False = undefined
+evaluateHand' :: Int -> Player -> [Card] -> DominionState Int
 evaluateHand' pnum p []     = return pnum
 evaluateHand' pnum p@(Player _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
+  tell $ DL.singleton $ Play x
   (x ^. action) x pnum
   (Just player) <- preuse (players . ix pnum)
   evaluateHand' pnum player xs
 evaluateHand' pnum p@(Player _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand' pnum p xs
 evaluateHand' pnum p h@(x:xs) = do
+  tell $ DL.singleton $ Play x
   (x ^. action) x pnum
   (Just player) <- preuse (players . ix pnum)
-  if null (h \\ (player ^. hand)) -- If the player's hand is identical we're done
-    then return pnum
-    else evaluateHand' pnum player (player ^. hand)
+  evaluateHand' pnum player (player ^. hand)
 
 -- | Runs the cards in the deck by offloading the work to evaluateHand'
-evaluateHand :: Int -> State DominionGame Int
+evaluateHand :: Int -> DominionState Int
 evaluateHand p = do
   (Just player) <- preuse (players . ix p)
   evaluateHand' p player (player ^. hand)
 
 -- | Runs all the cards in the player's deck to determine the total number of
 --   victory points.
-tallyAllPoints :: Int -> State DominionGame Int
+tallyAllPoints :: Int -> DominionState Int
 tallyAllPoints p = do
   (Just player) <- preuse (players . ix p)
   (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
@@ -91,7 +93,7 @@ tallyAllPoints p = do
   return $ p' ^. victory
 
 -- | Returns the list of players in total points order, highest first.
-sortByPoints :: State DominionGame [Player]
+sortByPoints :: DominionState [Player]
 sortByPoints = do
   players <- use players
   return $ sort players
@@ -111,11 +113,12 @@ basicDecks numPlayers
     | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
-resetTurn :: Int -> State DominionGame Int
+resetTurn :: Int -> DominionState Int
 resetTurn p = do
   (Just player) <- preuse (players . ix p)
-  (players . ix p . discard) %= ( (player ^. played)++)
+  (players . ix p . discard) %= ( ((player ^. hand) ++ (player ^. played) ) ++)
   (players . ix p . played) .= []
+  (players . ix p . hand) .= []
   (players . ix p . actions) .= 1
   (players . ix p . buys) .= 1
   (players . ix p . money) .= 0
@@ -123,13 +126,18 @@ resetTurn p = do
   (players . ix p . turns) += 1
   return p
 
--- | Run n games with a set of players and kingdom cards.
-runDominionGames :: DominionConfig -> [(Result, Int)]
---runDominionGames c | trace ("Starting " ++ show (c ^. games) ++ " new games with " ++ show (length (c ^. playerDefs))) False = undefined
-runDominionGames c = map (head &&& length) $ group $ sort $ map (evalState (runGame False)) gses
-  where gses = map (DominionGame (map (\p -> newPlayer (fst p) (snd p)) (c ^. playerDefs)) (basicDecks (length (c ^. playerDefs)) `Map.union` makeDecks (c ^. kingdomCards)) []) (c ^. seeds)
+configToGame :: DominionConfig -> StdGen -> DominionGame
+configToGame c = DominionGame (map (\p -> newPlayer (fst p) (snd p)) (c ^. playerDefs)) (basicDecks (length (c ^. playerDefs)) `Map.union` makeDecks (c ^. kingdomCards)) []
 
-instance Game DominionGame where
+-- | Run n games with a set of players and kingdom cards.
+runDominionGames :: DominionConfig -> ([(Result, Int)], [DL.DList DominionMove])
+runDominionGames c = (map (head &&& length) $ group $ sort $ results, output)
+  where gses = map (configToGame c) (c ^. seeds)
+        rawresults = map (evalRWS ((runGame False) :: DominionState Result) c) gses
+        results = map fst rawresults
+        output = map snd rawresults
+
+instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   finished    = do
     decks <- use decks
     emptyDecks <- numEmptyDecks
@@ -137,11 +145,12 @@ instance Game DominionGame where
 
   runTurn p   = do
     (Just player) <- preuse (players . ix p)
+    tell $ DL.singleton $ Turn (player ^. turns) player
     (player ^. strategy . orderHand) p
     evaluateHand p
     (player ^. strategy . buyStrategy) p
-    deal 5 p
     resetTurn p
+    deal 5 p
     finished
 
   result      = do

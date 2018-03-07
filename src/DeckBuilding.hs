@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-|
 Module      : DeckBuilding
 Description : A deck-building game engine and simulator
@@ -15,18 +16,18 @@ module DeckBuilding
     , runGame
     ) where
 
-import Control.Monad.State
+import           Control.Monad.RWS
 
-import DeckBuilding.Types
+import           DeckBuilding.Types
 
-runTurns :: Game g => [Int] -> Bool -> State g Bool
+runTurns :: Game c l g => [Int] -> Bool -> RWS c l g Bool
 runTurns _      True  = return True
 runTurns []     False = return False
 runTurns (x:xs) False = do
   done <- runTurn x
   runTurns xs done
 
-runGame :: Game g => Bool -> State g Result
+runGame :: Game c l g => Bool -> RWS c l g Result
 runGame True  = result
 runGame False = do
   np <- numPlayers
