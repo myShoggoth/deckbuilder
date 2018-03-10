@@ -24,7 +24,7 @@ import           Data.List                   (intersect)
 import qualified Data.Map                    as Map
 
 -- | Can this player afford this card?
-canAfford :: Card -> Player -> Bool
+canAfford :: Card -> DominionPlayer -> Bool
 canAfford c p = (c ^. cost) <= (p ^. money)
 
 cardsLeft :: DominionGame -> Card -> Int
@@ -38,7 +38,7 @@ areCardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
 
 -- | Buy the card if it satisfies the passed in function, the player can
 --  afford it, and there are some left in the supply.
-buyIf :: Card -> Int -> (Card -> Player -> DominionState Bool) -> DominionState (Maybe Card)
+buyIf :: Card -> Int -> (Card -> DominionPlayer -> DominionState Bool) -> DominionState (Maybe Card)
 buyIf c p f = do
   (Just player) <- preuse (players . ix p)
   gs <- get
@@ -53,14 +53,14 @@ buyIf c p f = do
 alwaysBuy :: Card -> Int -> DominionState (Maybe Card)
 alwaysBuy c p = buyIf c p (\_ _ -> return True)
 
-allCards :: Player -> [Card]
+allCards :: DominionPlayer -> [Card]
 allCards p = (p ^. hand) ++ (p ^. deck) ++ (p ^. discard) ++ (p ^. played)
 
 -- | How many of this card does the player have?
-countCards :: Card -> Player -> Int
+countCards :: Card -> DominionPlayer -> Int
 countCards c p = length $ filter (== c) $ allCards p
 
-countDeck :: Player -> Int
+countDeck :: DominionPlayer -> Int
 countDeck p = length $ allCards p
 
 -- | Helper function for a card where you only want to buy up to N of them.
@@ -68,7 +68,7 @@ buyN :: Int -> Card -> Int -> DominionState (Maybe Card)
 buyN n c p = buyNIf n c p (\_ _ -> return True)
 
 -- | Buy up to N of the card as long as it satisfies the passed in function.
-buyNIf :: Int -> Card -> Int -> (Card -> Player -> DominionState Bool) -> DominionState (Maybe Card)
+buyNIf :: Int -> Card -> Int -> (Card -> DominionPlayer -> DominionState Bool) -> DominionState (Maybe Card)
 buyNIf n c p f = do
   (Just player) <- preuse (players . ix p)
   iff <- f c player
@@ -94,7 +94,7 @@ buyIfNumberOfCardIsBelow cd n c p = do
     then alwaysBuy c p
     else return Nothing
 
-actionTerminators :: Player -> Int
+actionTerminators :: DominionPlayer -> Int
 actionTerminators p =  length $ allCards p `intersect` actionTerminatorCards
 
 buyIfLowerThanTerminalActions :: Card -> Int -> DominionState (Maybe Card)

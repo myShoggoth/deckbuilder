@@ -50,9 +50,9 @@ import           DeckBuilding.Types
 -- Core Engine
 
 -- | Creates a new player with a name and strategy and the default started deck.
-newPlayer :: String -> Strategy -> Player
+newPlayer :: String -> Strategy -> DominionPlayer
 -- newPlayer n | trace ("newPlayer: " ++ show n) False = undefined
-newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 0
+newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 0
 
 {- |
   Evaluates the cards in the deck. Since cards can cause more to be drawn,
@@ -62,14 +62,14 @@ newPlayer n = Player n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] 
   If The player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand' :: Int -> Player -> [Card] -> DominionState Int
+evaluateHand' :: Int -> DominionPlayer -> [Card] -> DominionState Int
 evaluateHand' pnum p []     = return pnum
-evaluateHand' pnum p@(Player _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
+evaluateHand' pnum p@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
   tell $ DL.singleton $ Play x
   (x ^. action) x pnum
   (Just player) <- preuse (players . ix pnum)
   evaluateHand' pnum player xs
-evaluateHand' pnum p@(Player _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand' pnum p xs
+evaluateHand' pnum p@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand' pnum p xs
 evaluateHand' pnum p h@(x:xs) = do
   tell $ DL.singleton $ Play x
   (x ^. action) x pnum
@@ -82,18 +82,8 @@ evaluateHand p = do
   (Just player) <- preuse (players . ix p)
   evaluateHand' p player (player ^. hand)
 
--- | Runs all the cards in the player's deck to determine the total number of
---   victory points.
-tallyAllPoints :: Int -> DominionState Int
-tallyAllPoints p = do
-  (Just player) <- preuse (players . ix p)
-  (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
-  evaluateHand p
-  (Just p') <- preuse (players . ix p)
-  return $ p' ^. victory
-
 -- | Returns the list of players in total points order, highest first.
-sortByPoints :: DominionState [Player]
+sortByPoints :: DominionState [DominionPlayer]
 sortByPoints = do
   players <- use players
   return $ sort players
@@ -155,7 +145,7 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
 
   result      = do
       np <- numPlayers
-      mapM_ tallyAllPoints [0.. np - 1]
+      mapM_ tallyPoints [0.. np - 1]
       players <- sortByPoints
       let grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players
       return $ result ((length . head) grouped) players
@@ -165,3 +155,9 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   numPlayers  = do
     players <- use players
     return $ length players
+
+  tallyPoints p = do
+    (Just player) <- preuse (players . ix p)
+    (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
+    evaluateHand p
+    return ()

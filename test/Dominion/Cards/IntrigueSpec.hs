@@ -84,21 +84,21 @@ spec = do
 
   describe "ironworksCardAction" $ do
     it "gets +action for an action card" $ do
-      let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 $ Strategy "Ironworks Action" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand gainAction bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
+      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 $ Strategy "Ironworks Action" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand gainAction bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
       let afterCard = fst $ execRWS ((ironworksCard ^. action) ironworksCard 1) c $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. actions) `shouldBe` 1
       (p2AfterCard ^. money) `shouldBe` 0
       length (p2AfterCard ^. hand) `shouldBe` 5
     it "gets +money for a treasure card" $ do
-      let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [] [copperCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
+      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [] [copperCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
       let afterCard = fst $ execRWS ((ironworksCard ^. action) ironworksCard 1) c $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. actions) `shouldBe` 0
       (p2AfterCard ^. money) `shouldBe` 1
       length (p2AfterCard ^. hand) `shouldBe` 5
     it "gets +card for a victory card" $ do
-      let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [] [estateCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 $ Strategy "Ironworks Victory" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand gainVictory bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
+      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [] [estateCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 $ Strategy "Ironworks Victory" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve bigMoneyOrderHand gainVictory bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker
       let afterCard = fst $ execRWS ((ironworksCard ^. action) ironworksCard 1) c $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. actions) `shouldBe` 0
@@ -112,7 +112,7 @@ spec = do
       (p1AfterCard ^. actions) `shouldBe` 1
       (p1AfterCard ^. victory) `shouldBe` 0
     it "is worth one point per duchy" $ do
-      let forcedDeal = Player "Ironworks Deal" (replicate 5 copperCard) [duchyCard, duchyCard] [copperCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
+      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [duchyCard, duchyCard] [copperCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
       let afterCard = fst $ execRWS ((dukeCard ^. action) dukeCard 1) c $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? players . ix 1
       (p2AfterCard ^. victory) `shouldBe` 2

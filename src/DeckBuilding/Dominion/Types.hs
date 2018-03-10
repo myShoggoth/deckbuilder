@@ -11,7 +11,7 @@ import qualified Data.Map           as Map
 import           DeckBuilding.Types
 import           System.Random
 
-data DominionMove = Turn Int Player |
+data DominionMove = Turn Int DominionPlayer |
                     Play Card |
                     Deal Int [Card] |
                     Discard [Card] |
@@ -41,7 +41,7 @@ instance Monoid DominionConfig where
 
 data DominionGame = DominionGame {
   -- | The players of the game.
-  _players :: [Player],
+  _players :: [DominionPlayer],
   -- | All the decks, basic and Kingdom: (Card, Number Left)
   _decks   :: Map.Map Card Int,
   -- | The trash pile.
@@ -89,7 +89,7 @@ instance Show Card where
 
   To create a new strategy, implement each of the functions (or use one of
   the basic ones if that's good enough) and create a Strategy. Then pass it
-  when creating a Player and see how it does in the game.
+  when creating a DominionPlayer and see how it does in the game.
 
   Because these are done in the context of the State Monad, the strategy
   can see the entire game state, including stuff real players wouldn't be
@@ -143,7 +143,7 @@ instance Show Strategy where
 instance Eq Strategy where
   a == b = _strategyName a == _strategyName b
 
-data Player = Player {
+data DominionPlayer = DominionPlayer {
   -- | Player name, mostly used for debugging.
   _playerName :: String,
   -- | Player's current deck.
@@ -169,10 +169,10 @@ data Player = Player {
   _strategy   :: Strategy
 } deriving Show
 
-instance Eq Player where
+instance Eq DominionPlayer where
   a == b = _playerName a == _playerName b
 
-instance Ord Player where
+instance Ord DominionPlayer where
   compare p1 p2
     | _victory p1 == _victory p2  = _turns p1 `compare` _turns p2
     | otherwise                   = _victory p2 `compare` _victory p1
@@ -182,4 +182,4 @@ makeLenses ''DominionConfig
 makeLenses ''DominionGame
 makeLenses ''Card
 makeLenses ''Strategy
-makeLenses ''Player
+makeLenses ''DominionPlayer

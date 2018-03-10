@@ -154,7 +154,7 @@ vassalCardAction c p = do
 
 vassalCard      = Card "Vassal"     3 vassalCardAction Action
 
-defendsAgainstAttack :: Card -> Player -> Bool
+defendsAgainstAttack :: Card -> DominionPlayer -> Bool
 defendsAgainstAttack _ p = moatCard `elem` (p ^. hand)
 
 discardVictory :: Int -> Int -> DominionState (Maybe Card)
