@@ -8,6 +8,7 @@ import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList         as DL
 import qualified Data.Map           as Map
+import qualified Data.Semigroup     as Semi
 import           DeckBuilding.Types
 import           System.Random
 
@@ -35,9 +36,12 @@ data DominionConfig = DominionConfig {
   _seeds        :: [StdGen]
 } deriving Show
 
+instance Semi.Semigroup DominionConfig where
+  c1 <> c2 = DominionConfig ((_playerDefs c1) ++ (_playerDefs c2)) ((_kingdomCards c1) ++ (_kingdomCards c2)) ((_games c1) + (_games c2)) ((_seeds c1) ++ (_seeds c2))
+
 instance Monoid DominionConfig where
   mempty = DominionConfig [] [] 0 []
-  mappend c1 c2 = DominionConfig ((_playerDefs c1) ++ (_playerDefs c2)) ((_kingdomCards c1) ++ (_kingdomCards c2)) ((_games c1) + (_games c2)) ((_seeds c1) ++ (_seeds c2))
+  mappend = (Semi.<>)
 
 data DominionGame = DominionGame {
   -- | The players of the game.

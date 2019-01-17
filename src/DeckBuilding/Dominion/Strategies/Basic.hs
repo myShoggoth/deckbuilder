@@ -56,7 +56,7 @@ bigMoneyStrategy = Strategy "Big Money"
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: Int -> DominionState [Card]
 bigMoneyBuy p = do
-    (Just player) <- preuse (players . ix p)
+    player <- findPlayer p
     doBuys p (player ^. buys) bigMoneyCards
   where bigMoneyCards = [ (provinceCard, alwaysBuy)
                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
@@ -129,7 +129,7 @@ bigMoneySentry cs p = do
 -- | Meh?
 bigMoneyHandToDeck :: Int -> Int -> DominionState [Card]
 bigMoneyHandToDeck n p = do
-    (Just player) <- preuse (players . ix p)
+    player <- findPlayer p
     let cards = take n $ (player ^. hand) `intersect` handToDeckCards
     (players . ix p . deck) %= (cards++)
     (players . ix p . hand) .= ((player ^. hand) \\ cards)
@@ -168,7 +168,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: Int -> DominionState [Card]
 bigSmithyBuy p = do
-    (Just player) <- preuse (players . ix p)
+    player <- findPlayer p
     doBuys p (player ^. buys) bigSmithyCards
   where bigSmithyCards = [ (provinceCard, alwaysBuy)
                         , (smithyCard, buyN 2)
@@ -210,7 +210,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
 -- | The buy strategy
 villageSmithyEngine4Buy :: Int -> DominionState [Card]
 villageSmithyEngine4Buy p = do
-    (Just player) <- preuse (players . ix p)
+    player <- findPlayer p
     doBuys p (player ^. buys) bigVillageSmithyEngine4Cards
   where bigVillageSmithyEngine4Cards =  [
                                           (provinceCard, alwaysBuy)
@@ -250,7 +250,7 @@ removeFromCards = foldr delete
 --  preferred cards to discard.
 doDiscard :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doDiscard minmax cards p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let toDiscard = prefPlusCards minmax cards (player ^. hand)
   let newHand = removeFromCards (player ^. hand) toDiscard
   (players . ix p . discard) %= (++ toDiscard)
@@ -262,7 +262,7 @@ doDiscard minmax cards p = do
 --  preferred cards to trash.
 doTrash :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doTrash minmax cards p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let toTrash = prefPlusCards minmax cards (player ^. hand)
   let newHand = removeFromCards (player ^. hand) toTrash
   trash %= (toTrash ++)
@@ -274,7 +274,7 @@ doTrash minmax cards p = do
 --  and the list of preferred cards to retrieve.
 doRetrieveDiscard :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doRetrieveDiscard (min, max) cards p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let pref = take max $ intersect (player ^. discard) cards
   let toRetrieve
         | length pref > min = pref
@@ -288,7 +288,7 @@ doRetrieveDiscard (min, max) cards p = do
 -- | Find the first card in the list that the player has in its hand, if any.
 findFirstCard :: [Card] -> Int -> DominionState (Maybe Card)
 findFirstCard cards p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   return $ case (player ^. hand) `intersect` cards of
     []     -> Nothing
     (x:xs) -> Just x

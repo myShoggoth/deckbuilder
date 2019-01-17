@@ -20,7 +20,7 @@ import qualified Data.Map                          as Map
 
 courtyardCardAction :: Card -> Int -> DominionState Int
 courtyardCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   (player ^. strategy . handToDeckStrategy) 1 p
   basicCardAction 3 (-1) 0 0 0 c p
 
@@ -48,7 +48,7 @@ lurk (Right c) p                      = return p
 
 lurkerCardAction :: Card -> Int -> DominionState Int
 lurkerCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   ec <- (player ^. strategy . lurkerStrategy) c p
   lurk ec p
   basicCardAction 0 0 0 0 0 c p
@@ -60,7 +60,7 @@ hasActionCards num cs = num <= length (filter (\c -> (c ^. cardType) == Action) 
 
 shantyTownCardAction :: Card -> Int -> DominionState Int
 shantyTownCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if hasActionCards 1 (player ^. hand)
     then basicCardAction 0 1 0 0 0 c p
     else basicCardAction 2 1 0 0 0 c p
@@ -69,7 +69,7 @@ shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action
 
 conspiratorCardAction :: Card -> Int -> DominionState Int
 conspiratorCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if hasActionCards 2 (player ^. played)
     then basicCardAction 1 0 0 2 0 c p
     else basicCardAction 0 (-1) 0 2 0 c p
@@ -78,7 +78,7 @@ conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action
 
 ironworksCardAction :: Card -> Int -> DominionState Int
 ironworksCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   mc <- (player ^. strategy . gainCardStrategy) 4 p
   case mc of
     Nothing   -> return p
@@ -92,7 +92,7 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action
 
 dukeCardAction :: Card -> Int -> DominionState Int
 dukeCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let points = length $ filter (== duchyCard) ( (player ^. hand) ++ (player ^. discard) ++ (player ^. played) ++ (player ^. deck) )
   valueCard 0 points c p
 
