@@ -147,6 +147,7 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
       np <- numPlayers
       mapM_ tallyPoints [0.. np - 1]
       players <- sortByPoints
+      tell $ DL.singleton $ GameOver $ map (\p -> (p ^. playerName, p ^. victory)) players
       let grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players
       return $ result ((length . head) grouped) players
     where result 1 l = Left $ _playerName $ head l

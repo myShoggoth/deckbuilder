@@ -20,7 +20,8 @@ data DominionMove = Turn Int DominionPlayer |
                     Remodel Card Card |
                     Buy Card |
                     Retreive [Card] |
-                    Trash [Card]
+                    Trash [Card] |
+                    GameOver [(String, Int)]
                     deriving (Show, Eq)
 
 type DominionState a = RWS DominionConfig (DL.DList DominionMove) DominionGame a
