@@ -26,6 +26,8 @@ library
                      , DeckBuilding.Dominion.Cards.Utils
                      , DeckBuilding.Dominion.Strategies.Basic
                      , DeckBuilding.Dominion.Strategies.Utils
+                     , DeckBuilding.Legendary
+                     , DeckBuilding.Legendary.Types
   build-depends:       base >= 4.7 && < 5
                      , random-shuffle
                      , MonadRandom
