@@ -56,19 +56,19 @@ evaluateHand' pnum p []     = return pnum
 evaluateHand' pnum p h@(x:xs) = do
   tell $ DL.singleton $ Play x
   (x ^. action) x pnum
-  (Just player) <- preuse (players . ix pnum)
+  player <- findPlayer pnum
   evaluateHand' pnum player (player ^. hand)
 
 -- | Runs the cards in the deck by offloading the work to evaluateHand'
 evaluateHand :: Int -> LegendaryState Int
 evaluateHand p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   evaluateHand' p player (player ^. hand)
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
 resetTurn :: Int -> LegendaryState Int
 resetTurn p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   (players . ix p . discard) %= ( ((player ^. hand) ++ (player ^. played) ) ++)
   (players . ix p . played) .= []
   (players . ix p . hand) .= []
@@ -92,7 +92,7 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
     return $ mmEvilWins && sEvilWins && (L.null villainDeck)
 
   runTurn p = do
-    (Just player) <- preuse (players . ix p)
+    player <- findPlayer p
     tell $ DL.singleton $ Turn (player ^. turns) player
     (player ^. strategy . orderHand) p
     evaluateHand p
@@ -116,7 +116,7 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
     return $ length players
 
   tallyPoints p = do
-    (Just player) <- preuse (players . ix p)
+    player <- findPlayer p
     (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
     evaluateHand p
     return ()

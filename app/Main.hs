@@ -1,18 +1,18 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Main where
 
-import DeckBuilding.Dominion.Types
-import DeckBuilding.Dominion
-import DeckBuilding.Dominion.Utils
-import DeckBuilding.Dominion.Strategies.Basic
-import DeckBuilding.Dominion.Cards
+import           DeckBuilding.Dominion
+import           DeckBuilding.Dominion.Cards
+import           DeckBuilding.Dominion.Strategies.Basic
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
 
-import           System.Random
 import           Control.Lens
+import           Control.Monad.IO.Class                 (liftIO)
 import qualified Data.DList                             as DL
-import Control.Monad.IO.Class (liftIO)
+import           System.Random
 
-import System.Console.CmdArgs
+import           System.Console.CmdArgs
 
 data DeckBuilder = DeckBuilder
   { times :: Int

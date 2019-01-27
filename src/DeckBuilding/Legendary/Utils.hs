@@ -1,5 +1,6 @@
 module DeckBuilding.Legendary.Utils
     ( deal
+    , findPlayer
     ) where
 
 import           Control.Lens
@@ -16,7 +17,7 @@ import           System.Random.Shuffle
 deal :: Int -> Int -> LegendaryState [Card]
 deal 0   _    = return []
 deal num pnum = do
-  (Just p) <- preuse (players . ix pnum)
+  p <- findPlayer pnum
   r <- use random
   let (enoughDeck, newDiscard)
           | length (p ^. deck) >= num   = (p ^. deck, p ^. discard)
@@ -30,3 +31,10 @@ deal num pnum = do
   tell $ DL.singleton $ Deal num newCards
   return newCards
 
+-- | Find player # n, error if not found
+findPlayer :: Int -> LegendaryState (LegendaryPlayer)
+findPlayer p = do
+  mp <- preuse(players . ix p)
+  case mp of
+    Just player' -> pure player'
+    Nothing -> error $ "Unable to find player #" <> show p

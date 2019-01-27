@@ -28,6 +28,7 @@ library
                      , DeckBuilding.Dominion.Strategies.Utils
                      , DeckBuilding.Legendary
                      , DeckBuilding.Legendary.Types
+                     , DeckBuilding.Legendary.Utils
   build-depends:       base >= 4.7 && < 5
                      , random-shuffle
                      , MonadRandom

@@ -8,6 +8,7 @@ import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList         as DL
 import qualified Data.Map           as Map
+import qualified Data.Semigroup     as Semi
 import           DeckBuilding.Types
 import           System.Random
 
@@ -30,9 +31,12 @@ data LegendaryConfig = LegendaryConfig {
   _seeds      :: [StdGen]
 } deriving Show
 
+instance Semi.Semigroup LegendaryConfig where
+  c1 <> c2 = LegendaryConfig ((_playerDefs c1) ++ (_playerDefs c2)) ((_games c1) + (_games c2)) ((_seeds c1) ++ (_seeds c2))
+
 instance Monoid LegendaryConfig where
   mempty = LegendaryConfig [] 0 []
-  mappend c1 c2 = LegendaryConfig ((_playerDefs c1) ++ (_playerDefs c2)) ((_games c1) + (_games c2)) ((_seeds c1) ++ (_seeds c2))
+  mappend = (Semi.<>)
 
 data Mastermind = Mastermind {
   _mastermindName :: String,
