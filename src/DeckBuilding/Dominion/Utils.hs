@@ -4,6 +4,7 @@ module DeckBuilding.Dominion.Utils
     , firstCardInPlay
     , decreaseCards
     , isCardInPlay
+    , findPlayer
     ) where
 
 import           Control.Lens
@@ -20,7 +21,7 @@ import           System.Random.Shuffle
 deal :: Int -> Int -> DominionState [Card]
 deal 0   _    = return []
 deal num pnum = do
-  (Just p) <- preuse (players . ix pnum)
+  p <- findPlayer pnum
   r <- use random
   let (enoughDeck, newDiscard)
           | length (p ^. deck) >= num   = (p ^. deck, p ^. discard)
@@ -58,3 +59,11 @@ firstCardInPlay :: [Card] -> DominionState (Maybe Card)
 firstCardInPlay cs = do
   cards <- filterM isCardInPlay cs
   return $ find (const True) $ tail cards
+
+-- | Find player # n, error if not found
+findPlayer :: Int -> DominionState (DominionPlayer)
+findPlayer p = do
+  mp <- preuse(players . ix p)
+  case mp of
+    Just player' -> pure player'
+    Nothing -> error $ "Unable to find player #" <> show p

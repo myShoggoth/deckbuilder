@@ -40,7 +40,7 @@ areCardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
 --  afford it, and there are some left in the supply.
 buyIf :: Card -> Int -> (Card -> DominionPlayer -> DominionState Bool) -> DominionState (Maybe Card)
 buyIf c p f = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   gs <- get
   iff <- f c player
   if iff && canAfford c player && areCardsLeft gs c
@@ -70,7 +70,7 @@ buyN n c p = buyNIf n c p (\_ _ -> return True)
 -- | Buy up to N of the card as long as it satisfies the passed in function.
 buyNIf :: Int -> Card -> Int -> (Card -> DominionPlayer -> DominionState Bool) -> DominionState (Maybe Card)
 buyNIf n c p f = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   iff <- f c player
   if iff
     then buyIf c p (\c p -> return ((countCards c p) < n))
@@ -99,7 +99,7 @@ actionTerminators p =  length $ allCards p `intersect` actionTerminatorCards
 
 buyIfLowerThanTerminalActions :: Card -> Int -> DominionState (Maybe Card)
 buyIfLowerThanTerminalActions c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if (countCards c player) < (actionTerminators player)
     then alwaysBuy c p
     else return Nothing

@@ -60,7 +60,7 @@ goldCard        = Card "Gold"       6 (valueCard 3 0) Value
 -- | Silver cards need extra logic to make Merchant work in all cases.
 silverCardAction :: Card -> Int -> DominionState Int
 silverCardAction c p    = do
-    (Just player) <- preuse (players . ix p)
+    player <- findPlayer p
     let monies = if (merchantCard `elem` (player ^. played)) && not (silverCard `elem` (player ^. played))
                     then 3
                     else 2
@@ -97,7 +97,7 @@ laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0) Action
 
 cellarCardAction :: Card -> Int -> DominionState Int
 cellarCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   discarded <- (player ^. strategy . discardStrategy) (0, length (player ^. hand)) p
   tell $ DL.singleton $ Discard discarded
   basicCardAction (length discarded) (-1) 0 0 0 c p
@@ -106,7 +106,7 @@ cellarCard      = Card "Cellar"     2 cellarCardAction Action
 
 chapelCardAction :: Card -> Int -> DominionState Int
 chapelCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   _ <- (player ^. strategy . trashStrategy) (0, 4) p
   basicCardAction 0 (-1) 0 0 0 c p
 
@@ -114,7 +114,7 @@ chapelCard     = Card "Chapel"      2 chapelCardAction Action
 
 harbingerCardAction :: Card -> Int -> DominionState Int
 harbingerCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   deal 1 p
   (player ^. strategy . retrieveStrategy) (0, 1) p
   basicCardAction 0 0 0 0 0 c p
@@ -123,7 +123,7 @@ harbingerCard   = Card "Harbinger"  3 harbingerCardAction Action
 
 merchantCardAction :: Card -> Int -> DominionState Int
 merchantCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let silverPlayed = silverCard `elem` (player ^. played)
   basicCardAction 1 0 0 (monies silverPlayed) 0 c p
   where monies True  = 1
@@ -133,7 +133,7 @@ merchantCard    = Card "Merchant"   3 merchantCardAction Action
 
 vassalCardAction :: Card -> Int -> DominionState Int
 vassalCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   r <- use random
   basicCardAction 0 (-1) 0 2 0 c p
   let (enoughDeck, newDiscard)
@@ -160,7 +160,7 @@ defendsAgainstAttack _ p = moatCard `elem` (p ^. hand)
 discardVictory :: Int -> Int -> DominionState (Maybe Card)
 discardVictory e p | p == e = return Nothing
 discardVictory _ p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if defendsAgainstAttack bureaucratCard player
     then return Nothing
     else do
@@ -173,7 +173,6 @@ discardVictory _ p = do
 
 bureaucratCardAction :: Card -> Int -> DominionState Int
 bureaucratCardAction c p = do
-  (Just player) <- preuse (players . ix p)
   (players . ix p . deck) %= (silverCard:)
   players <- use players
   mapM_ (discardVictory p) [0.. (length players) - 1]
@@ -184,7 +183,7 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
 
 gardensCardAction :: Card -> Int -> DominionState Int
 gardensCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let points = length ( (player ^. hand) ++ (player ^. discard) ++ (player ^. played) ++ (player ^. deck) ) `div` 10
   valueCard 0 points c p
 
@@ -193,7 +192,7 @@ gardensCard     = Card "Gardens"    4 gardensCardAction Value
 militiaDiscard :: Int -> Int -> DominionState [Card]
 militiaDiscard e p | p == e = return []
 militiaDiscard _ p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if defendsAgainstAttack militiaCard player
     then return []
     else do
@@ -209,7 +208,7 @@ militiaCard     = Card "Militia"    4 militiaCardAction Action
 
 moneylenderCardAction :: Card -> Int -> DominionState Int
 moneylenderCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if copperCard `elem` (player ^. hand)
     then do
       (players . ix p . hand) %= (delete copperCard)
@@ -221,7 +220,7 @@ moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action
 
 poacherCardAction :: Card -> Int -> DominionState Int
 poacherCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   basicCardAction 1 0 0 1 0 c p
   emptyDecks <- numEmptyDecks
   (player ^. strategy . discardStrategy) (emptyDecks, emptyDecks) p
@@ -231,7 +230,7 @@ poacherCard     = Card "Poacher"      4 poacherCardAction Action
 
 remodelCardAction :: Card -> Int -> DominionState Int
 remodelCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   diff <- (player ^. strategy . trashStrategy) (0, 1) p
   if length diff == 1
     then do
@@ -255,7 +254,7 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action
 
 throneRoomCardAction :: Card -> Int -> DominionState Int
 throneRoomCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   mc <- (player ^. strategy . throneRoomStrategy) p
   case mc of
     Nothing     -> basicCardAction 0 0 0 0 0 c p
@@ -273,7 +272,7 @@ throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action
 banditDiscard :: Int -> Int -> DominionState ()
 banditDiscard e p | p == e = return ()
 banditDiscard _ p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if defendsAgainstAttack banditCard player
     then return ()
     else do
@@ -309,7 +308,7 @@ councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action
 gainCurse :: Int -> Int -> DominionState Bool
 gainCurse e p | p == e = return False
 gainCurse _ p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   if defendsAgainstAttack witchCard player
     then return False
     else do
@@ -334,7 +333,7 @@ exch c c1 c2 p = do
 
 mineCardAction :: Card -> Int -> DominionState Int
 mineCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   mc <- firstCardInPlay $ intersect (player ^. hand) treasureCards
   case mc of
     Nothing -> return p
@@ -347,7 +346,7 @@ mineCard          = Card "Mine"       5 mineCardAction Action
 
 discardOrPlay :: Card -> Int -> DominionState Int
 discardOrPlay c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   keep <- (player ^. strategy . libraryStrategy) c
   if (c ^. cardType) == Value || keep
     then return p
@@ -358,7 +357,7 @@ discardOrPlay c p = do
 
 drawTo :: Int -> Int -> DominionState Int
 drawTo num p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let todraw = num - length (player ^. hand)
   if todraw <= 0
     then return p
@@ -377,7 +376,7 @@ libraryCard     = Card "Library"      5 libraryCardAction Action
 sentryCardAction :: Card -> Int -> DominionState Int
 sentryCardAction c p = do
   basicCardAction 1 0 0 0 0 c p
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   let oldhand = player ^. hand
   newcards <- deal 2 p
   (trashem, disc, keep) <- (player ^. strategy . sentryStrategy) newcards p
@@ -391,7 +390,7 @@ sentryCard    = Card "Sentry"       5 sentryCardAction Action
 
 artisanCardAction :: Card -> Int -> DominionState Int
 artisanCardAction c p = do
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   mc <- (player ^. strategy . gainCardStrategy) 5 p
   case mc of
     Nothing   -> return p
@@ -408,7 +407,7 @@ artisanCard   = Card "Artisan"      6 artisanCardAction Action
 workshopCardAction :: Card -> Int -> DominionState Int
 workshopCardAction c p = do
   basicCardAction 0 (-1) 0 0 0 c p
-  (Just player) <- preuse (players . ix p)
+  player <- findPlayer p
   (player ^. strategy . gainCardStrategy) 4 p
   return p
 
