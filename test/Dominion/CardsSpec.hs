@@ -31,7 +31,6 @@ spec = do
   let afterDeal     = fst $ execRWS (deal 5 0) c dg
   let afterDeal2    = fst $ execRWS (deal 5 1) c afterDeal
   let afterEvaluate = fst $ execRWS (evaluateHand 0) c afterDeal2
-  let afterReset    = fst $ execRWS (resetTurn 0) c afterEvaluate
   describe "Utils.valueCard" $ do
     it "gives money for a copper" $ do
       let afterCard = fst $ execRWS ((copperCard ^. action) copperCard 0) c afterDeal

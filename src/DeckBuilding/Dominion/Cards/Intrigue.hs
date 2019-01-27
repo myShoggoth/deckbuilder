@@ -14,16 +14,16 @@ import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 
 import           Control.Lens
-import           Control.Monad.RWS
 import           Data.List                         (delete)
 import qualified Data.Map                          as Map
 
 courtyardCardAction :: Card -> Int -> DominionState Int
 courtyardCardAction c p = do
   player <- findPlayer p
-  (player ^. strategy . handToDeckStrategy) 1 p
+  _ <- (player ^. strategy . handToDeckStrategy) 1 p
   basicCardAction 3 (-1) 0 0 0 c p
 
+courtyardCard :: Card
 courtyardCard   = Card "Courtyard"    2 courtyardCardAction Action
 
 lurk :: Either Card Card -> Int -> DominionState Int
@@ -31,7 +31,6 @@ lurk (Left c) p                       = do
   icip <- isCardInPlay c
   if icip
     then do
-      gs <- get
       trash %= (c:)
       decks %= (Map.mapWithKey (decreaseCards c))
       return p
@@ -44,15 +43,16 @@ lurk (Right c@(Card _ _ _ Action)) p  = do
       (players . ix p . discard) %= (c:)
       return p
     else return p
-lurk (Right c) p                      = return p
+lurk (Right _) p                      = return p
 
 lurkerCardAction :: Card -> Int -> DominionState Int
 lurkerCardAction c p = do
   player <- findPlayer p
   ec <- (player ^. strategy . lurkerStrategy) c p
-  lurk ec p
+  _ <- lurk ec p
   basicCardAction 0 0 0 0 0 c p
 
+lurkerCard :: Card
 lurkerCard      = Card "Lurker"   2 lurkerCardAction Action
 
 hasActionCards :: Int -> [Card] -> Bool
@@ -65,6 +65,7 @@ shantyTownCardAction c p = do
     then basicCardAction 0 1 0 0 0 c p
     else basicCardAction 2 1 0 0 0 c p
 
+shantyTownCard :: Card
 shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action
 
 conspiratorCardAction :: Card -> Int -> DominionState Int
@@ -74,6 +75,7 @@ conspiratorCardAction c p = do
     then basicCardAction 1 0 0 2 0 c p
     else basicCardAction 0 (-1) 0 2 0 c p
 
+conspiratorCard :: Card
 conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action
 
 ironworksCardAction :: Card -> Int -> DominionState Int
@@ -88,6 +90,7 @@ ironworksCardAction c p = do
           | card `elem` victoryCards     -> basicCardAction 1 (-1) 0 0 0 c p
           | otherwise                    -> basicCardAction 0 (-1) 0 0 0 c p
 
+ironworksCard :: Card
 ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action
 
 dukeCardAction :: Card -> Int -> DominionState Int
@@ -96,6 +99,8 @@ dukeCardAction c p = do
   let points = length $ filter (== duchyCard) ( (player ^. hand) ++ (player ^. discard) ++ (player ^. played) ++ (player ^. deck) )
   valueCard 0 points c p
 
+dukeCard :: Card
 dukeCard        = Card "Duke"         5 dukeCardAction Action
 
+haremCard :: Card
 haremCard       = Card "Harem"        6 (valueCard 2 2) Value

@@ -8,7 +8,6 @@ import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 
 import           Control.Lens
-import           Control.Monad.State
 import           Data.List
 import qualified Data.Map                    as Map
 
@@ -26,7 +25,7 @@ basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Int -> DominionSta
 basicCardAction draw a b m v c p = do
   (players . ix p . actions) += a
   (players . ix p . buys) += b
-  deal draw p
+  _ <- deal draw p
   valueCard m v c p
 
 
@@ -35,14 +34,11 @@ basicCardAction draw a b m v c p = do
 --  price.
 --  TODO: same structure as buying cards (Card,Card->Player->State Game Bool)
 gainCard :: [Card] -> Int -> Int -> DominionState (Maybe Card)
-gainCard cards highestPrice p = do
-    decks <- use decks
-    let nonEmptyDecks = filter (\c -> Map.member c decks && decks Map.! c > 0) cards
-    let highestCostCard = find (\c -> (c ^. cost) < highestPrice) cards
-    obtain highestCostCard
+gainCard cards highestPrice p = obtain highestCostCard
   where obtain :: Maybe Card -> DominionState (Maybe Card)
         obtain Nothing  = return Nothing
         obtain (Just c) = do
           decks %= (Map.mapWithKey (decreaseCards c))
           (players . ix p . deck) %= (c:)
           return $ Just c
+        highestCostCard = find (\c -> (c ^. cost) < highestPrice) cards

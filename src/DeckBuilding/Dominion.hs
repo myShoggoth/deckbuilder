@@ -127,38 +127,40 @@ runDominionGames c = (map (head &&& length) $ group $ sort $ results, output)
         results = map fst rawresults
         output = map snd rawresults
 
+--newtype OrphanDominionGame = OrphanDominionGame DominionGame
+
 instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   finished    = do
-    decks <- use decks
+    decks' <- use decks
     emptyDecks <- numEmptyDecks
-    return $ (decks Map.! provinceCard == 0) || emptyDecks >= 3
+    return $ (decks' Map.! provinceCard == 0) || emptyDecks >= 3
 
   runTurn p   = do
     player <- findPlayer p
     tell $ DL.singleton $ Turn (player ^. turns) player
-    (player ^. strategy . orderHand) p
-    evaluateHand p
-    (player ^. strategy . buyStrategy) p
-    resetTurn p
-    deal 5 p
+    _ <- (player ^. strategy . orderHand) p
+    _ <- evaluateHand p
+    _ <- (player ^. strategy . buyStrategy) p
+    _ <- resetTurn p
+    _ <- deal 5 p
     finished
 
   result      = do
       np <- numPlayers
       mapM_ tallyPoints [0.. np - 1]
-      players <- sortByPoints
-      tell $ DL.singleton $ GameOver $ map (\p -> (p ^. playerName, p ^. victory)) players
-      let grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players
-      return $ result ((length . head) grouped) players
+      players' <- sortByPoints
+      tell $ DL.singleton $ GameOver $ map (\p -> (p ^. playerName, p ^. victory)) players'
+      let grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players'
+      return $ result ((length . head) grouped) players'
     where result 1 l = Left $ _playerName $ head l
           result n _ = Right n
 
   numPlayers  = do
-    players <- use players
-    return $ length players
+    players'<- use players
+    return $ length players'
 
   tallyPoints p = do
     player <- findPlayer p
     (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
-    evaluateHand p
+    _ <- evaluateHand p
     return ()

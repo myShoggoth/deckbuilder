@@ -4,11 +4,8 @@ module DeckBuilding.Legendary.Utils
     ) where
 
 import           Control.Lens
-import           Control.Monad               (filterM)
 import           Control.Monad.RWS
 import qualified Data.DList                  as DL
-import           Data.List                   (delete, elemIndex, find)
-import qualified Data.Map                    as Map
 import           DeckBuilding.Legendary.Types
 import           System.Random               (split)
 import           System.Random.Shuffle

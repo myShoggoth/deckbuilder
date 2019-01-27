@@ -40,7 +40,6 @@ spec = do
   let (Just p1AfterDeal)  = afterDeal ^? players . ix 0
   let afterDeal2          = fst $ execRWS (deal 5 1) c afterDeal
   let afterEvaluate       = fst $ execRWS (evaluateHand 0) c afterDeal2
-  let afterReset          = fst $ execRWS (resetTurn 0) c afterEvaluate
 
   describe "courtyardCardAction" $ do
     let afterCard = fst $ execRWS ((courtyardCard ^. action) courtyardCard 0) c afterDeal

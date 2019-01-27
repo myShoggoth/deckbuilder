@@ -27,9 +27,8 @@ import           DeckBuilding.Dominion.Utils
 import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList                             as DL
-import           Data.Foldable                          (foldrM)
-import           Data.List                              (delete, find,
-                                                         intersect, (\\))
+import           Data.List                              (delete, intersect,
+                                                         (\\))
 import qualified Data.Map                               as Map
 
 -- import Debug.Trace
@@ -40,6 +39,7 @@ import qualified Data.Map                               as Map
 
 -- | The most basic Dominion strategy: buy the best money you can afford
 --  and provinces.
+bigMoneyStrategy :: Strategy
 bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyBuy
                             bigMoneyDiscard
@@ -79,6 +79,7 @@ bigMoneyTrash :: (Int, Int) -> Int -> DominionState [Card]
 bigMoneyTrash rng = doTrash rng trashCards
 
 -- | Such trash.
+trashCards :: [Card]
 trashCards = [curseCard, estateCard, copperCard]
 
 -- | If you can retrieve a card from your discard into your hand, get something
@@ -111,7 +112,7 @@ bigMoneyOrderHand _ = return []
 
 -- | We don't buy throne rooms in big money.
 bigMoneyThroneRoom :: Int -> DominionState (Maybe Card)
-bigMoneyThroneRoom p = return Nothing
+bigMoneyThroneRoom _ = return Nothing
 
 -- | We don't buy libraries in big money.
 bigMoneyLibrary :: Card -> DominionState Bool
@@ -120,11 +121,11 @@ bigMoneyLibrary _ = return True
 -- | Simple stupid version of this logic, trash any trash cards, discard
 --  remaining victory cards, keep the rest in whatever order.
 bigMoneySentry :: [Card] -> Int -> DominionState ([Card], [Card], [Card])
-bigMoneySentry cs p = do
-  let trash = cs `intersect` trashCards
-  let disc = (trash \\ cs) `intersect` victoryCards
-  let keep = (trash ++ disc) \\ cs
-  return (trash, disc, keep)
+bigMoneySentry cs _ = do
+  let trash' = cs `intersect` trashCards
+  let disc = (trash' \\ cs) `intersect` victoryCards
+  let keep = (trash' ++ disc) \\ cs
+  return (trash', disc, keep)
 
 -- | Meh?
 bigMoneyHandToDeck :: Int -> Int -> DominionState [Card]
@@ -140,18 +141,19 @@ bigMoneyHandToDeck n p = do
                           ]
 
 findInPlayAction :: Map.Map Card Int -> Card
-findInPlayAction decks = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. cardType == Action) && v > 0) decks
+findInPlayAction decks' = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. cardType == Action) && v > 0) decks'
 
 -- | Just need something
 bigMoneyLurker :: Card -> Int -> DominionState (Either Card Card)
-bigMoneyLurker c p = do
-  decks <- use decks
-  return $ Left $ findInPlayAction decks
+bigMoneyLurker _ _ = do
+  decks' <- use decks
+  return $ Left $ findInPlayAction decks'
 
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
 --  crap out of big money.
+bigSmithyStrategy :: Strategy
 bigSmithyStrategy = Strategy "Big Smithy"
                              bigSmithyBuy
                              bigMoneyDiscard
@@ -194,6 +196,7 @@ bigSmithyThroneRoom = findFirstCard throneRoomCards
 
 -- Village/Smithy engine #4 from https://dominionstrategy.com/2012/07/30/building-the-first-game-engine/
 
+villageSmithyEngine4 :: Strategy
 villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 villageSmithyEngine4Buy
                                 bigMoneyDiscard
@@ -232,15 +235,15 @@ villageSmithyEngine4Buy p = do
 -- | Take the list of preferred cards and figure out which ones are in the hand.
 --  Take up to the max.
 prefCards :: Int -> [Card] -> [Card] -> [Card]
-prefCards max cs h= take max $ intersect h cs
+prefCards max' cs h= take max' $ intersect h cs
 
 -- | Given a (min, max), take up to max of the preferred cards and fill out
 --  with whatever is left. Order those cards appropriately.
 prefPlusCards :: (Int, Int) -> [Card] -> [Card] -> [Card]
-prefPlusCards (min, max) cs h
-    | length pref > min = pref
-    | otherwise         = take min $ pref ++ cs
-  where pref = prefCards max cs h
+prefPlusCards (min', max') cs h
+    | length pref > min' = pref
+    | otherwise         = take min' $ pref ++ cs
+  where pref = prefCards max' cs h
 
 -- | Remove this list of cards from that list of cards.
 removeFromCards :: [Card] -> [Card] -> [Card]
@@ -273,12 +276,12 @@ doTrash minmax cards p = do
 -- | Core for a simple card retrieving from the discard pile logic. (min, max)
 --  and the list of preferred cards to retrieve.
 doRetrieveDiscard :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
-doRetrieveDiscard (min, max) cards p = do
+doRetrieveDiscard (min', max') cards p = do
   player <- findPlayer p
-  let pref = take max $ intersect (player ^. discard) cards
+  let pref = take max' $ intersect (player ^. discard) cards
   let toRetrieve
-        | length pref > min = pref
-        | otherwise         = take min $ pref ++ (player ^. discard)
+        | length pref > min' = pref
+        | otherwise         = take min' $ pref ++ (player ^. discard)
   let newDiscard = foldr delete (player ^. discard) toRetrieve
   (players . ix p . deck) %= (toRetrieve++)
   (players . ix p . discard) .= newDiscard
@@ -291,17 +294,17 @@ findFirstCard cards p = do
   player <- findPlayer p
   return $ case (player ^. hand) `intersect` cards of
     []     -> Nothing
-    (x:xs) -> Just x
+    (x:_) -> Just x
 
 -- | Given a list of cards and buy functions, call the buy functions until one
 --  is bought and return True. If none are bought, return False.
 doBuys' :: Int -> [(Card, Card -> Int -> DominionState (Maybe Card))] -> DominionState [Card]
-doBuys' p [] = return []
+doBuys' _ [] = return []
 doBuys' p ( (c, a):xs) = do
   bought <- a c p
   case bought of
     Nothing  -> doBuys' p xs
-    (Just c) -> return [c]
+    (Just c') -> return [c']
 
 
 -- | Given a player, a number of buys, and a list of preferred cards to buy
@@ -309,7 +312,7 @@ doBuys' p ( (c, a):xs) = do
 --  the amount of money the player has.
 doBuys :: Int -> Int -> [(Card, Card -> Int -> DominionState (Maybe Card))] -> DominionState [Card]
 -- doBuys p b cs | trace ("doBuys: " ++ show (p ^. playerName) ++ " (" ++ show b ++ ")") False = undefined
-doBuys p 0 _      = return []
+doBuys _ 0 _      = return []
 doBuys p b cards  = do
   bought <- doBuys' p cards
   case bought of

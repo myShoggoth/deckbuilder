@@ -7,9 +7,7 @@ module DeckBuilding.Legendary.Types
 import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList         as DL
-import qualified Data.Map           as Map
 import qualified Data.Semigroup     as Semi
-import           DeckBuilding.Types
 import           System.Random
 
 data LegendaryMove = Turn Int LegendaryPlayer |

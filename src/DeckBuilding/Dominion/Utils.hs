@@ -11,7 +11,7 @@ import           Control.Lens
 import           Control.Monad               (filterM)
 import           Control.Monad.RWS
 import qualified Data.DList                  as DL
-import           Data.List                   (delete, elemIndex, find)
+import           Data.List                   (find)
 import qualified Data.Map                    as Map
 import           DeckBuilding.Dominion.Types
 import           System.Random               (split)
@@ -38,8 +38,8 @@ deal num pnum = do
 -- | How many of the game's decks have been emptied?
 numEmptyDecks :: DominionState Int
 numEmptyDecks = do
-  decks <- use decks
-  return $ length $ Map.filter (== 0) decks
+  decks' <- use decks
+  return $ length $ Map.filter (== 0) decks'
 
 -- | If the cards are the same, return number of cards - 1.
 decreaseCards :: Card -> Card -> Int -> Int

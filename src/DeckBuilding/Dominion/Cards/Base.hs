@@ -47,14 +47,14 @@ import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList                        as DL
 import           Data.Foldable                     (foldrM)
-import           Data.List                         (delete, find, group,
-                                                    groupBy, intersect, sort,
-                                                    sortBy, (\\))
+import           Data.List                         (delete, find, intersect,
+                                                    (\\))
 import qualified Data.Map                          as Map
 import           System.Random.Shuffle
 
 -- Cards and their actions
 
+goldCard :: Card
 goldCard        = Card "Gold"       6 (valueCard 3 0) Value
 
 -- | Silver cards need extra logic to make Merchant work in all cases.
@@ -66,33 +66,47 @@ silverCardAction c p    = do
                     else 2
     valueCard monies 0 c p
 
+silverCard :: Card
 silverCard      = Card "Silver"     3 silverCardAction Value
 
+copperCard :: Card
 copperCard      = Card "Copper"     0 (valueCard 1 0) Value
 
+treasureCards :: [Card]
 treasureCards   = [goldCard, silverCard, copperCard]
 
+provinceCard :: Card
 provinceCard    = Card "Province"   8 (valueCard 0 6) Value
 
+duchyCard :: Card
 duchyCard       = Card "Duchy"      5 (valueCard 0 3) Value
 
+estateCard :: Card
 estateCard      = Card "Estate"     2 (valueCard 0 1) Value
 
+curseCard :: Card
 curseCard       = Card "Curse"      0 (valueCard 0 (-1)) Value
 
 -- | Cards that affect victory values.
+victoryCards :: [Card]
 victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
 
+marketCard :: Card
 marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1 0) Action
 
+moatCard :: Card
 moatCard        = Card "Moat"       2 (basicCardAction 2 (-1) 0 0 0) Action
 
+smithyCard :: Card
 smithyCard      = Card "Smithy"     4 (basicCardAction 3 (-1) 0 0 0) Action
 
+villageCard :: Card
 villageCard     = Card "Village"    3 (basicCardAction 1 1 0 0 0) Action
 
+festivalCard :: Card
 festivalCard    = Card "Festival"   5 (basicCardAction 0 1 1 2 0) Action
 
+laboratoryCard :: Card
 laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0 0) Action
 
 cellarCardAction :: Card -> Int -> DominionState Int
@@ -102,6 +116,7 @@ cellarCardAction c p = do
   tell $ DL.singleton $ Discard discarded
   basicCardAction (length discarded) (-1) 0 0 0 c p
 
+cellarCard :: Card
 cellarCard      = Card "Cellar"     2 cellarCardAction Action
 
 chapelCardAction :: Card -> Int -> DominionState Int
@@ -110,15 +125,17 @@ chapelCardAction c p = do
   _ <- (player ^. strategy . trashStrategy) (0, 4) p
   basicCardAction 0 (-1) 0 0 0 c p
 
+chapelCard :: Card
 chapelCard     = Card "Chapel"      2 chapelCardAction Action
 
 harbingerCardAction :: Card -> Int -> DominionState Int
 harbingerCardAction c p = do
   player <- findPlayer p
-  deal 1 p
-  (player ^. strategy . retrieveStrategy) (0, 1) p
+  _ <- deal 1 p
+  _ <- (player ^. strategy . retrieveStrategy) (0, 1) p
   basicCardAction 0 0 0 0 0 c p
 
+harbingerCard :: Card
 harbingerCard   = Card "Harbinger"  3 harbingerCardAction Action
 
 merchantCardAction :: Card -> Int -> DominionState Int
@@ -129,29 +146,31 @@ merchantCardAction c p = do
   where monies True  = 1
         monies False = 0
 
+merchantCard :: Card
 merchantCard    = Card "Merchant"   3 merchantCardAction Action
 
 vassalCardAction :: Card -> Int -> DominionState Int
 vassalCardAction c p = do
   player <- findPlayer p
   r <- use random
-  basicCardAction 0 (-1) 0 2 0 c p
+  _ <- basicCardAction 0 (-1) 0 2 0 c p
   let (enoughDeck, newDiscard)
         | not (null (player ^. deck)) = (player ^. deck, player ^. discard)
         | otherwise                   = ( (player ^. deck) ++ shuffle' (player ^. discard) (length (player ^. discard)) r, [])
-  let topOfDeck Nothing                 = p
-  let topOfDeck (Just c)                = if (c ^. cardType) == Value
-      then do
-        (players . ix p . discard) %= (c:)
-        (players . ix p . deck) .= (tail enoughDeck)
-        return p
-      else do
-        (players . ix p . actions) += 1
-        (players . ix p . discard) .= newDiscard
-        (players . ix p . hand) .= (delete c enoughDeck)
-        (c ^. action) c p
+  let topOfDeck Nothing                 = return p
+      topOfDeck (Just c')               = if (c' ^. cardType) == Value
+          then do
+            (players . ix p . discard) %= (c':)
+            (players . ix p . deck) .= (tail enoughDeck)
+            return p
+          else do
+            (players . ix p . actions) += 1
+            (players . ix p . discard) .= newDiscard
+            (players . ix p . hand) .= (delete c enoughDeck)
+            (c' ^. action) c' p
   topOfDeck $ find (const True) enoughDeck
 
+vassalCard :: Card
 vassalCard      = Card "Vassal"     3 vassalCardAction Action
 
 defendsAgainstAttack :: Card -> DominionPlayer -> Bool
@@ -174,11 +193,12 @@ discardVictory _ p = do
 bureaucratCardAction :: Card -> Int -> DominionState Int
 bureaucratCardAction c p = do
   (players . ix p . deck) %= (silverCard:)
-  players <- use players
-  mapM_ (discardVictory p) [0.. (length players) - 1]
+  players' <- use players
+  mapM_ (discardVictory p) [0.. (length players') - 1]
   decks %= (Map.mapWithKey (decreaseCards silverCard))
   basicCardAction 0 (-1) 0 0 0 c p
 
+bureaucratCard :: Card
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action
 
 gardensCardAction :: Card -> Int -> DominionState Int
@@ -187,6 +207,7 @@ gardensCardAction c p = do
   let points = length ( (player ^. hand) ++ (player ^. discard) ++ (player ^. played) ++ (player ^. deck) ) `div` 10
   valueCard 0 points c p
 
+gardensCard :: Card
 gardensCard     = Card "Gardens"    4 gardensCardAction Value
 
 militiaDiscard :: Int -> Int -> DominionState [Card]
@@ -200,10 +221,11 @@ militiaDiscard _ p = do
 
 militiaCardAction :: Card -> Int -> DominionState Int
 militiaCardAction c p = do
-  players <- use players
-  mapM_ (militiaDiscard p) [0.. (length players) - 1]
+  players' <- use players
+  mapM_ (militiaDiscard p) [0.. (length players') - 1]
   basicCardAction 0 (-1) 0 2 0 c p
 
+militiaCard :: Card
 militiaCard     = Card "Militia"    4 militiaCardAction Action
 
 moneylenderCardAction :: Card -> Int -> DominionState Int
@@ -216,40 +238,43 @@ moneylenderCardAction c p = do
       basicCardAction 0 (-1) 0 3 0 c p
     else return p
 
+moneylenderCard :: Card
 moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action
 
 poacherCardAction :: Card -> Int -> DominionState Int
 poacherCardAction c p = do
   player <- findPlayer p
-  basicCardAction 1 0 0 1 0 c p
+  _ <- basicCardAction 1 0 0 1 0 c p
   emptyDecks <- numEmptyDecks
-  (player ^. strategy . discardStrategy) (emptyDecks, emptyDecks) p
+  _ <- (player ^. strategy . discardStrategy) (emptyDecks, emptyDecks) p
   return p
 
+poacherCard :: Card
 poacherCard     = Card "Poacher"      4 poacherCardAction Action
 
 remodelCardAction :: Card -> Int -> DominionState Int
 remodelCardAction c p = do
   player <- findPlayer p
   diff <- (player ^. strategy . trashStrategy) (0, 1) p
-  if length diff == 1
+  _ <- if length diff == 1
     then do
       newCard <- (player ^. strategy . gainCardStrategy) (head diff ^. cost + 2) p
       case newCard of
         Nothing -> do
-          basicCardAction 0 0 0 0 0 c p
+          _ <- basicCardAction 0 0 0 0 0 c p
           (players . ix p . hand) %= (diff++)
           trsh <- use trash
           trash .= (trsh \\ diff)
         Just card -> do
-          basicCardAction 0 (-1) 0 0 0 c p
+          _ <- basicCardAction 0 (-1) 0 0 0 c p
           tell $ DL.singleton $ Remodel (head diff) card
       return newCard
     else do
-      basicCardAction 0 0 0 0 0 c p
+      _ <- basicCardAction 0 0 0 0 0 c p
       return Nothing
   return p
 
+remodelCard :: Card
 remodelCard     = Card "Remodel"      4 remodelCardAction Action
 
 throneRoomCardAction :: Card -> Int -> DominionState Int
@@ -259,14 +284,15 @@ throneRoomCardAction c p = do
   case mc of
     Nothing     -> basicCardAction 0 0 0 0 0 c p
     (Just card) -> do
-      basicCardAction 0 1 0 0 0 c p
+      _ <- basicCardAction 0 1 0 0 0 c p
       (players . ix p . hand) %= (card:)
-      (card ^. action) card p
+      _ <- (card ^. action) card p
       (players . ix p . played) %= (delete card)
-      (card ^. action) card p
+      _ <- (card ^. action) card p
       tell $ DL.singleton $ ThroneRoom card
       return p
 
+throneRoomCard :: Card
 throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action
 
 banditDiscard :: Int -> Int -> DominionState ()
@@ -291,6 +317,7 @@ banditCardAction c p = do
   decks %= (Map.mapWithKey (decreaseCards goldCard))
   basicCardAction 0 (-1) 0 0 0 c p
 
+banditCard :: Card
 banditCard      = Card "Bandit"       5 banditCardAction Action
 
 councilRoomDraw :: Int -> Int -> DominionState [Card]
@@ -303,6 +330,7 @@ councilRoomCardAction c p = do
   mapM_ (councilRoomDraw p) [0.. (length ps) - 1]
   basicCardAction 4 (-1) 0 0 0 c p
 
+councilRoomCard :: Card
 councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action
 
 gainCurse :: Int -> Int -> DominionState Bool
@@ -322,6 +350,7 @@ witchCardAction c p = do
   mapM_ (gainCurse p) [0.. (length ps) - 1]
   basicCardAction 2 (-1) 0 0 0 c p
 
+witchCard :: Card
 witchCard       = Card "Witch"        5 witchCardAction Action
 
 exch :: Card -> Card -> Card -> Int -> DominionState Int
@@ -342,6 +371,7 @@ mineCardAction c p = do
         | card == silverCard  -> exch c silverCard goldCard p
         | otherwise           -> return p
 
+mineCard :: Card
 mineCard          = Card "Mine"       5 mineCardAction Action
 
 discardOrPlay :: Card -> Int -> DominionState Int
@@ -363,19 +393,20 @@ drawTo num p = do
     then return p
     else do
       newcards <- deal todraw p
-      foldrM discardOrPlay p newcards
+      _ <- foldrM discardOrPlay p newcards
       drawTo num p
 
 libraryCardAction :: Card -> Int -> DominionState Int
 libraryCardAction c p = do
-  drawTo 7 p
+  _ <- drawTo 7 p
   basicCardAction 0 (-1) 0 0 0 c p
 
+libraryCard :: Card
 libraryCard     = Card "Library"      5 libraryCardAction Action
 
 sentryCardAction :: Card -> Int -> DominionState Int
 sentryCardAction c p = do
-  basicCardAction 1 0 0 0 0 c p
+  _ <- basicCardAction 1 0 0 0 0 c p
   player <- findPlayer p
   let oldhand = player ^. hand
   newcards <- deal 2 p
@@ -386,6 +417,7 @@ sentryCardAction c p = do
   (players . ix p . hand) .= oldhand
   return p
 
+sentryCard :: Card
 sentryCard    = Card "Sentry"       5 sentryCardAction Action
 
 artisanCardAction :: Card -> Int -> DominionState Int
@@ -395,25 +427,28 @@ artisanCardAction c p = do
   case mc of
     Nothing   -> return p
     Just card -> do
-      basicCardAction 0 (-1) 0 0 0 c p
+      _ <- basicCardAction 0 (-1) 0 0 0 c p
       decks %= (Map.mapWithKey (decreaseCards card))
       (players . ix p . hand) %= (card:)
       (players . ix p . deck) %= (delete card) -- gainCardStrategy puts it in the deck by default
-      (player ^. strategy . handToDeckStrategy) 1 p
+      _ <- (player ^. strategy . handToDeckStrategy) 1 p
       return p
 
+artisanCard :: Card
 artisanCard   = Card "Artisan"      6 artisanCardAction Action
 
 workshopCardAction :: Card -> Int -> DominionState Int
 workshopCardAction c p = do
-  basicCardAction 0 (-1) 0 0 0 c p
+  _ <- basicCardAction 0 (-1) 0 0 0 c p
   player <- findPlayer p
-  (player ^. strategy . gainCardStrategy) 4 p
+  _ <- (player ^. strategy . gainCardStrategy) 4 p
   return p
 
+workshopCard :: Card
 workshopCard  = Card "Workshop"     3 workshopCardAction Action
 
 -- | The kingdom cards from Dominion 2nd edition.
+kingdomCards2ndEdition :: [Card]
 kingdomCards2ndEdition = [
     marketCard
   , moatCard
@@ -443,6 +478,7 @@ kingdomCards2ndEdition = [
   ]
 
 -- | The ten kingdom cards recommended for a player's first game.
+firstGameKingdomCards :: [Card]
 firstGameKingdomCards = [
     cellarCard
   , marketCard
@@ -456,6 +492,7 @@ firstGameKingdomCards = [
   , workshopCard
   ]
 
+baseSetActionTerminators :: [Card]
 baseSetActionTerminators = [
     chapelCard
   , moatCard

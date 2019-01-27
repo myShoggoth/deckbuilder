@@ -1,4 +1,6 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TemplateHaskell       #-}
 
 module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
@@ -6,9 +8,9 @@ module DeckBuilding.Dominion.Types
 
 import           Control.Lens
 import           Control.Monad.RWS
-import qualified Data.DList         as DL
-import qualified Data.Map           as Map
-import qualified Data.Semigroup     as Semi
+import qualified Data.DList                  as DL
+import qualified Data.Map                    as Map
+import qualified Data.Semigroup              as Semi
 import           DeckBuilding.Types
 import           System.Random
 

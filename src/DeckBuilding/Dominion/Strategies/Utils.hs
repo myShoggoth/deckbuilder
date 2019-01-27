@@ -45,7 +45,7 @@ buyIf c p f = do
   iff <- f c player
   if iff && canAfford c player && areCardsLeft gs c
     then do
-      buyCard (Just c) p
+      _ <- buyCard (Just c) p
       return $ Just c
     else return Nothing
 
@@ -73,12 +73,12 @@ buyNIf n c p f = do
   player <- findPlayer p
   iff <- f c player
   if iff
-    then buyIf c p (\c p -> return ((countCards c p) < n))
+    then buyIf c p (\c' p' -> return ((countCards c' p') < n))
     else return Nothing
 
 -- | Buy N of the card as long as the player's total deck size is D.
 buyNAfterTotalDeckOf :: Int -> Int -> Card -> Int -> DominionState (Maybe Card)
-buyNAfterTotalDeckOf n d c p = buyNIf n c p (\c' p' -> return (countDeck p' >= d))
+buyNAfterTotalDeckOf n d c p = buyNIf n c p (\_ p' -> return (countDeck p' >= d))
 
 isDeckBelowN :: Card -> Int -> DominionState Bool
 isDeckBelowN c n = do

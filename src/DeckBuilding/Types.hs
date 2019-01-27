@@ -7,7 +7,6 @@ module DeckBuilding.Types
     ) where
 
 import           Control.Monad.RWS
-import           Data.DList
 
 -- | The result of a game. Either Left "Player Name" who is the winner, or
 --  Right Int which is the number of players that tied for the lead.

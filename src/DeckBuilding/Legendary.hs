@@ -21,7 +21,6 @@ import           Control.Monad.RWS
 import qualified Data.DList                   as DL
 import qualified Data.List                    as L
 
-import           DeckBuilding
 import           DeckBuilding.Legendary.Types
 import           DeckBuilding.Types
 import           DeckBuilding.Legendary.Utils
@@ -51,19 +50,19 @@ gameResult
   If The player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand' :: Int -> LegendaryPlayer -> [Card] -> LegendaryState Int
-evaluateHand' pnum p []     = return pnum
-evaluateHand' pnum p h@(x:xs) = do
+evaluateHand' :: Int -> [Card] -> LegendaryState Int
+evaluateHand' pnum []     = return pnum
+evaluateHand' pnum (x:_) = do
   tell $ DL.singleton $ Play x
-  (x ^. action) x pnum
+  _ <- (x ^. action) x pnum
   player <- findPlayer pnum
-  evaluateHand' pnum player (player ^. hand)
+  evaluateHand' pnum (player ^. hand)
 
 -- | Runs the cards in the deck by offloading the work to evaluateHand'
 evaluateHand :: Int -> LegendaryState Int
 evaluateHand p = do
   player <- findPlayer p
-  evaluateHand' p player (player ^. hand)
+  evaluateHand' p (player ^. hand)
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
 resetTurn :: Int -> LegendaryState Int
@@ -80,43 +79,45 @@ resetTurn p = do
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: LegendaryState [LegendaryPlayer]
 sortByPoints = do
-  players <- use players
-  return $ L.sort players
+  players' <- use players
+  return $ L.sort players'
+
+-- newtype OrphanLegendaryGame = OrphanLegendaryGame LegendaryGame
 
 instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
   finished    = do
     gs <- get
-    mmEvilWins <- (gs ^. mastermind . mmEvilWins)
-    sEvilWins <- gs ^. scheme . sEvilWins
-    villainDeck <- use villainDeck
-    return $ mmEvilWins && sEvilWins && (L.null villainDeck)
+    mmEvilWins' <- (gs ^. mastermind . mmEvilWins)
+    sEvilWins' <- gs ^. scheme . sEvilWins
+    villainDeck' <- use villainDeck
+    return $ mmEvilWins' && sEvilWins' && (L.null villainDeck')
 
   runTurn p = do
     player <- findPlayer p
     tell $ DL.singleton $ Turn (player ^. turns) player
-    (player ^. strategy . orderHand) p
-    evaluateHand p
-    (player ^. strategy ^. buyStrategy) p
-    (player ^. strategy ^. attackStrategy) p
-    deal 6 p
-    resetTurn p
+    _ <- (player ^. strategy . orderHand) p
+    _ <- evaluateHand p
+    _ <- (player ^. strategy ^. buyStrategy) p
+    _ <- (player ^. strategy ^. attackStrategy) p
+    _ <- deal 6 p
+    _ <- resetTurn p
     finished
 
   result      = do
       np <- numPlayers
       mapM_ tallyPoints [0.. np - 1]
-      players <- sortByPoints
-      let grouped = L.groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players
-      return $ result ((length . head) grouped) players
-    where result 1 l = Left $ _playerName $ head l
-          result n _ = Right n
+      players' <- sortByPoints
+      let grouped = L.groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players'
+      return $ result' ((length . head) grouped) players'
+    where result' 1 l = Left $ _playerName $ head l
+          result' n _ = Right n
 
   numPlayers  = do
-    players <- use players
-    return $ length players
+    players' <- use players
+    return $ length players'
 
   tallyPoints p = do
     player <- findPlayer p
     (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
-    evaluateHand p
+    _ <- evaluateHand p
     return ()

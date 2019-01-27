@@ -6,5 +6,7 @@ module DeckBuilding.Dominion.Cards
 
 import           DeckBuilding.Dominion.Cards.Base
 import           DeckBuilding.Dominion.Cards.Intrigue
+import           DeckBuilding.Dominion.Types
 
+actionTerminatorCards :: [Card]
 actionTerminatorCards = baseSetActionTerminators
