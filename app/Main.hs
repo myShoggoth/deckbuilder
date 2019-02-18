@@ -5,10 +5,7 @@ import           DeckBuilding.Dominion
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
-import           DeckBuilding.Dominion.Utils
 
-import           Control.Lens
-import           Control.Monad.IO.Class                 (liftIO)
 import qualified Data.DList                             as DL
 import           System.Random
 
@@ -19,6 +16,7 @@ data DeckBuilder = DeckBuilder
   }
   deriving (Data, Typeable, Show, Eq)
 
+deckBuilder :: DeckBuilder
 deckBuilder = DeckBuilder
   { times = def &= help "Number of games to run."
   } &=
@@ -42,11 +40,11 @@ genGens n g = do
 main :: IO ()
 main = do
   g <- newStdGen
-  args <- cmdArgs deckBuilder
+  args' <- cmdArgs deckBuilder
 
-  let n = times args
+  let n = times args'
       (g1, g2) = split g
-      gens = genGens n g
+      gens = genGens n g2
       conf = DominionConfig
               [ ("Big Money", bigMoneyStrategy)
               , ("Big Smithy", bigSmithyStrategy)

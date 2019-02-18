@@ -1,3 +1,11 @@
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeApplications          #-}
+
 module DeckBuilding.Legendary.Utils
     ( deal
     , findPlayer
@@ -5,33 +13,35 @@ module DeckBuilding.Legendary.Utils
 
 import           Control.Lens
 import           Control.Monad.RWS
-import qualified Data.DList                  as DL
+import qualified Data.DList                   as DL
+import           Data.Generics.Product
 import           DeckBuilding.Legendary.Types
-import           System.Random               (split)
+import           System.Random                (split)
 import           System.Random.Shuffle
+
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> Int -> LegendaryState [Card]
 deal 0   _    = return []
 deal num pnum = do
   p <- findPlayer pnum
-  r <- use random
+  r <- use $ field @"random"
   let (enoughDeck, newDiscard)
-          | length (p ^. deck) >= num   = (p ^. deck, p ^. discard)
-          | null (p ^. discard)         = (p ^. deck, [])
-          | otherwise                   = ( (p ^. deck) ++ shuffle' (p ^. discard) (length (p ^. discard)) r, [])
+          | length (p ^. field @"deck") >= num   = (p ^. field @"deck", p ^. field @"discard")
+          | null (p ^. field @"discard")         = (p ^. field @"deck", [])
+          | otherwise                   = ( (p ^. field @"deck") ++ shuffle' (p ^. field @"discard") (length (p ^. field @"discard")) r, [])
   let (newCards, newDeck)  = splitAt num enoughDeck
-  random %= (snd . split)
-  (players . ix pnum . deck) .= newDeck
-  (players . ix pnum . discard) .= newDiscard
-  (players . ix pnum . hand) %= (++ newCards)
+  field @"random" %= (snd . split)
+  (field @"players" . ix pnum . field @"deck") .= newDeck
+  (field @"players" . ix pnum . field @"discard") .= newDiscard
+  (field @"players" . ix pnum . field @"hand") %= (++ newCards)
   tell $ DL.singleton $ Deal num newCards
   return newCards
 
 -- | Find player # n, error if not found
 findPlayer :: Int -> LegendaryState (LegendaryPlayer)
 findPlayer p = do
-  mp <- preuse(players . ix p)
+  mp <- preuse(field @"players" . ix p)
   case mp of
     Just player' -> pure player'
-    Nothing -> error $ "Unable to find player #" <> show p
+    Nothing      -> error $ "Unable to find player #" <> show p

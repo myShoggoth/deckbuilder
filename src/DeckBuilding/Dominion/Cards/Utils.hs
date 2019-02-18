@@ -1,30 +1,38 @@
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeApplications          #-}
+
 module DeckBuilding.Dominion.Cards.Utils
     ( valueCard
     , basicCardAction
     , gainCard
     ) where
 
-import           DeckBuilding.Dominion.Types
-import           DeckBuilding.Dominion.Utils
-
 import           Control.Lens
+import           Data.Generics.Product
 import           Data.List
 import qualified Data.Map                    as Map
+import           DeckBuilding.Dominion.Types
+import           DeckBuilding.Dominion.Utils
 
 -- | For value cards, pass money and victory point values.
 valueCard :: Int -> Int -> Card -> Int -> DominionState Int
 valueCard m v c p = do
-  (players . ix p . hand) %= (delete c)
-  (players . ix p . played) %= (c:)
-  (players . ix p . money) += m
-  (players . ix p . victory) += v
+  (field @"players" . ix p . field @"hand") %= (delete c)
+  (field @"players" . ix p . field @"played") %= (c:)
+  (field @"players" . ix p . field @"money") += m
+  (field @"players" . ix p . field @"victory") += v
   return p
 
 -- | For basic card values: draw cards, +actions, +buys, +money, +victory
 basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Int -> DominionState Int
 basicCardAction draw a b m v c p = do
-  (players . ix p . actions) += a
-  (players . ix p . buys) += b
+  (field @"players" . ix p . field @"actions") += a
+  (field @"players" . ix p . field @"buys") += b
   _ <- deal draw p
   valueCard m v c p
 
@@ -38,7 +46,7 @@ gainCard cards highestPrice p = obtain highestCostCard
   where obtain :: Maybe Card -> DominionState (Maybe Card)
         obtain Nothing  = return Nothing
         obtain (Just c) = do
-          decks %= (Map.mapWithKey (decreaseCards c))
-          (players . ix p . deck) %= (c:)
+          (field @"decks") %= (Map.mapWithKey (decreaseCards c))
+          (field @"players" . ix p . field @"deck") %= (c:)
           return $ Just c
-        highestCostCard = find (\c -> (c ^. cost) < highestPrice) cards
+        highestCostCard = find (\c -> (c ^. field @"cost") < highestPrice) cards

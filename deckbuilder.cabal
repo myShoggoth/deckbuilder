@@ -37,6 +37,7 @@ library
                      , lens
                      , mtl
                      , dlist
+                     , generic-lens
   default-language:    Haskell2010
 
 executable deckbuilder-exe
@@ -59,16 +60,17 @@ test-suite deckbuilder-test
                      , deckbuilder
                      , random
                      , hspec
-                     , QuickCheck
                      , lens
                      , mtl
                      , containers
                      , dlist
+                     , generic-lens
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   other-modules:       DominionSpec
                      , Dominion.CardsSpec
                      , Dominion.Cards.BaseSpec
                      , Dominion.Cards.IntrigueSpec
+                     , Dominion.Utils
   default-language:    Haskell2010
 
 source-repository head

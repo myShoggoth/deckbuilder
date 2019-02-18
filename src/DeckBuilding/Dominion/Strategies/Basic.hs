@@ -1,3 +1,11 @@
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeApplications          #-}
+
 module DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyStrategy
     , bigSmithyStrategy
@@ -18,18 +26,18 @@ module DeckBuilding.Dominion.Strategies.Basic
     , villageSmithyEngine4
     ) where
 
+import           Control.Lens
+import           Control.Monad.RWS
+import qualified Data.DList                             as DL
+import           Data.Generics.Product
+import           Data.List                              (delete, intersect,
+                                                         (\\))
+import qualified Data.Map                               as Map
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Cards.Utils
 import           DeckBuilding.Dominion.Strategies.Utils
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
-
-import           Control.Lens
-import           Control.Monad.RWS
-import qualified Data.DList                             as DL
-import           Data.List                              (delete, intersect,
-                                                         (\\))
-import qualified Data.Map                               as Map
 
 -- import Debug.Trace
 
@@ -54,10 +62,11 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyLurker
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
-bigMoneyBuy :: Int -> DominionState [Card]
+bigMoneyBuy :: Int -> DominionState Int
 bigMoneyBuy p = do
     player <- findPlayer p
-    doBuys p (player ^. buys) bigMoneyCards
+    _ <- doBuys p (player ^. field @"buys") bigMoneyCards
+    return p
   where bigMoneyCards = [ (provinceCard, alwaysBuy)
                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
                         , (goldCard, alwaysBuy)
@@ -131,9 +140,9 @@ bigMoneySentry cs _ = do
 bigMoneyHandToDeck :: Int -> Int -> DominionState [Card]
 bigMoneyHandToDeck n p = do
     player <- findPlayer p
-    let cards = take n $ (player ^. hand) `intersect` handToDeckCards
-    (players . ix p . deck) %= (cards++)
-    (players . ix p . hand) .= ((player ^. hand) \\ cards)
+    let cards = take n $ (player ^. field @"hand") `intersect` handToDeckCards
+    (field @"players" . ix p . field @"deck") %= (cards++)
+    (field @"players" . ix p . field @"hand") .= ((player ^. field @"hand") \\ cards)
     return cards
   where handToDeckCards = [ estateCard
                           , copperCard
@@ -141,12 +150,12 @@ bigMoneyHandToDeck n p = do
                           ]
 
 findInPlayAction :: Map.Map Card Int -> Card
-findInPlayAction decks' = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. cardType == Action) && v > 0) decks'
+findInPlayAction decks' = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. (field @"cardType") == Action) && v > 0) decks'
 
 -- | Just need something
 bigMoneyLurker :: Card -> Int -> DominionState (Either Card Card)
 bigMoneyLurker _ _ = do
-  decks' <- use decks
+  decks' <- use $ field @"decks"
   return $ Left $ findInPlayAction decks'
 
 -- Big smithy
@@ -168,10 +177,11 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyLurker
 
 -- | Just like big money buy also buy up to two smithy cards.
-bigSmithyBuy :: Int -> DominionState [Card]
+bigSmithyBuy :: Int -> DominionState Int
 bigSmithyBuy p = do
     player <- findPlayer p
-    doBuys p (player ^. buys) bigSmithyCards
+    _ <- doBuys p (player ^. field @"buys") bigSmithyCards
+    return p
   where bigSmithyCards = [ (provinceCard, alwaysBuy)
                         , (smithyCard, buyN 2)
                         , (goldCard, alwaysBuy)
@@ -211,10 +221,11 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyLurker
 
 -- | The buy strategy
-villageSmithyEngine4Buy :: Int -> DominionState [Card]
+villageSmithyEngine4Buy :: Int -> DominionState Int
 villageSmithyEngine4Buy p = do
     player <- findPlayer p
-    doBuys p (player ^. buys) bigVillageSmithyEngine4Cards
+    _ <- doBuys p (player ^. field @"buys") bigVillageSmithyEngine4Cards
+    return p
   where bigVillageSmithyEngine4Cards =  [
                                           (provinceCard, alwaysBuy)
                                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 3)
@@ -254,10 +265,10 @@ removeFromCards = foldr delete
 doDiscard :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doDiscard minmax cards p = do
   player <- findPlayer p
-  let toDiscard = prefPlusCards minmax cards (player ^. hand)
-  let newHand = removeFromCards (player ^. hand) toDiscard
-  (players . ix p . discard) %= (++ toDiscard)
-  (players . ix p . hand) .= newHand
+  let toDiscard = prefPlusCards minmax cards (player ^. field @"hand")
+  let newHand = removeFromCards (player ^. field @"hand") toDiscard
+  (field @"players" . ix p . field @"discard") %= (++ toDiscard)
+  (field @"players" . ix p . field @"hand") .= newHand
   tell $ DL.singleton $ Discard toDiscard
   return toDiscard
 
@@ -266,10 +277,10 @@ doDiscard minmax cards p = do
 doTrash :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doTrash minmax cards p = do
   player <- findPlayer p
-  let toTrash = prefPlusCards minmax cards (player ^. hand)
-  let newHand = removeFromCards (player ^. hand) toTrash
-  trash %= (toTrash ++)
-  (players . ix p . hand) .= newHand
+  let toTrash = prefPlusCards minmax cards (player ^. field @"hand")
+  let newHand = removeFromCards (player ^. field @"hand") toTrash
+  (field @"trash") %= (toTrash ++)
+  (field @"players" . ix p . field @"hand") .= newHand
   tell $ DL.singleton $ Trash toTrash
   return toTrash
 
@@ -278,13 +289,13 @@ doTrash minmax cards p = do
 doRetrieveDiscard :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doRetrieveDiscard (min', max') cards p = do
   player <- findPlayer p
-  let pref = take max' $ intersect (player ^. discard) cards
+  let pref = take max' $ intersect (player ^. field @"discard") cards
   let toRetrieve
         | length pref > min' = pref
-        | otherwise         = take min' $ pref ++ (player ^. discard)
-  let newDiscard = foldr delete (player ^. discard) toRetrieve
-  (players . ix p . deck) %= (toRetrieve++)
-  (players . ix p . discard) .= newDiscard
+        | otherwise         = take min' $ pref ++ (player ^. field @"discard")
+  let newDiscard = foldr delete (player ^. field @"discard") toRetrieve
+  (field @"players" . ix p . field @"deck") %= (toRetrieve++)
+  (field @"players" . ix p . field @"discard") .= newDiscard
   tell $ DL.singleton $ Retreive toRetrieve
   return toRetrieve
 
@@ -292,8 +303,8 @@ doRetrieveDiscard (min', max') cards p = do
 findFirstCard :: [Card] -> Int -> DominionState (Maybe Card)
 findFirstCard cards p = do
   player <- findPlayer p
-  return $ case (player ^. hand) `intersect` cards of
-    []     -> Nothing
+  return $ case (player ^. field @"hand") `intersect` cards of
+    []    -> Nothing
     (x:_) -> Just x
 
 -- | Given a list of cards and buy functions, call the buy functions until one
@@ -303,7 +314,7 @@ doBuys' _ [] = return []
 doBuys' p ( (c, a):xs) = do
   bought <- a c p
   case bought of
-    Nothing  -> doBuys' p xs
+    Nothing   -> doBuys' p xs
     (Just c') -> return [c']
 
 

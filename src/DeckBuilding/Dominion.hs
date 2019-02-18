@@ -1,5 +1,14 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -fno-warn-orphans      #-}
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeApplications          #-}
+
 
 {-|
 Module      : DeckBuilding.Dominion
@@ -24,26 +33,20 @@ module DeckBuilding.Dominion
     , configToGame
     ) where
 
-import           Control.Arrow                          ((&&&))
+import           Control.Arrow               ((&&&))
 import           Control.Lens
 import           Control.Monad.RWS
-import qualified Data.DList                             as DL
-import           Data.Foldable                          (foldrM)
-import           Data.List                              (delete, find, group,
-                                                         groupBy, intersect,
-                                                         sort, sortBy, (\\))
-import qualified Data.Map                               as Map
-import           Data.Ord                               (comparing)
-import           System.Random                          (StdGen, mkStdGen,
-                                                         newStdGen, randoms)
-import           System.Random.Shuffle                  (shuffle')
-
+import qualified Data.DList                  as DL
+import           Data.Generics.Product
+import           Data.List                   (group, groupBy, sort)
+import qualified Data.Map                    as Map
 import           DeckBuilding
 import           DeckBuilding.Dominion.Cards
-import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 import           DeckBuilding.Types
+import           System.Random               (StdGen)
+import           System.Random.Shuffle       (shuffle')
 
 -- Dominion
 
@@ -59,34 +62,28 @@ newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateC
   the default case is to run a card and then recursively call with the new
   hand for the player.
 
-  If The player is out of actions we can only run Value cards (ones that don't
+  If the player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand' :: Int -> DominionPlayer -> [Card] -> DominionState Int
-evaluateHand' pnum p []     = return pnum
-evaluateHand' pnum p@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
+evaluateHand :: Int -> DominionPlayer -> [Card] -> DominionState Int
+evaluateHand pnum _ []     = return pnum
+evaluateHand pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
   tell $ DL.singleton $ Play x
-  (x ^. action) x pnum
+  _ <- (x ^. field @"action") x pnum
   player <- findPlayer pnum
-  evaluateHand' pnum player xs
-evaluateHand' pnum p@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand' pnum p xs
-evaluateHand' pnum p h@(x:xs) = do
+  evaluateHand pnum player xs
+evaluateHand pnum p@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand pnum p xs
+evaluateHand pnum _ (x:_) = do
   tell $ DL.singleton $ Play x
-  (x ^. action) x pnum
+  _ <- (x ^. field @"action") x pnum
   player <- findPlayer pnum
-  evaluateHand' pnum player (player ^. hand)
-
--- | Runs the cards in the deck by offloading the work to evaluateHand'
-evaluateHand :: Int -> DominionState Int
-evaluateHand p = do
-  player <- findPlayer p
-  evaluateHand' p player (player ^. hand)
+  evaluateHand pnum player (player ^. field @"hand")
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: DominionState [DominionPlayer]
 sortByPoints = do
-  players <- use players
-  return $ sort players
+  players' <- use $ field @"players"
+  return $ sort players'
 
 -- | Given a set of potential kingdom cards, pick a random ten to play with.
 randomKingdomDecks :: [Card] -> StdGen -> [Card]
@@ -106,61 +103,64 @@ basicDecks numPlayers
 resetTurn :: Int -> DominionState Int
 resetTurn p = do
   player <- findPlayer p
-  (players . ix p . discard) %= ( ((player ^. hand) ++ (player ^. played) ) ++)
-  (players . ix p . played) .= []
-  (players . ix p . hand) .= []
-  (players . ix p . actions) .= 1
-  (players . ix p . buys) .= 1
-  (players . ix p . money) .= 0
-  (players . ix p . victory) .= 0
-  (players . ix p . turns) += 1
+  (field @"players" . ix p . field @"discard") %= ( ((player ^. field @"hand") ++ (player ^. field @"played") ) ++)
+  (field @"players" . ix p . field @"played") .= []
+  (field @"players" . ix p . field @"hand") .= []
+  (field @"players" . ix p . field @"actions") .= 1
+  (field @"players" . ix p . field @"buys") .= 1
+  (field @"players" . ix p . field @"money") .= 0
+  (field @"players" . ix p . field @"victory") .= 0
+  (field @"players" . ix p . field @"turns") += 1
   return p
 
 configToGame :: DominionConfig -> StdGen -> DominionGame
-configToGame c = DominionGame (map (\p -> newPlayer (fst p) (snd p)) (c ^. playerDefs)) (basicDecks (length (c ^. playerDefs)) `Map.union` makeDecks (c ^. kingdomCards)) []
+configToGame c = DominionGame
+                  (map (\p -> newPlayer (fst p) (snd p)) (c ^. field @"playerDefs"))
+                  (basicDecks (length (c ^. field @"playerDefs")) `Map.union` makeDecks (c ^. field @"kingdomCards"))
+                  []
 
 -- | Run n games with a set of players and kingdom cards.
 runDominionGames :: DominionConfig -> ([(Result, Int)], [DL.DList DominionMove])
 runDominionGames c = (map (head &&& length) $ group $ sort $ results, output)
-  where gses = map (configToGame c) (c ^. seeds)
+  where gses = map (configToGame c) (c ^. field @"seeds")
         rawresults = map (evalRWS ((runGame False) :: DominionState Result) c) gses
         results = map fst rawresults
         output = map snd rawresults
 
---newtype OrphanDominionGame = OrphanDominionGame DominionGame
-
 instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   finished    = do
-    decks' <- use decks
+    decks' <- use $ field @"decks"
     emptyDecks <- numEmptyDecks
     return $ (decks' Map.! provinceCard == 0) || emptyDecks >= 3
 
   runTurn p   = do
     player <- findPlayer p
-    tell $ DL.singleton $ Turn (player ^. turns) player
-    _ <- (player ^. strategy . orderHand) p
-    _ <- evaluateHand p
-    _ <- (player ^. strategy . buyStrategy) p
+    tell $ DL.singleton $ Turn (player ^. field @"turns") player
+    _ <- (player ^. field @"strategy" . field @"orderHand") p
+    player' <- findPlayer p
+    _ <- evaluateHand p player' (player' ^. field @"hand")
+    _ <- (player ^. field @"strategy" . field @"buyStrategy") p
     _ <- resetTurn p
     _ <- deal 5 p
     finished
 
   result      = do
-      np <- numPlayers
-      mapM_ tallyPoints [0.. np - 1]
+      turnOrder' <- turnOrder
+      mapM_ tallyPoints turnOrder'
       players' <- sortByPoints
-      tell $ DL.singleton $ GameOver $ map (\p -> (p ^. playerName, p ^. victory)) players'
-      let grouped = groupBy (\p1 p2 -> (p1 ^. victory) == (p2 ^. victory) && (p1 ^. turns) == (p2 ^. turns)) players'
-      return $ result ((length . head) grouped) players'
-    where result 1 l = Left $ _playerName $ head l
-          result n _ = Right n
+      tell $ DL.singleton $ GameOver $ map (\p -> (p ^. field @"playerName", p ^. field @"victory")) players'
+      let grouped = groupBy (\p1 p2 -> (p1 ^. field @"victory") == (p2 ^. field @"victory") && (p1 ^. field @"turns") == (p2 ^. field @"turns")) players'
+      return $ result' ((length . head) grouped) players'
+    where result' 1 l = Left $ playerName $ head l
+          result' n _ = Right n
 
-  numPlayers  = do
-    players'<- use players
-    return $ length players'
+  turnOrder  = do
+    players' <- use $ field @"players"
+    return $ [0 .. (length players' - 1)]
 
   tallyPoints p = do
     player <- findPlayer p
-    (players . ix p . hand) .= ((player ^. deck) ++ (player ^. discard) ++ (player ^. hand) ++ (player ^. played))
-    _ <- evaluateHand p
+    (field @"players" . ix p . field @"hand") .= ((player ^. field @"deck") ++ (player ^. field @"discard") ++ (player ^. field @"hand") ++ (player ^. field @"played"))
+    player' <- findPlayer p
+    _ <- evaluateHand p player' (player' ^. field @"hand")
     return ()

@@ -1,17 +1,17 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
     ) where
 
-import           Control.Lens
 import           Control.Monad.RWS
-import qualified Data.DList                  as DL
-import qualified Data.Map                    as Map
-import qualified Data.Semigroup              as Semi
-import           DeckBuilding.Types
+import qualified Data.DList        as DL
+import qualified Data.Map          as Map
+import qualified Data.Semigroup    as Semi
+import           GHC.Generics
 import           System.Random
 
 data DominionMove = Turn Int DominionPlayer |
@@ -30,17 +30,17 @@ type DominionState a = RWS DominionConfig (DL.DList DominionMove) DominionGame a
 
 data DominionConfig = DominionConfig {
   -- | Names and strategies for each player
-  _playerDefs   :: [(String, Strategy)],
+  playerDefs   :: [(String, Strategy)],
   -- | Which kingdom cards to use
-  _kingdomCards :: [Card],
+  kingdomCards :: [Card],
   -- | How many games to run
-  _games        :: Int,
+  games        :: Int,
   -- | One random number generator per game
-  _seeds        :: [StdGen]
+  seeds        :: [StdGen]
 } deriving Show
 
 instance Semi.Semigroup DominionConfig where
-  c1 <> c2 = DominionConfig ((_playerDefs c1) ++ (_playerDefs c2)) ((_kingdomCards c1) ++ (_kingdomCards c2)) ((_games c1) + (_games c2)) ((_seeds c1) ++ (_seeds c2))
+  c1 <> c2 = DominionConfig ((playerDefs c1) ++ (playerDefs c2)) ((kingdomCards c1) ++ (kingdomCards c2)) ((games c1) + (games c2)) ((seeds c1) ++ (seeds c2))
 
 instance Monoid DominionConfig where
   mempty = DominionConfig [] [] 0 []
@@ -48,13 +48,13 @@ instance Monoid DominionConfig where
 
 data DominionGame = DominionGame {
   -- | The players of the game.
-  _players :: [DominionPlayer],
+  players :: [DominionPlayer],
   -- | All the decks, basic and Kingdom: (Card, Number Left)
-  _decks   :: Map.Map Card Int,
+  decks   :: Map.Map Card Int,
   -- | The trash pile.
-  _trash   :: [Card],
+  trash   :: [Card],
   -- | The current random number generator, needs to be updated when used.
-  _random  :: StdGen
+  random  :: StdGen
 } deriving Show
 
 data CardType = Value | Action
@@ -63,9 +63,9 @@ data CardType = Value | Action
 -- | A Dominion card, basic supply, kingdom, or expansion.
 data Card = Card {
   -- | Name of the card, like Copper or Market. Used mostly for debugging.
-  _cardName :: String,
+  cardName :: String,
   -- | Money cost of the card.
-  _cost     :: Int,
+  cost     :: Int,
   {-|
     The function that changes that game state based on the card. This is the
     core of the whole engine.
@@ -76,19 +76,19 @@ data Card = Card {
     Updates the game state based on what the card does, then returns the
     player number.
   -}
-  _action   :: Card -> Int -> DominionState Int,
+  action   :: Card -> Int -> DominionState Int,
   -- | Value or Action
-  _cardType :: CardType
+  cardType :: CardType
 }
 
 instance Ord Card where
-  compare c1 c2 = compare (_cardName c1) (_cardName c2)
+  compare c1 c2 = compare (cardName c1) (cardName c2)
 
 instance Eq Card where
-  a == b = _cardName a == _cardName b
+  a == b = cardName a == cardName b
 
 instance Show Card where
-  show = _cardName
+  show = cardName
 
 {-|
   The playing strategy used by the player. A list of functions that are
@@ -106,87 +106,87 @@ instance Show Card where
 -}
 data Strategy = Strategy {
   -- | Friendly name for the strategy, mostly used for debugging.
-  _strategyName       :: String,
+  strategyName       :: String,
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
-  _buyStrategy        :: Int -> DominionState [Card],
+  buyStrategy        :: Int -> DominionState Int,
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
-  _discardStrategy    :: (Int, Int) -> Int -> DominionState [Card],
+  discardStrategy    :: (Int, Int) -> Int -> DominionState [Card],
   -- | like discardStrategy, except for trashing cards.
-  _trashStrategy      :: (Int, Int) -> Int -> DominionState [Card],
+  trashStrategy      :: (Int, Int) -> Int -> DominionState [Card],
   -- | Like discardStrategy, except for retrieving cards from the player's
   --  discard pile.
-  _retrieveStrategy   :: (Int, Int) -> Int -> DominionState [Card],
+  retrieveStrategy   :: (Int, Int) -> Int -> DominionState [Card],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  _orderHand          :: Int -> DominionState [Card],
+  orderHand          :: Int -> DominionState [Card],
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
-  _gainCardStrategy   :: Int -> Int -> DominionState (Maybe Card),
+  gainCardStrategy   :: Int -> Int -> DominionState (Maybe Card),
   -- | Specifically for the Throne Room card, lets the strategy pick which
   --  card (Just Card) to play twice, or none if Nothing. Pick a card remaining
   --  in the player's hand.
-  _throneRoomStrategy :: Int -> DominionState (Maybe Card),
+  throneRoomStrategy :: Int -> DominionState (Maybe Card),
   -- | For the Library card, called when the player draws an action and returns
   --  whether or not the player wants to skip that card.
-  _libraryStrategy    :: Card -> DominionState Bool,
+  libraryStrategy    :: Card -> DominionState Bool,
   -- | For the Sentry card, gives the top two cards of the player's deck, then
   --  says which ones that player wants to (trash, discard, keep).
-  _sentryStrategy     :: [Card] -> Int -> DominionState ([Card], [Card], [Card]),
+  sentryStrategy     :: [Card] -> Int -> DominionState ([Card], [Card], [Card]),
   -- | For cards like Artisan, pick n cards that the player would like to put
   --  back onto the top of their deck. The function does that work.
-  _handToDeckStrategy :: Int -> Int -> DominionState [Card],
+  handToDeckStrategy :: Int -> Int -> DominionState [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  _lurkerStrategy     :: Card -> Int -> DominionState (Either Card Card)
+  lurkerStrategy     :: Card -> Int -> DominionState (Either Card Card)
 }
 
 instance Show Strategy where
-  show = _strategyName
+  show = strategyName
 
 instance Eq Strategy where
-  a == b = _strategyName a == _strategyName b
+  a == b = strategyName a == strategyName b
 
 data DominionPlayer = DominionPlayer {
   -- | Player name, mostly used for debugging.
-  _playerName :: String,
+  playerName :: String,
   -- | Player's current deck.
-  _deck       :: [Card],
+  deck       :: [Card],
   -- | Player's current discard pile.
-  _discard    :: [Card],
+  discard    :: [Card],
   -- | Current hand.
-  _hand       :: [Card],
+  hand       :: [Card],
   -- | Cards that have been played this turn.
-  _played     :: [Card],
+  played     :: [Card],
   -- | Number of actions remaining.
-  _actions    :: Int,
+  actions    :: Int,
   -- | Number of buys remaining.
-  _buys       :: Int,
+  buys       :: Int,
   -- | Amount of money available to spend on cards.
-  _money      :: Int,
+  money      :: Int,
   -- | Number of victory points in the hand. Not relevant until the end of the
   --  game.
-  _victory    :: Int,
+  victory    :: Int,
   -- | How many turns has this player completed?
-  _turns      :: Int,
+  turns      :: Int,
   -- | The Strategy used by this player.
-  _strategy   :: Strategy
+  strategy   :: Strategy
 } deriving Show
 
 instance Eq DominionPlayer where
-  a == b = _playerName a == _playerName b
+  a == b = playerName a == playerName b
 
 instance Ord DominionPlayer where
   compare p1 p2
-    | _victory p1 == _victory p2  = _turns p1 `compare` _turns p2
-    | otherwise                   = _victory p2 `compare` _victory p1
+    | victory p1 == victory p2  = turns p1 `compare` turns p2
+    | otherwise                 = victory p2 `compare` victory p1
 
--- | Control.Lens is used to make updating the data structures easier.
-makeLenses ''DominionConfig
-makeLenses ''DominionGame
-makeLenses ''Card
-makeLenses ''Strategy
-makeLenses ''DominionPlayer
+deriving instance Generic DominionGame
+deriving instance Generic DominionPlayer
+deriving instance Generic Card
+deriving instance Generic Strategy
+deriving instance Generic DominionConfig
+

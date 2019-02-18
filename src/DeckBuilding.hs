@@ -23,13 +23,8 @@ import           DeckBuilding.Types
 runTurns :: Game c l g => [Int] -> Bool -> RWS c l g Bool
 runTurns _      True  = return True
 runTurns []     False = return False
-runTurns (x:xs) False = do
-  done <- runTurn x
-  runTurns xs done
+runTurns (x:xs) False = runTurn x >>= runTurns xs
 
 runGame :: Game c l g => Bool -> RWS c l g Result
 runGame True  = result
-runGame False = do
-  np <- numPlayers
-  done <- runTurns [0 .. (np - 1)] False
-  runGame done
+runGame False = turnOrder >>= (flip runTurns False) >>= runGame

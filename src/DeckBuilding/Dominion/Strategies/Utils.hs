@@ -1,3 +1,11 @@
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeApplications          #-}
+
 module DeckBuilding.Dominion.Strategies.Utils
     ( canAfford
     , cardsLeft
@@ -13,28 +21,28 @@ module DeckBuilding.Dominion.Strategies.Utils
     , buyIfLowerThanTerminalActions
     ) where
 
+import           Control.Lens
+import           Control.Monad.RWS
+import qualified Data.DList                  as DL
+import           Data.Generics.Product
+import           Data.List                   (intersect)
+import qualified Data.Map                    as Map
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 
-import           Control.Lens
-import           Control.Monad.RWS
-import qualified Data.DList                  as DL
-import           Data.List                   (intersect)
-import qualified Data.Map                    as Map
-
 -- | Can this player afford this card?
 canAfford :: Card -> DominionPlayer -> Bool
-canAfford c p = (c ^. cost) <= (p ^. money)
+canAfford c p = (c ^. field @"cost") <= (p ^. field @"money")
 
 cardsLeft :: DominionGame -> Card -> Int
-cardsLeft gs c = if Map.member c (gs ^. decks)
-  then (gs ^. decks) Map.! c
+cardsLeft gs c = if Map.member c (gs ^. field @"decks")
+  then (gs ^. field @"decks") Map.! c
   else 0
 
 -- | Are there any of this card left in the game?
 areCardsLeft :: DominionGame -> Card -> Bool
-areCardsLeft gs c = Map.member c (gs ^. decks) && ((gs ^. decks) Map.! c > 0)
+areCardsLeft gs c = Map.member c (gs ^. field @"decks") && ((gs ^. field @"decks") Map.! c > 0)
 
 -- | Buy the card if it satisfies the passed in function, the player can
 --  afford it, and there are some left in the supply.
@@ -54,7 +62,7 @@ alwaysBuy :: Card -> Int -> DominionState (Maybe Card)
 alwaysBuy c p = buyIf c p (\_ _ -> return True)
 
 allCards :: DominionPlayer -> [Card]
-allCards p = (p ^. hand) ++ (p ^. deck) ++ (p ^. discard) ++ (p ^. played)
+allCards p = (p ^. field @"hand") ++ (p ^. field @"deck") ++ (p ^. field @"discard") ++ (p ^. field @"played")
 
 -- | How many of this card does the player have?
 countCards :: Card -> DominionPlayer -> Int
@@ -110,8 +118,8 @@ buyCard ::  Maybe Card -> Int -> DominionState Int
 buyCard Nothing  p = return p
 buyCard (Just c) p = do
   tell $ DL.singleton $ Buy c
-  decks %= (Map.mapWithKey (decreaseCards c))
-  (players . ix p . discard) %= (c:)
-  (players . ix p . buys) -= 1
-  (players . ix p . money) -= (c ^. cost)
+  (field @"decks") %= (Map.mapWithKey (decreaseCards c))
+  (field @"players" . ix p . field @"discard") %= (c:)
+  (field @"players" . ix p . field @"buys") -= 1
+  (field @"players" . ix p . field @"money") -= (c ^. field @"cost")
   return p
