@@ -122,7 +122,7 @@ data Strategy = Strategy {
   retrieveStrategy   :: (Int, Int) -> Int -> DominionState [Card],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  orderHand          :: Int -> DominionState [Card],
+  nextCard           :: Int -> DominionState (Maybe Card),
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
   gainCardStrategy   :: Int -> Int -> DominionState (Maybe Card),

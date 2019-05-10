@@ -65,19 +65,28 @@ newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateC
   If the player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand :: Int -> DominionPlayer -> [Card] -> DominionState Int
-evaluateHand pnum _ []     = return pnum
-evaluateHand pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (x@(Card _ _ _ Value):xs)  = do
-  tell $ DL.singleton $ Play x
-  _ <- (x ^. field @"action") x pnum
+evaluateHand :: Int -> DominionPlayer -> DominionState Int
+evaluateHand pnum _ = do
   player <- findPlayer pnum
-  evaluateHand pnum player xs
-evaluateHand pnum p@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) (_:xs)  = evaluateHand pnum p xs
-evaluateHand pnum _ (x:_) = do
-  tell $ DL.singleton $ Play x
-  _ <- (x ^. field @"action") x pnum
-  player <- findPlayer pnum
-  evaluateHand pnum player (player ^. field @"hand")
+  mc <- (player ^. field @"strategy" . field @"nextCard") pnum
+  case mc of
+    Nothing -> return pnum
+    Just c -> do
+      yay <- evaluateCard c pnum player
+      if yay
+         then evaluateHand pnum player
+         else return pnum
+
+evaluateCard :: Card -> Int -> DominionPlayer -> DominionState Bool
+evaluateCard c@(Card _ _ _ Value) pnum player = do
+  tell $ DL.singleton $ Play c
+  _ <- (c ^. field @"action") c pnum
+  return True
+evaluateCard c pnum player@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) = return False
+evaluateCard c pnum player = do
+  tell $ DL.singleton $ Play c
+  _ <- (c ^. field @"action") c pnum
+  return True
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: DominionState [DominionPlayer]
@@ -136,9 +145,7 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   runTurn p   = do
     player <- findPlayer p
     tell $ DL.singleton $ Turn (player ^. field @"turns") player
-    _ <- (player ^. field @"strategy" . field @"orderHand") p
-    player' <- findPlayer p
-    _ <- evaluateHand p player' (player' ^. field @"hand")
+    _ <- evaluateHand p player
     _ <- (player ^. field @"strategy" . field @"buyStrategy") p
     _ <- resetTurn p
     _ <- deal 5 p
@@ -162,5 +169,5 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
     player <- findPlayer p
     (field @"players" . ix p . field @"hand") .= ((player ^. field @"deck") ++ (player ^. field @"discard") ++ (player ^. field @"hand") ++ (player ^. field @"played"))
     player' <- findPlayer p
-    _ <- evaluateHand p player' (player' ^. field @"hand")
+    _ <- evaluateHand p player'
     return ()

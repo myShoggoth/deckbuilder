@@ -13,7 +13,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyDiscard
     , bigMoneyTrash
     , bigMoneyRetrieve
-    , bigMoneyOrderHand
+    , bigMoneyNextCard
     , bigMoneyGain
     , bigMoneyThroneRoom
     , bigMoneyLibrary
@@ -33,6 +33,7 @@ import           Data.Generics.Product
 import           Data.List                              (delete, intersect,
                                                          (\\))
 import qualified Data.Map                               as Map
+import           Safe (headMay)
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Cards.Utils
 import           DeckBuilding.Dominion.Strategies.Utils
@@ -53,7 +54,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyDiscard
                             bigMoneyTrash
                             bigMoneyRetrieve
-                            bigMoneyOrderHand
+                            bigMoneyNextCard
                             bigMoneyGain
                             bigMoneyThroneRoom
                             bigMoneyLibrary
@@ -116,8 +117,11 @@ bigMoneyGain = gainCard gainCards
                     ]
 
 -- | We never have anything, so why bother?
-bigMoneyOrderHand :: Int -> DominionState [Card]
-bigMoneyOrderHand _ = return []
+bigMoneyNextCard :: Int -> DominionState (Maybe Card)
+bigMoneyNextCard p = do
+  player <- findPlayer p
+  let hand = player ^. field @"hand"
+  return $ headMay hand
 
 -- | We don't buy throne rooms in big money.
 bigMoneyThroneRoom :: Int -> DominionState (Maybe Card)
@@ -168,7 +172,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyDiscard
                              bigMoneyTrash
                              bigMoneyRetrieve
-                             bigMoneyOrderHand
+                             bigMoneyNextCard
                              bigSmithyGain
                              bigSmithyThroneRoom
                              bigMoneyLibrary
@@ -212,7 +216,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyDiscard
                                 bigMoneyTrash
                                 bigMoneyRetrieve
-                                bigMoneyOrderHand
+                                bigMoneyNextCard
                                 bigSmithyGain
                                 bigSmithyThroneRoom
                                 bigMoneyLibrary
