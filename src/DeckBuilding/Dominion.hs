@@ -65,8 +65,8 @@ newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateC
   If the player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand :: Int -> DominionPlayer -> DominionState Int
-evaluateHand pnum _ = do
+evaluateHand :: Int -> DominionState Int
+evaluateHand pnum = do
   player <- findPlayer pnum
   mc <- (player ^. field @"strategy" . field @"nextCard") pnum
   case mc of
@@ -74,7 +74,7 @@ evaluateHand pnum _ = do
     Just c -> do
       yay <- evaluateCard c pnum player
       if yay
-         then evaluateHand pnum player
+         then evaluateHand pnum
          else return pnum
 
 evaluateCard :: Card -> Int -> DominionPlayer -> DominionState Bool
@@ -145,7 +145,7 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   runTurn p   = do
     player <- findPlayer p
     tell $ DL.singleton $ Turn (player ^. field @"turns") player
-    _ <- evaluateHand p player
+    _ <- evaluateHand p
     _ <- (player ^. field @"strategy" . field @"buyStrategy") p
     _ <- resetTurn p
     _ <- deal 5 p
@@ -169,5 +169,5 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
     player <- findPlayer p
     (field @"players" . ix p . field @"hand") .= ((player ^. field @"deck") ++ (player ^. field @"discard") ++ (player ^. field @"hand") ++ (player ^. field @"played"))
     player' <- findPlayer p
-    _ <- evaluateHand p player'
+    _ <- evaluateHand p
     return ()

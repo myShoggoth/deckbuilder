@@ -19,7 +19,6 @@ import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
-import           Dominion.Utils
 import           System.Random
 import           Test.Hspec
 
@@ -88,7 +87,7 @@ spec = do
   describe "vassalCardAction" $
     it "draws a value card" $ do
       let forcedDeal = DominionPlayer "Vassal Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
-      let afterCard = fst $ execRWS (evaluateHandHelper 0) c $ DominionGame [forcedDeal] (basicDecks 2) [] g
+      let afterCard = fst $ execRWS (evaluateHand 0) c $ DominionGame [forcedDeal] (basicDecks 2) [] g
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
       (p1AfterCard ^. field @"money") `shouldBe` 4
       length (p1AfterCard ^. field @"hand") `shouldBe` 0
@@ -159,7 +158,7 @@ spec = do
       length (p1AfterCard ^. field @"hand") `shouldBe` 5
     it "will play Smithy twice in the bigSmithyStrategy" $ do
       let forcedDeal = DominionPlayer "Throne Room Deal" (replicate 5 copperCard) [] [throneRoomCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigSmithyStrategy
-      let afterCard = fst $ execRWS (evaluateHandHelper 0) c $ DominionGame [forcedDeal] (basicDecks 2) [] g
+      let afterCard = fst $ execRWS (evaluateHand 0) c $ DominionGame [forcedDeal] (basicDecks 2) [] g
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
       (p1AfterCard ^. field @"actions") `shouldBe` 0
       length (p1AfterCard ^. field @"hand") `shouldBe` 0

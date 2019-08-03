@@ -51,6 +51,8 @@ executable deckbuilder-exe
                      , lens
                      , dlist
                      , cmdargs
+                     , pretty-simple
+                     , text
   default-language:    Haskell2010
 
 test-suite deckbuilder-test
@@ -71,7 +73,6 @@ test-suite deckbuilder-test
                      , Dominion.CardsSpec
                      , Dominion.Cards.BaseSpec
                      , Dominion.Cards.IntrigueSpec
-                     , Dominion.Utils
   default-language:    Haskell2010
 
 source-repository head

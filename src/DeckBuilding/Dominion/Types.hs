@@ -21,10 +21,25 @@ data DominionMove = Turn Int DominionPlayer |
                     ThroneRoom Card |
                     Remodel Card Card |
                     Buy Card |
-                    Retreive [Card] |
+                    Retrieve [Card] |
                     Trash [Card] |
                     GameOver [(String, Int)]
-                    deriving (Show, Eq)
+                    deriving (Eq)
+
+instance Show DominionMove where
+  show (Turn n p)     = "Turn " <> show n <> " for player " <> show (playerName p) <> " { "
+                        <> "Hand = " <> show (hand p) <> "}"
+  show (Play c)       = " Playing " <> show c
+  show (Deal n xs)    = "    Dealing " <> show n <> " card(s):\n"
+                        <> show xs
+  show (Discard xs)   = "    Discarding: " <> show xs
+  show (ThroneRoom c) = "  Using Thrown Room on " <> show c
+  show (Remodel c c') = "  Remodelling " <> show c <> " into " <> show c'
+  show (Buy c)        = "  Buying " <> show c
+  show (Retrieve xs)  = "  Retrieving " <> show xs
+  show (Trash xs)     = "  Trashing " <> show xs
+  show (GameOver xs)  = "Game Over!\n"
+                        <> "Results: " <> show xs
 
 type DominionState a = RWS DominionConfig (DL.DList DominionMove) DominionGame a
 

@@ -21,7 +21,6 @@ import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 import           DeckBuilding.Types
-import           Dominion.Utils
 import           System.Random
 import           Test.Hspec
 
@@ -39,7 +38,7 @@ spec = do
   let afterDeal               = fst $ execRWS (deal 5 0) c dg
   let (Just p1AfterDeal)      = afterDeal ^? field @"players" . ix 0
   let afterDeal2              = fst $ execRWS (deal 5 1) c afterDeal
-  let afterEvaluate           = fst $ execRWS (evaluateHandHelper 0) c afterDeal2
+  let afterEvaluate           = fst $ execRWS (evaluateHand 0) c afterDeal2
   let (Just p1AfterEvaluate)  = afterEvaluate ^? field @"players" . ix 0
   let afterReset              = fst $ execRWS (resetTurn 0) c afterEvaluate
   let (Just p1AfterReset)     = afterReset ^? field @"players" . ix 0

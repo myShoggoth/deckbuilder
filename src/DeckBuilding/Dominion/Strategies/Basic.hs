@@ -300,7 +300,7 @@ doRetrieveDiscard (min', max') cards p = do
   let newDiscard = foldr delete (player ^. field @"discard") toRetrieve
   (field @"players" . ix p . field @"deck") %= (toRetrieve++)
   (field @"players" . ix p . field @"discard") .= newDiscard
-  tell $ DL.singleton $ Retreive toRetrieve
+  tell $ DL.singleton $ Retrieve toRetrieve
   return toRetrieve
 
 -- | Find the first card in the list that the player has in its hand, if any.

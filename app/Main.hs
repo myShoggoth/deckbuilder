@@ -6,7 +6,11 @@ import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 
+import           Text.Pretty.Simple
+
 import qualified Data.DList                             as DL
+import qualified Data.Text.IO                           as Text
+import           Data.Text.Lazy                         (toStrict)
 import           System.Random
 
 import           System.Console.CmdArgs
@@ -55,5 +59,8 @@ main = do
               gens
       (result, output) = runDominionGames conf
 
-  mapM_ (putStrLn . show) $ DL.toList $ DL.concat output
-  print $ show result
+  loud <- isLoud
+  if loud
+    then mapM_ (Text.putStrLn . toStrict . pShow) $ DL.toList $ DL.concat output
+    else pure ()
+  (Text.putStrLn . toStrict . pShow) result
