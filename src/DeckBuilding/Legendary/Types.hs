@@ -8,6 +8,7 @@ module DeckBuilding.Legendary.Types
 import           Control.Monad.RWS
 import qualified Data.DList         as DL
 import qualified Data.Semigroup     as Semi
+import           Data.Text
 import           System.Random
 import           GHC.Generics
 
@@ -23,7 +24,7 @@ type LegendaryState a = RWS LegendaryConfig (DL.DList LegendaryMove) LegendaryGa
 
 data LegendaryConfig = LegendaryConfig {
   -- | Names and strategies for each player
-  playerDefs :: [(String, Strategy)],
+  playerDefs :: [(Text, Strategy)],
   -- | How many games to run
   games      :: Int,
   -- | One random number generator per game
@@ -38,7 +39,7 @@ instance Monoid LegendaryConfig where
   mappend = (Semi.<>)
 
 data Mastermind = Mastermind {
-  mastermindName :: String,
+  mastermindName :: Text,
   mmEvilWins     :: LegendaryState Bool,
   masterStrike   :: LegendaryState ()
 }
@@ -47,7 +48,7 @@ instance Show Mastermind where
   show mm = show $ mastermindName mm
 
 data Scheme = Scheme {
-  schemeName  :: String,
+  schemeName  :: Text,
   sEvilWins   :: LegendaryState Bool,
   schemeTwist :: LegendaryState ()
 }
@@ -80,7 +81,7 @@ data LegendaryGame = LegendaryGame {
 -- | A Legendary card
 data Card = Card {
   -- | Name of the card, like Copper or Market. Used mostly for debugging.
-  cardName  :: String,
+  cardName  :: Text,
   -- | Money cost of the card.
   cost      :: Int,
   {-|
@@ -94,8 +95,8 @@ data Card = Card {
     player's new hand.
   -}
   action    :: Card -> Int -> LegendaryState [Card],
-  heroClass :: [String],
-  heroTeam  :: Maybe String
+  heroClass :: [Text],
+  heroTeam  :: Maybe Text
 }
 
 instance Ord Card where
@@ -105,7 +106,7 @@ instance Eq Card where
   a == b = cardName a == cardName b
 
 instance Show Card where
-  show = cardName
+  show c = unpack $ cardName c
 
 {-|
   The playing strategy used by the player. A list of functions that are
@@ -123,7 +124,7 @@ instance Show Card where
 -}
 data Strategy = Strategy {
   -- | Friendly name for the strategy, mostly used for debugging.
-  strategyName     :: String,
+  strategyName     :: Text,
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
@@ -147,14 +148,14 @@ data Strategy = Strategy {
 }
 
 instance Show Strategy where
-  show = strategyName
+  show s = unpack $ strategyName s
 
 instance Eq Strategy where
   a == b = strategyName a == strategyName b
 
 data LegendaryPlayer = LegendaryPlayer {
   -- | Player name, mostly used for debugging.
-  playerName  :: String,
+  playerName  :: Text,
   -- | Player's current deck.
   deck        :: [Card],
   -- | Player's current discard pile.

@@ -24,6 +24,7 @@ library
                      , DeckBuilding.Dominion.Cards.Base
                      , DeckBuilding.Dominion.Cards.Intrigue
                      , DeckBuilding.Dominion.Cards.Utils
+                     , DeckBuilding.Dominion.DominionTree
                      , DeckBuilding.Dominion.Strategies.Basic
                      , DeckBuilding.Dominion.Strategies.Utils
                      , DeckBuilding.Legendary
@@ -39,6 +40,7 @@ library
                      , dlist
                      , generic-lens
                      , safe
+                     , text
   default-language:    Haskell2010
 
 executable deckbuilder-exe
@@ -51,7 +53,7 @@ executable deckbuilder-exe
                      , lens
                      , dlist
                      , cmdargs
-                     , pretty-simple
+                     , prettyprinter
                      , text
   default-language:    Haskell2010
 
@@ -73,6 +75,7 @@ test-suite deckbuilder-test
                      , Dominion.CardsSpec
                      , Dominion.Cards.BaseSpec
                      , Dominion.Cards.IntrigueSpec
+                     , Dominion.DominionTreeSpec
   default-language:    Haskell2010
 
 source-repository head

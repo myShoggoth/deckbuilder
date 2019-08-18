@@ -8,7 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
-
+{-# LANGUAGE OverloadedStrings         #-}
 
 {-|
 Module      : DeckBuilding.Dominion
@@ -40,6 +40,7 @@ import qualified Data.DList                  as DL
 import           Data.Generics.Product
 import           Data.List                   (group, groupBy, sort)
 import qualified Data.Map                    as Map
+import qualified Data.Text                   as Text
 import           DeckBuilding
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Types
@@ -53,7 +54,7 @@ import           System.Random.Shuffle       (shuffle')
 -- Core Engine
 
 -- | Creates a new player with a name and strategy and the default started deck.
-newPlayer :: String -> Strategy -> DominionPlayer
+newPlayer :: Text.Text -> Strategy -> DominionPlayer
 -- newPlayer n | trace ("newPlayer: " ++ show n) False = undefined
 newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 0
 

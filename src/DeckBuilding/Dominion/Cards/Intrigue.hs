@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module DeckBuilding.Dominion.Cards.Intrigue
     ( courtyardCard

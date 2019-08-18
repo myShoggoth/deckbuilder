@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module Dominion.Cards.IntrigueSpec
     ( spec

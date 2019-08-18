@@ -43,7 +43,6 @@ deal num pnum = do
   (field @"players" . ix pnum . field @"hand") %= (++ newCards)
   tell $ DL.singleton $ Deal num newCards
   p' <- findPlayer pnum
-  tell $ DL.singleton $ Turn (p' ^. field @"turns") p
   return newCards
 
 -- | How many of the game's decks have been emptied?

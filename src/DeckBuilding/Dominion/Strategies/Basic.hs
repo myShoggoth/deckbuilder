@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyStrategy
@@ -27,8 +28,6 @@ module DeckBuilding.Dominion.Strategies.Basic
     ) where
 
 import           Control.Lens
-import           Control.Monad.RWS
-import qualified Data.DList                             as DL
 import           Data.Generics.Product
 import           Data.List                              (delete, intersect,
                                                          (\\))
@@ -273,7 +272,6 @@ doDiscard minmax cards p = do
   let newHand = removeFromCards (player ^. field @"hand") toDiscard
   (field @"players" . ix p . field @"discard") %= (++ toDiscard)
   (field @"players" . ix p . field @"hand") .= newHand
-  tell $ DL.singleton $ Discard toDiscard
   return toDiscard
 
 -- | Core for a simple trashing logic. (min, max) and the list of
@@ -285,7 +283,6 @@ doTrash minmax cards p = do
   let newHand = removeFromCards (player ^. field @"hand") toTrash
   (field @"trash") %= (toTrash ++)
   (field @"players" . ix p . field @"hand") .= newHand
-  tell $ DL.singleton $ Trash toTrash
   return toTrash
 
 -- | Core for a simple card retrieving from the discard pile logic. (min, max)
@@ -300,7 +297,6 @@ doRetrieveDiscard (min', max') cards p = do
   let newDiscard = foldr delete (player ^. field @"discard") toRetrieve
   (field @"players" . ix p . field @"deck") %= (toRetrieve++)
   (field @"players" . ix p . field @"discard") .= newDiscard
-  tell $ DL.singleton $ Retrieve toRetrieve
   return toRetrieve
 
 -- | Find the first card in the list that the player has in its hand, if any.
