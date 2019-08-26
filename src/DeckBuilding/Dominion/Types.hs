@@ -27,9 +27,7 @@ data DominionMove = Turn Int DominionPlayer |
                     Retrieve [Card] |
                     Trash [Card] |
                     GameOver [(Text, Int)]
-                    deriving (Show, Eq)
 
-  {-
 instance Show DominionMove where
   show (Turn n p)     = "Turn " <> show n <> " for player " <> show (playerName p) <> " { "
                         <> "Hand = " <> show (hand p) <> "}"
@@ -44,7 +42,6 @@ instance Show DominionMove where
   show (Trash xs)     = "  Trashing " <> show xs
   show (GameOver xs)  = "Game Over!\n"
                         <> "Results: " <> show xs
-                        -}
 
 type DominionState a = RWS DominionConfig (DL.DList DominionMove) DominionGame a
 
@@ -102,7 +99,10 @@ data Card = Card {
   -}
   action   :: Card -> Int -> DominionState Int,
   -- | Value or Action
-  cardType :: CardType
+  cardType :: CardType,
+  -- | The function that determines the score for the card
+  -- at the end of thee game
+  score    :: Card -> Int -> DominionState Int
 }
 
 instance Ord Card where

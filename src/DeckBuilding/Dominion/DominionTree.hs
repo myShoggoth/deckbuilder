@@ -29,12 +29,8 @@ sameTurn x y = error $ "sameTurn: Something is very wrong with " <> show x <> " 
 findGames :: [DominionMove] -> [[DominionMove]]
 -- findGames xs | trace ("findGames " <> (show (length xs))) False=undefined
 findGames [] = []
-findGames xs = trimScoring : findGames moves
+findGames xs = game : findGames moves
   where (game, (_:moves)) = break isGameOver xs
-        -- The end of the game has a lot of stuff from scoring.
-        -- Get rid of it. Everything from the last Buy to the
-        -- GameOver.
-        trimScoring = List.dropWhileEnd (not . isBuy) game ++ [List.last game]
 
 isGameOver :: DominionMove -> Bool
 -- isGameOver move | trace ("isGameOver " <> show move) False=undefined
@@ -68,9 +64,9 @@ buildPlayerTurn (x:_) = error $ "buildPlayerTurn: Found non-Turn move where Turn
 buildPlays :: [DominionMove] -> [CardPlay]
 --buildPlays moves | trace ("buildPlays " <> show moves) False=undefined
 buildPlays [] = []
-buildPlays ((Play (Card "Throne Room" _ _ _)):(ThroneRoom c):moves) = PlayThroneRoom c : buildPlays moves
-buildPlays ((Play (Card "Remodel" _ _ _)):(Remodel c c'):moves) = PlayRemodel c c' : buildPlays moves
-buildPlays ((Play (Card "Cellar" _ _ _)):(Discard c):moves) = PlayCellar c : buildPlays moves
+buildPlays ((Play (Card "Throne Room" _ _ _ _)):(ThroneRoom c):moves) = PlayThroneRoom c : buildPlays moves
+buildPlays ((Play (Card "Remodel" _ _ _ _)):(Remodel c c'):moves) = PlayRemodel c c' : buildPlays moves
+buildPlays ((Play (Card "Cellar" _ _ _ _)):(Discard c):moves) = PlayCellar c : buildPlays moves
 buildPlays ((Play c):moves) = Standard c : buildPlays moves
 buildPlays ((Deal _ _):moves) = buildPlays moves -- TODO: skipping these for now
 buildPlays (x:xs) = error $ "Non-play move found: " <> show x <> "\nOthers: " <> show xs
@@ -79,5 +75,6 @@ buildBuy :: DominionMove -> Maybe BoughtCard
 --buildBuy move | trace ("buildBuy " <> show move) False=undefined
 buildBuy (Buy c)    = Just $ BoughtCard c
 buildBuy (Deal _ _) = Nothing -- TODO: skipping these for now
+buildBuy (GameOver _) = Nothing
 buildBuy move = error $ "Non-buy move found: " <> (show move)
 

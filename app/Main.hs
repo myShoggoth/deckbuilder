@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Main where
 
@@ -11,6 +12,7 @@ import           DeckBuilding.Dominion.DominionTree
 import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Types
+import           DeckBuilding
 
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.Text
@@ -22,6 +24,11 @@ import           Data.Text.Lazy                         (toStrict, pack)
 import           Data.Text                              (Text(..))
 import qualified Data.Text                              as Text (concat)
 import           System.Random
+import           Data.Generics.Product                  hiding (list)
+import           Control.Lens
+import           Control.Arrow                          ((&&&))
+import           Control.Monad.RWS
+import           Control.Monad.Extra
 
 import           System.Console.CmdArgs
 
@@ -42,12 +49,23 @@ deckBuilder = DeckBuilder
           , "See the README.md for instructions!"
           ]
 
-
 genGens :: Int -> StdGen -> [StdGen]
 genGens 0 _ = []
 genGens n g = do
   let (g1, g2) = split g
   g1 : genGens (n - 1) g2
+
+-- | Run n games with a set of players and kingdom cards.
+runDominionGames :: LayoutOptions -> DominionConfig -> IO [(Result, Int)]
+runDominionGames layoutOptions c = do
+  results :: [Result] <- forM gses $ \g -> do
+    let (result, output) = evalRWS ( (runGame False) :: DominionState Result) c g
+        dt = buildDominionTree (DL.toList output, result)
+    loud <- isLoud
+    ifM isLoud ( Text.putStrLn $ (renderStrict . layoutPretty layoutOptions . pretty) dt ) (pure ())
+    pure result
+  pure $ map (head &&& length) $ List.group $ List.sort $ results
+  where gses = map (configToGame c) (seeds c)
 
 -- | Basic usage of the library, pick some kingdom cards and run a few
 --  thousand games to test the strategies against each other.
@@ -64,16 +82,11 @@ main = do
               , ("Big Smithy", bigSmithyStrategy)
               , ("Village/Smithy Engine 4", villageSmithyEngine4)
               ]
-              firstGameKingdomCards
---              (randomKingdomDecks kingdomCards2ndEdition g1)
+--              firstGameKingdomCards
+              (randomKingdomDecks kingdomCards2ndEdition g1)
               n
               gens
-      (result, output) = runDominionGames conf
-      dt = flip buildDominionTrees (fst <$> result) $ DL.toList $ DL.concat output
-  loud <- isLoud
-  if loud
-    then Text.putStrLn $ Text.concat $ map (renderStrict . layoutPretty layoutOptions . pretty) dt
-    else pure ()
+  result <- runDominionGames layoutOptions conf
   (Text.putStrLn . renderStrict . layoutPretty layoutOptions . pretty) result
   where
     layoutOptions = LayoutOptions { layoutPageWidth = AvailablePerLine 80 1 }

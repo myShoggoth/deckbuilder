@@ -113,7 +113,7 @@ spec = do
     it "gives 1 point for the starting deck" $ do
       let afterCard = fst $ execRWS ((gardensCard ^. field @"action") gardensCard 0) c afterDeal
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      (p1AfterCard ^. field @"victory") `shouldBe` 1
+--      (p1AfterCard ^. field @"victory") `shouldBe` 1   -- We don't calc victory as we go anymore
       (p1AfterCard ^. field @"actions") `shouldBe` 1
 
   describe "militiaCardAction" $ do
@@ -167,7 +167,9 @@ spec = do
       length (p1AfterCard ^. field @"deck") `shouldBe` 0
       length (p1AfterCard ^. field @"played") `shouldBe` 10
       (p1AfterCard ^. field @"money") `shouldBe` 7
+        {- Don't calculate victory points like this anymore
       (p1AfterCard ^. field @"victory") `shouldBe` 1
+      -}
 
   describe "banditCardAction" $ do
     it "gives a gold onto the discard pile" $ do

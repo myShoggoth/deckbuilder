@@ -9,6 +9,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 {-|
 Module      : DeckBuilding.Dominion
@@ -23,8 +24,7 @@ Here is a longer description of this module, containing some
 commentary with @some markup@.
 -}
 module DeckBuilding.Dominion
-    ( runDominionGames
-    , newPlayer
+    ( newPlayer
     , basicDecks
     , resetTurn
     , evaluateHand
@@ -33,15 +33,13 @@ module DeckBuilding.Dominion
     , configToGame
     ) where
 
-import           Control.Arrow               ((&&&))
 import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList                  as DL
 import           Data.Generics.Product
-import           Data.List                   (group, groupBy, sort)
+import           Data.List                   (groupBy, sort)
 import qualified Data.Map                    as Map
 import qualified Data.Text                   as Text
-import           DeckBuilding
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
@@ -79,7 +77,7 @@ evaluateHand pnum = do
          else return pnum
 
 evaluateCard :: Card -> Int -> DominionPlayer -> DominionState Bool
-evaluateCard c@(Card _ _ _ Value) pnum player = do
+evaluateCard c@(Card _ _ _ Value _) pnum player = do
   tell $ DL.singleton $ Play c
   _ <- (c ^. field @"action") c pnum
   return True
@@ -129,14 +127,6 @@ configToGame c = DominionGame
                   (basicDecks (length (c ^. field @"playerDefs")) `Map.union` makeDecks (c ^. field @"kingdomCards"))
                   []
 
--- | Run n games with a set of players and kingdom cards.
-runDominionGames :: DominionConfig -> ([(Result, Int)], [DL.DList DominionMove])
-runDominionGames c = (map (head &&& length) $ group $ sort $ results, output)
-  where gses = map (configToGame c) (c ^. field @"seeds")
-        rawresults = map (evalRWS ((runGame False) :: DominionState Result) c) gses
-        results = map fst rawresults
-        output = map snd rawresults
-
 instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   finished    = do
     decks' <- use $ field @"decks"
@@ -170,5 +160,7 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
     player <- findPlayer p
     (field @"players" . ix p . field @"hand") .= ((player ^. field @"deck") ++ (player ^. field @"discard") ++ (player ^. field @"hand") ++ (player ^. field @"played"))
     player' <- findPlayer p
-    _ <- evaluateHand p
+    mapM victoryPts (player' ^. field @"hand")
     return ()
+      where victoryPts :: Card -> DominionState Int
+            victoryPts c@(Card _ _ _ _ s) = s c p

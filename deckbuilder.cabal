@@ -55,6 +55,9 @@ executable deckbuilder-exe
                      , cmdargs
                      , prettyprinter
                      , text
+                     , generic-lens
+                     , mtl
+                     , extra
   default-language:    Haskell2010
 
 test-suite deckbuilder-test

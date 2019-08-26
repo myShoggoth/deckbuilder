@@ -10,6 +10,7 @@ module DeckBuilding.Dominion.Cards.Utils
     ( valueCard
     , basicCardAction
     , gainCard
+    , simpleVictory
     ) where
 
 import           Control.Lens
@@ -19,22 +20,27 @@ import qualified Data.Map                    as Map
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 
--- | For value cards, pass money and victory point values.
-valueCard :: Int -> Int -> Card -> Int -> DominionState Int
-valueCard m v c p = do
+simpleVictory :: Int -> Card -> Int -> DominionState Int
+simpleVictory v c p = do
+  (field @"players" . ix p . field @"victory") += v
+  player <- findPlayer p
+  return $ player ^. field @"victory"
+
+-- | For value cards, pass the money value.
+valueCard :: Int -> Card -> Int -> DominionState Int
+valueCard m c p = do
   (field @"players" . ix p . field @"hand") %= (delete c)
   (field @"players" . ix p . field @"played") %= (c:)
   (field @"players" . ix p . field @"money") += m
-  (field @"players" . ix p . field @"victory") += v
   return p
 
--- | For basic card values: draw cards, +actions, +buys, +money, +victory
-basicCardAction :: Int -> Int -> Int -> Int -> Int -> Card -> Int -> DominionState Int
-basicCardAction draw a b m v c p = do
+-- | For basic card values: draw cards, +actions, +buys, +money
+basicCardAction :: Int -> Int -> Int -> Int -> Card -> Int -> DominionState Int
+basicCardAction draw a b m c p = do
   (field @"players" . ix p . field @"actions") += a
   (field @"players" . ix p . field @"buys") += b
   _ <- deal draw p
-  valueCard m v c p
+  valueCard m c p
 
 
 -- | Given a list of cards in descending priorty order to gain and a max price,

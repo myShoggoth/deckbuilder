@@ -113,8 +113,10 @@ spec = do
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
       (p1AfterCard ^. field @"actions") `shouldBe` 1
       (p1AfterCard ^. field @"victory") `shouldBe` 0
+    {- We don't calculate victory points like this anymore
     it "is worth one point per duchy" $ do
       let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [duchyCard, duchyCard] [copperCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
       let afterCard = fst $ execRWS ((dukeCard ^. field @"action") dukeCard 1) c $ DominionGame [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] g
       let (Just p2AfterCard) = afterCard ^? field @"players" . ix 1
       (p2AfterCard ^. field @"victory") `shouldBe` 2
+      -}

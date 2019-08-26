@@ -65,8 +65,10 @@ spec = do
     it "calculates the right amount of money" $
       p1AfterEvaluate ^. field @"money" `shouldBe` length (filter (== copperCard) (p1AfterEvaluate ^. field @"played"))
 
+  {- Don't calculate victory points as we go anymore
     it "calculates the right amount of victory" $
       p1AfterEvaluate ^. field @"victory" `shouldBe` length (filter (== estateCard) (p1AfterEvaluate ^. field @"played"))
+      -}
 
   describe "resetTurn" $ do
     it "has an empty played pile" $
