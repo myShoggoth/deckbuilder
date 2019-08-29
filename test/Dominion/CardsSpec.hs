@@ -1,6 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}

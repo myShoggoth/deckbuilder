@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -59,12 +58,12 @@ genGens n g = do
 runDominionGames :: LayoutOptions -> DominionConfig -> IO [(Result, Int)]
 runDominionGames layoutOptions c = do
   results :: [Result] <- forM gses $ \g -> do
-    let (result, output) = evalRWS ( (runGame False) :: DominionState Result) c g
+    let (result, output) = evalRWS (runGame False :: DominionState Result) c g
         dt = buildDominionTree (DL.toList output, result)
     loud <- isLoud
     ifM isLoud ( Text.putStrLn $ (renderStrict . layoutPretty layoutOptions . pretty) dt ) (pure ())
     pure result
-  pure $ map (head &&& length) $ List.group $ List.sort $ results
+  pure $ map (head &&& length) $ List.group $ List.sort results
   where gses = map (configToGame c) (seeds c)
 
 -- | Basic usage of the library, pick some kingdom cards and run a few
@@ -104,7 +103,7 @@ instance Pretty CardPlay where
     pretty (Standard c) = sep [ "Played", pretty $ cardName c ]
     pretty (PlayThroneRoom c) = sep [ "ThroneRoomed a ", pretty $ cardName c]
     pretty (PlayRemodel c c') = sep [ "Remodelled a", pretty $ cardName c, "into a", pretty $ cardName c' ]
-    pretty (PlayCellar c) = sep [ "Cellared", list $ (pretty . cardName) <$> c ]
+    pretty (PlayCellar c) = sep [ "Cellared", list $ pretty . cardName <$> c ]
 
 instance Pretty BoughtCard where
     pretty (BoughtCard c) = sep [ "Bought", pretty $ cardName c ]

@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -37,7 +36,7 @@ deal num pnum = do
           | null (p ^. field @"discard")         = (p ^. field @"deck", [])
           | otherwise                            = ( (p ^. field @"deck") ++ shuffle' (p ^. field @"discard") (length (p ^. field @"discard")) r, [])
   let (newCards, newDeck)  = splitAt num enoughDeck
-  (field @"random") %= (snd . split)
+  field @"random" %= snd . split
   (field @"players" . ix pnum . field @"deck") .= newDeck
   (field @"players" . ix pnum . field @"discard") .= newDiscard
   (field @"players" . ix pnum . field @"hand") %= (++ newCards)
@@ -71,7 +70,7 @@ firstCardInPlay cs = do
   return $ find (const True) $ tail cards
 
 -- | Find player # n, error if not found
-findPlayer :: Int -> DominionState (DominionPlayer)
+findPlayer :: Int -> DominionState DominionPlayer
 findPlayer p = do
   mp <- preuse(field @"players" . ix p)
   case mp of

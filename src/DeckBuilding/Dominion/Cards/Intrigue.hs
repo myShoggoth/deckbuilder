@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -40,15 +39,15 @@ lurk (Left c) p                       = do
   icip <- isCardInPlay c
   if icip
     then do
-      (field @"trash") %= (c:)
-      (field @"decks") %= (Map.mapWithKey (decreaseCards c))
+      field @"trash" %= (c:)
+      field @"decks" %= Map.mapWithKey (decreaseCards c)
       return p
     else return p
 lurk (Right c@(Card _ _ _ Action _)) p  = do
   trsh <- use $ field @"trash"
   if c `elem` trsh
     then do
-      (field @"trash") %= (delete c)
+      field @"trash" %= delete c
       (field @"players" . ix p . field @"discard") %= (c:)
       return p
     else return p

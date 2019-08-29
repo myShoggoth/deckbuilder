@@ -58,10 +58,10 @@ data DominionConfig = DominionConfig {
 
 instance Semi.Semigroup DominionConfig where
   c1 <> c2 = DominionConfig
-              ((playerDefs c1) ++ (playerDefs c2))
-              ((kingdomCards c1) ++ (kingdomCards c2))
-              ((games c1) + (games c2))
-              ((seeds c1) ++ (seeds c2))
+              (playerDefs c1 ++ playerDefs c2)
+              (kingdomCards c1 ++ kingdomCards c2)
+              (games c1 + games c2)
+              (seeds c1 ++ seeds c2)
 
 instance Monoid DominionConfig where
   mempty = DominionConfig [] [] 0 []

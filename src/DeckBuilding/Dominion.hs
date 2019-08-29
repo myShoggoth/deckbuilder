@@ -1,15 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans      #-}
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
-{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TupleSections             #-}
 
 {-|
 Module      : DeckBuilding.Dominion
@@ -77,12 +76,12 @@ evaluateHand pnum = do
          else return pnum
 
 evaluateCard :: Card -> Int -> DominionPlayer -> DominionState Bool
-evaluateCard c@(Card _ _ _ Value _) pnum player = do
-  tell $ DL.singleton $ Play c
-  _ <- (c ^. field @"action") c pnum
-  return True
+evaluateCard c@(Card _ _ _ Value _) pnum player = evaluateCard' c pnum
 evaluateCard c pnum player@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) = return False
-evaluateCard c pnum player = do
+evaluateCard c pnum player = evaluateCard' c pnum
+
+evaluateCard' :: Card -> Int -> DominionState Bool
+evaluateCard' c pnum = do
   tell $ DL.singleton $ Play c
   _ <- (c ^. field @"action") c pnum
   return True
@@ -99,7 +98,7 @@ randomKingdomDecks cs g = take 10 $ shuffle' cs (length cs) g
 
 -- | Turns a list of cards into a Map of type (Card, Number in deck)
 makeDecks :: [Card] -> Map.Map Card Int
-makeDecks cs = Map.fromList $ map (\c -> (c, 10)) cs
+makeDecks cs = Map.fromList $ (, 10) <$> cs
 
 -- | Basic decks that are in all games, numbers based on the total players.
 basicDecks :: Int -> Map.Map Card Int
@@ -154,13 +153,12 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
 
   turnOrder  = do
     players' <- use $ field @"players"
-    return $ [0 .. (length players' - 1)]
+    return [0 .. (length players' - 1)]
 
   tallyPoints p = do
     player <- findPlayer p
     (field @"players" . ix p . field @"hand") .= ((player ^. field @"deck") ++ (player ^. field @"discard") ++ (player ^. field @"hand") ++ (player ^. field @"played"))
     player' <- findPlayer p
-    mapM victoryPts (player' ^. field @"hand")
-    return ()
+    mapM_ victoryPts (player' ^. field @"hand")
       where victoryPts :: Card -> DominionState Int
             victoryPts c@(Card _ _ _ _ s) = s c p

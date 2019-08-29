@@ -3,7 +3,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -82,10 +81,10 @@ sortByPoints = do
 instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
   finished    = do
     gs <- get
-    mmEvilWins' <- gs ^. field @"mastermind" . (field @"mmEvilWins")
+    mmEvilWins' <- gs ^. field @"mastermind" . field @"mmEvilWins"
     sEvilWins' <- gs ^. field @"scheme" . field @"sEvilWins"
     villainDeck' <- use $ field @"villainDeck"
-    return $ mmEvilWins' && sEvilWins' && (L.null villainDeck')
+    return $ mmEvilWins' && sEvilWins' && L.null villainDeck'
 
   runTurn p = do
     player <- findPlayer p
@@ -109,7 +108,7 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
 
   turnOrder  = do
     players' <- use $ field @"players"
-    return $ [0 .. (length players' - 1)]
+    return [0 .. length players' - 1]
 
   tallyPoints p = do
     player <- findPlayer p

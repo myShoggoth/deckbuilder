@@ -1,6 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -29,7 +27,7 @@ simpleVictory v c p = do
 -- | For value cards, pass the money value.
 valueCard :: Int -> Card -> Int -> DominionState Int
 valueCard m c p = do
-  (field @"players" . ix p . field @"hand") %= (delete c)
+  (field @"players" . ix p . field @"hand") %= delete c
   (field @"players" . ix p . field @"played") %= (c:)
   (field @"players" . ix p . field @"money") += m
   return p
@@ -52,7 +50,7 @@ gainCard cards highestPrice p = obtain highestCostCard
   where obtain :: Maybe Card -> DominionState (Maybe Card)
         obtain Nothing  = return Nothing
         obtain (Just c) = do
-          (field @"decks") %= (Map.mapWithKey (decreaseCards c))
+          field @"decks" %= Map.mapWithKey (decreaseCards c)
           (field @"players" . ix p . field @"deck") %= (c:)
           return $ Just c
         highestCostCard = find (\c -> (c ^. field @"cost") < highestPrice) cards

@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -108,7 +107,7 @@ actionTerminators p =  length $ allCards p `intersect` actionTerminatorCards
 buyIfLowerThanTerminalActions :: Card -> Int -> DominionState (Maybe Card)
 buyIfLowerThanTerminalActions c p = do
   player <- findPlayer p
-  if (countCards c player) < (actionTerminators player)
+  if countCards c player < actionTerminators player
     then alwaysBuy c p
     else return Nothing
 
@@ -118,7 +117,7 @@ buyCard ::  Maybe Card -> Int -> DominionState Int
 buyCard Nothing  p = return p
 buyCard (Just c) p = do
   tell $ DL.singleton $ Buy c
-  (field @"decks") %= (Map.mapWithKey (decreaseCards c))
+  field @"decks" %= Map.mapWithKey (decreaseCards c)
   (field @"players" . ix p . field @"discard") %= (c:)
   (field @"players" . ix p . field @"buys") -= 1
   (field @"players" . ix p . field @"money") -= (c ^. field @"cost")

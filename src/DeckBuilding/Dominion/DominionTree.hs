@@ -11,7 +11,7 @@ import           Data.Maybe
 --import Debug.Trace
 
 buildDominionTrees :: [DominionMove] -> [Result] -> [DominionTree]
-buildDominionTrees moves results = (buildDominionTree <$> zip games results)
+buildDominionTrees moves results = buildDominionTree <$> zip games results
   where games = findGames moves
 
 buildDominionTree :: ([DominionMove], Result) -> DominionTree
@@ -22,7 +22,7 @@ buildDominionTree (moves, result) = DominionTree (buildGameTurn <$> gameTurns) r
 
 sameTurn :: [DominionMove] -> [DominionMove] -> Bool
 --sameTurn x y | trace ("sameTurn: " <> show x <> " vs " <> show y) False=undefined
-sameTurn ((Turn n _):_) ((Turn n' _):_) = n == n'
+sameTurn (Turn n _:_) (Turn n' _:_) = n == n'
 sameTurn (x:_) (y:_) = error $ "sameTurn: Either " <> show x <> " or " <> show y <> " is not a Turn"
 sameTurn x y = error $ "sameTurn: Something is very wrong with " <> show x <> " or " <> show y <> " or both."
 
@@ -30,7 +30,7 @@ findGames :: [DominionMove] -> [[DominionMove]]
 -- findGames xs | trace ("findGames " <> (show (length xs))) False=undefined
 findGames [] = []
 findGames xs = game : findGames moves
-  where (game, (_:moves)) = break isGameOver xs
+  where (game, _:moves) = break isGameOver xs
 
 isGameOver :: DominionMove -> Bool
 -- isGameOver move | trace ("isGameOver " <> show move) False=undefined
@@ -53,22 +53,22 @@ findTurns (x:xs) = ( x : turn) : findTurns moves
 
 buildGameTurn :: [[DominionMove]] -> GameTurn
 --buildGameTurn moves | trace ("buildGameTurn " <> show moves) False=undefined
-buildGameTurn turns@(((Turn n _):_):_) = GameTurn n $ buildPlayerTurn <$> turns
+buildGameTurn turns@((Turn n _:_):_) = GameTurn n $ buildPlayerTurn <$> turns
 buildGameTurn (x:_) = error $ "buildGameTurn: Found non-Turn move where Turn expected: " ++ show x
 
 buildPlayerTurn :: [DominionMove] -> PlayerTurn
 --buildPlayerTurn moves | trace ("buildPlayerTurn " <> show moves) False=undefined
-buildPlayerTurn ((Turn _ p):moves) = let (plays, buys) = break isBuy moves in PlayerTurn (playerName p) (buildPlays plays) (catMaybes (buildBuy <$> buys))
+buildPlayerTurn (Turn _ p:moves) = let (plays, buys) = break isBuy moves in PlayerTurn (playerName p) (buildPlays plays) (catMaybes (buildBuy <$> buys))
 buildPlayerTurn (x:_) = error $ "buildPlayerTurn: Found non-Turn move where Turn expected: " ++ show x
 
 buildPlays :: [DominionMove] -> [CardPlay]
 --buildPlays moves | trace ("buildPlays " <> show moves) False=undefined
 buildPlays [] = []
-buildPlays ((Play (Card "Throne Room" _ _ _ _)):(ThroneRoom c):moves) = PlayThroneRoom c : buildPlays moves
-buildPlays ((Play (Card "Remodel" _ _ _ _)):(Remodel c c'):moves) = PlayRemodel c c' : buildPlays moves
-buildPlays ((Play (Card "Cellar" _ _ _ _)):(Discard c):moves) = PlayCellar c : buildPlays moves
-buildPlays ((Play c):moves) = Standard c : buildPlays moves
-buildPlays ((Deal _ _):moves) = buildPlays moves -- TODO: skipping these for now
+buildPlays (Play (Card "Throne Room" _ _ _ _):ThroneRoom c:moves) = PlayThroneRoom c : buildPlays moves
+buildPlays (Play (Card "Remodel" _ _ _ _):Remodel c c':moves) = PlayRemodel c c' : buildPlays moves
+buildPlays (Play (Card "Cellar" _ _ _ _):Discard c:moves) = PlayCellar c : buildPlays moves
+buildPlays (Play c:moves) = Standard c : buildPlays moves
+buildPlays (Deal _ _:moves) = buildPlays moves -- TODO: skipping these for now
 buildPlays (x:xs) = error $ "Non-play move found: " <> show x <> "\nOthers: " <> show xs
 
 buildBuy :: DominionMove -> Maybe BoughtCard
@@ -76,5 +76,5 @@ buildBuy :: DominionMove -> Maybe BoughtCard
 buildBuy (Buy c)    = Just $ BoughtCard c
 buildBuy (Deal _ _) = Nothing -- TODO: skipping these for now
 buildBuy (GameOver _) = Nothing
-buildBuy move = error $ "Non-buy move found: " <> (show move)
+buildBuy move = error $ "Non-buy move found: " <> show move
 

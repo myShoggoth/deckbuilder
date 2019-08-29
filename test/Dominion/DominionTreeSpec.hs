@@ -1,10 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE DuplicateRecordFields     #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE BlockArguments            #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Dominion.DominionTreeSpec

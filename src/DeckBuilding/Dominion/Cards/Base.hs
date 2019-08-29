@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -70,7 +69,7 @@ goldCard        = Card "Gold"       6 (valueCard 3) Value (simpleVictory 0)
 silverCardAction :: Card -> Int -> DominionState Int
 silverCardAction c p    = do
     player <- findPlayer p
-    let monies = if (merchantCard `elem` (player ^. field @"played")) && not (silverCard `elem` (player ^. field @"played"))
+    let monies = if (merchantCard `elem` (player ^. field @"played")) && (silverCard `notElem` (player ^. field @"played"))
                     then 3
                     else 2
     valueCard monies c p
@@ -170,12 +169,12 @@ vassalCardAction c p = do
       topOfDeck (Just c')               = if (c' ^. field @"cardType") == Value
           then do
             (field @"players" . ix p . field @"discard") %= (c':)
-            (field @"players" . ix p . field @"deck") .= (tail enoughDeck)
+            (field @"players" . ix p . field @"deck") .= tail enoughDeck
             return p
           else do
             (field @"players" . ix p . field @"actions") += 1
             (field @"players" . ix p . field @"discard") .= newDiscard
-            (field @"players" . ix p . field @"hand") .= (delete c enoughDeck)
+            (field @"players" . ix p . field @"hand") .= delete c enoughDeck
             (c' ^. field @"action") c' p
   topOfDeck $ find (const True) enoughDeck
 
@@ -191,11 +190,11 @@ discardVictory _ p = do
   player <- findPlayer p
   if defendsAgainstAttack bureaucratCard player
     then return Nothing
-    else do
+    else
       case find (`elem` victoryCards) (player ^. field @"hand") of
         Nothing -> return Nothing
         Just c  -> do
-          (field @"players" . ix p . field @"hand") %= (delete c)
+          (field @"players" . ix p . field @"hand") %= delete c
           (field @"players" . ix p . field @"discard") %= (c:)
           return $ Just c
 
@@ -203,8 +202,8 @@ bureaucratCardAction :: Card -> Int -> DominionState Int
 bureaucratCardAction c p = do
   (field @"players" . ix p . field @"deck") %= (silverCard:)
   players' <- use $ field @"players"
-  mapM_ (discardVictory p) [0.. (length players') - 1]
-  (field @"decks") %= (Map.mapWithKey (decreaseCards silverCard))
+  mapM_ (discardVictory p) [0.. length players' - 1]
+  field @"decks" %= Map.mapWithKey (decreaseCards silverCard)
   basicCardAction 0 (-1) 0 0 c p
 
 bureaucratCard :: Card
@@ -225,13 +224,13 @@ militiaDiscard _ p = do
   player <- findPlayer p
   if defendsAgainstAttack militiaCard player
     then return []
-    else do
+    else
       (player ^. field @"strategy" . field @"discardStrategy") ( length (player ^. field @"hand") - 3, length (player ^. field @"hand") - 3 ) p
 
 militiaCardAction :: Card -> Int -> DominionState Int
 militiaCardAction c p = do
   players' <- use $ field @"players"
-  mapM_ (militiaDiscard p) [0.. (length players') - 1]
+  mapM_ (militiaDiscard p) [0.. length players' - 1]
   basicCardAction 0 (-1) 0 2 c p
 
 militiaCard :: Card
@@ -242,8 +241,8 @@ moneylenderCardAction c p = do
   player <- findPlayer p
   if copperCard `elem` (player ^. field @"hand")
     then do
-      (field @"players" . ix p . field @"hand") %= (delete copperCard)
-      (field @"trash") %= (copperCard:)
+      (field @"players" . ix p . field @"hand") %= delete copperCard
+      field @"trash" %= (copperCard :)
       basicCardAction 0 (-1) 0 3 c p
     else return p
 
@@ -267,13 +266,13 @@ remodelCardAction c p = do
   diff <- (player ^. field @"strategy" . field @"trashStrategy") (0, 1) p
   _ <- if length diff == 1
     then do
-      newCard <- (player ^. field @"strategy" . field @"gainCardStrategy") (head diff ^. (field @"cost") + 2) p
+      newCard <- (player ^. field @"strategy" . field @"gainCardStrategy") (head diff ^. field @"cost" + 2) p
       case newCard of
         Nothing -> do
           _ <- basicCardAction 0 0 0 0 c p
           (field @"players" . ix p . field @"hand") %= (diff++)
           trsh <- use $ field @"trash"
-          (field @"trash") .= (trsh \\ diff)
+          field @"trash" .= trsh \\ diff
         Just card -> do
           _ <- basicCardAction 0 (-1) 0 0 c p
           tell $ DL.singleton $ Remodel (head diff) card
@@ -296,7 +295,7 @@ throneRoomCardAction c p = do
       _ <- basicCardAction 0 1 0 0 c p
       (field @"players" . ix p . field @"hand") %= (card:)
       _ <- (card ^. field @"action") card p
-      (field @"players" . ix p . field @"played") %= (delete card)
+      (field @"players" . ix p . field @"played") %= delete card
       _ <- (card ^. field @"action") card p
       tell $ DL.singleton $ ThroneRoom card
       return p
@@ -314,16 +313,16 @@ banditDiscard _ p = do
       toptwo <- deal 2 p
       let totrash   = take 1 $ intersect toptwo (delete copperCard (reverse treasureCards))
       let todiscard = toptwo \\ totrash
-      (field @"trash") %= (totrash ++)
+      field @"trash" %= (totrash ++)
       (field @"players" . ix p . field @"discard") %= (todiscard++)
       return ()
 
 banditCardAction :: Card -> Int -> DominionState Int
 banditCardAction c p = do
   ps <- use $ field @"players"
-  mapM_ (banditDiscard p) [0.. (length ps) - 1]
+  mapM_ (banditDiscard p) [0.. length ps - 1]
   (field @"players" . ix p . field @"discard") %= (goldCard:)
-  (field @"decks") %= (Map.mapWithKey (decreaseCards goldCard))
+  field @"decks" %= Map.mapWithKey (decreaseCards goldCard)
   basicCardAction 0 (-1) 0 0 c p
 
 banditCard :: Card
@@ -336,7 +335,7 @@ councilRoomDraw _ p = deal 1 p
 councilRoomCardAction :: Card -> Int -> DominionState Int
 councilRoomCardAction c p = do
   ps <- use $ field @"players"
-  mapM_ (councilRoomDraw p) [0.. (length ps) - 1]
+  mapM_ (councilRoomDraw p) [0.. length ps - 1]
   basicCardAction 4 (-1) 0 0 c p
 
 councilRoomCard :: Card
@@ -350,13 +349,13 @@ gainCurse _ p = do
     then return False
     else do
       (field @"players" . ix p . field @"discard") %= (curseCard:)
-      (field @"decks") %= (Map.mapWithKey (decreaseCards curseCard))
+      field @"decks" %= Map.mapWithKey (decreaseCards curseCard)
       return True
 
 witchCardAction :: Card -> Int -> DominionState Int
 witchCardAction c p = do
   ps <- use $ field @"players"
-  mapM_ (gainCurse p) [0.. (length ps) - 1]
+  mapM_ (gainCurse p) [0.. length ps - 1]
   basicCardAction 2 (-1) 0 0 c p
 
 witchCard :: Card
@@ -364,8 +363,8 @@ witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
 
 exch :: Card -> Card -> Card -> Int -> DominionState Int
 exch c c1 c2 p = do
-  (field @"decks") %= (Map.mapWithKey (decreaseCards c2))
-  (field @"players" . ix p . field @"hand") %= (delete c1)
+  field @"decks" %= Map.mapWithKey (decreaseCards c2)
+  (field @"players" . ix p . field @"hand") %= delete c1
   (field @"players" . ix p . field @"hand") %= (c2:)
   basicCardAction 0 (-1) 0 0 c p
 
@@ -391,7 +390,7 @@ discardOrPlay c p = do
     then return p
     else do
       (field @"players" . ix p . field @"discard") %= (c:)
-      (field @"players" . ix p . field @"hand") %= (delete c)
+      (field @"players" . ix p . field @"hand") %= delete c
       return p
 
 drawTo :: Int -> Int -> DominionState Int
@@ -420,7 +419,7 @@ sentryCardAction c p = do
   let oldhand = player ^. field @"hand"
   newcards <- deal 2 p
   (trashem, disc, keep) <- (player ^. field @"strategy" . field @"sentryStrategy") newcards p
-  (field @"trash") %= (trashem ++)
+  field @"trash" %= (trashem ++)
   (field @"players" . ix p . field @"discard") %= (disc ++)
   (field @"players" . ix p . field @"deck") %= (keep ++)
   (field @"players" . ix p . field @"hand") .= oldhand
@@ -437,9 +436,9 @@ artisanCardAction c p = do
     Nothing   -> return p
     Just card -> do
       _ <- basicCardAction 0 (-1) 0 0 c p
-      (field @"decks") %= (Map.mapWithKey (decreaseCards card))
+      field @"decks" %= Map.mapWithKey (decreaseCards card)
       (field @"players" . ix p . field @"hand") %= (card:)
-      (field @"players" . ix p . field @"deck") %= (delete card) -- gainCardStrategy puts it in the deck by default
+      (field @"players" . ix p . field @"deck") %= delete card -- gainCardStrategy puts it in the deck by default
       _ <- (player ^. field @"strategy" . field @"handToDeckStrategy") 1 p
       return p
 

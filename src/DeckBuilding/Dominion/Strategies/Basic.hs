@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -153,7 +152,7 @@ bigMoneyHandToDeck n p = do
                           ]
 
 findInPlayAction :: Map.Map Card Int -> Card
-findInPlayAction decks' = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. (field @"cardType") == Action) && v > 0) decks'
+findInPlayAction decks' = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. field @"cardType" == Action) && v > 0) decks'
 
 -- | Just need something
 bigMoneyLurker :: Card -> Int -> DominionState (Either Card Card)
@@ -281,7 +280,7 @@ doTrash minmax cards p = do
   player <- findPlayer p
   let toTrash = prefPlusCards minmax cards (player ^. field @"hand")
   let newHand = removeFromCards (player ^. field @"hand") toTrash
-  (field @"trash") %= (toTrash ++)
+  field @"trash" %= (toTrash ++)
   (field @"players" . ix p . field @"hand") .= newHand
   return toTrash
 

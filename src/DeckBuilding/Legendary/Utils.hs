@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE DataKinds                 #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -39,7 +38,7 @@ deal num pnum = do
   return newCards
 
 -- | Find player # n, error if not found
-findPlayer :: Int -> LegendaryState (LegendaryPlayer)
+findPlayer :: Int -> LegendaryState LegendaryPlayer
 findPlayer p = do
   mp <- preuse(field @"players" . ix p)
   case mp of

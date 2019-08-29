@@ -32,7 +32,7 @@ data LegendaryConfig = LegendaryConfig {
 } deriving Show
 
 instance Semi.Semigroup LegendaryConfig where
-  c1 <> c2 = LegendaryConfig ((playerDefs c1) ++ (playerDefs c2)) ((games c1) + (games c2)) ((seeds c1) ++ (seeds c2))
+  c1 <> c2 = LegendaryConfig (playerDefs c1 ++ playerDefs c2) (games c1 + games c2) (seeds c1 ++ seeds c2)
 
 instance Monoid LegendaryConfig where
   mempty = LegendaryConfig [] 0 []
