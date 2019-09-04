@@ -23,9 +23,9 @@ spec = do
                   ]
       let dtree = [DominionTree
                   [ GameTurn 0 [ PlayerTurn "player 1" [ Standard copperCard, Standard copperCard ] [ BoughtCard silverCard ] ] ]
-                  (Left "player 1")
+                  (Left ("player 1", 10))
                   ]
-      buildDominionTrees moves [Left "player 1"] `shouldBe` dtree
+      buildDominionTrees moves [Left ("player 1", 10)] `shouldBe` dtree
     it "can build a tree with two players" $ do
       let moves = [ Turn 0 $ DominionPlayer "player 1" [] [] [] [] 1 1 0 0 0 bigMoneyStrategy
                   , Play copperCard

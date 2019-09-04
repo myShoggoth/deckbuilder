@@ -12,6 +12,8 @@ module DeckBuilding.Dominion.Utils
     , decreaseCards
     , isCardInPlay
     , findPlayer
+    , removeFromCards
+    , discardCard
     ) where
 
 import           Control.Lens
@@ -19,7 +21,7 @@ import           Control.Monad               (filterM)
 import           Control.Monad.RWS
 import qualified Data.DList                  as DL
 import           Data.Generics.Product
-import           Data.List                   (find)
+import           Data.List                   (delete, find)
 import qualified Data.Map                    as Map
 import           DeckBuilding.Dominion.Types
 import           System.Random               (split)
@@ -41,7 +43,6 @@ deal num pnum = do
   (field @"players" . ix pnum . field @"discard") .= newDiscard
   (field @"players" . ix pnum . field @"hand") %= (++ newCards)
   tell $ DL.singleton $ Deal num newCards
-  p' <- findPlayer pnum
   return newCards
 
 -- | How many of the game's decks have been emptied?
@@ -76,3 +77,17 @@ findPlayer p = do
   case mp of
     Just player' -> pure player'
     Nothing      -> error $ "Unable to find player #" <> show p
+
+-- | Remove this list of cards from that list of cards.
+removeFromCards :: [Card] -> [Card] -> [Card]
+removeFromCards = foldr delete
+
+-- | Discard a single card, primarily intended for evaluateHand
+-- so we can discard Action cards when the player has no actions
+-- left.
+discardCard :: Card -> Int -> DominionState ()
+discardCard card p = do
+  player <- findPlayer p
+  let newHand = removeFromCards (player ^. field @"hand") [card]
+  (field @"players" . ix p . field @"discard") %= (++ [card])
+  (field @"players" . ix p . field @"hand") .= newHand

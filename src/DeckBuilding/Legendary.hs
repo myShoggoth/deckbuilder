@@ -103,7 +103,7 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
       players' <- sortByPoints
       let grouped = L.groupBy (\p1 p2 -> (p1 ^. field @"victory") == (p2 ^. field @"victory") && (p1 ^. field @"turns") == (p2 ^. field @"turns")) players'
       return $ result' ((length . head) grouped) players'
-    where result' 1 l = Left $ playerName $ head l
+    where result' 1 l = Left $ (playerName $ head l, victory $ head l)
           result' n _ = Right n
 
   turnOrder  = do

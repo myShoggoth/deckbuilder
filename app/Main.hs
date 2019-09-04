@@ -19,7 +19,7 @@ import           Data.Text.Prettyprint.Doc.Render.Text
 import qualified Data.DList                             as DL
 import qualified Data.List                              as List
 import qualified Data.Text.IO                           as Text
-import           Data.Text.Lazy                         (toStrict, pack)
+import           Data.Text.Lazy                         (toStrict, pack, unpack)
 import           Data.Text                              (Text(..))
 import qualified Data.Text                              as Text (concat)
 import           System.Random
@@ -62,6 +62,7 @@ runDominionGames layoutOptions c = do
         dt = buildDominionTree (DL.toList output, result)
     loud <- isLoud
     ifM isLoud ( Text.putStrLn $ (renderStrict . layoutPretty layoutOptions . pretty) dt ) (pure ())
+    ifM isLoud (putStrLn $ show result <> " ") (pure ())
     pure result
   pure $ map (head &&& length) $ List.group $ List.sort results
   where gses = map (configToGame c) (seeds c)
@@ -109,8 +110,8 @@ instance Pretty BoughtCard where
     pretty (BoughtCard c) = sep [ "Bought", pretty $ cardName c ]
 
 instance Pretty Result where
-    pretty (Left s)   = pretty $ s <> " won!"
-    pretty (Right n)  = pretty $ "Tie between " <> show n <> " players."
+    pretty (Left (s, n))   = pretty $ s
+    pretty (Right n)  = pretty $ show n <> " players tied"
 
 instance Pretty DominionMove where
     pretty (Turn n p)     = pretty $ "Turn " <> show n <> " for player " <> show (playerName p) <> ": "

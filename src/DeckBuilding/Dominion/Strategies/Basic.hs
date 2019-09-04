@@ -13,7 +13,6 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyDiscard
     , bigMoneyTrash
     , bigMoneyRetrieve
-    , bigMoneyNextCard
     , bigMoneyGain
     , bigMoneyThroneRoom
     , bigMoneyLibrary
@@ -24,6 +23,8 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigSmithyGain
     , bigSmithyThroneRoom
     , villageSmithyEngine4
+    , nextCardByWeight
+    , bigMoneyCardWeight
     ) where
 
 import           Control.Lens
@@ -38,8 +39,6 @@ import           DeckBuilding.Dominion.Strategies.Utils
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 
--- import Debug.Trace
-
 -- Strategies
 
 -- Big money
@@ -52,7 +51,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyDiscard
                             bigMoneyTrash
                             bigMoneyRetrieve
-                            bigMoneyNextCard
+                            (nextCardByWeight bigMoneyCardWeight)
                             bigMoneyGain
                             bigMoneyThroneRoom
                             bigMoneyLibrary
@@ -64,8 +63,7 @@ bigMoneyStrategy = Strategy "Big Money"
 bigMoneyBuy :: Int -> DominionState Int
 bigMoneyBuy p = do
     player <- findPlayer p
-    _ <- doBuys p (player ^. field @"buys") bigMoneyCards
-    return p
+    doBuys p (player ^. field @"buys") bigMoneyCards
   where bigMoneyCards = [ (provinceCard, alwaysBuy)
                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
                         , (goldCard, alwaysBuy)
@@ -114,12 +112,8 @@ bigMoneyGain = gainCard gainCards
                     , silverCard
                     ]
 
--- | We never have anything, so why bother?
-bigMoneyNextCard :: Int -> DominionState (Maybe Card)
-bigMoneyNextCard p = do
-  player <- findPlayer p
-  let hand = player ^. field @"hand"
-  return $ headMay hand
+bigMoneyCardWeight :: Card -> Int
+bigMoneyCardWeight _ = 1
 
 -- | We don't buy throne rooms in big money.
 bigMoneyThroneRoom :: Int -> DominionState (Maybe Card)
@@ -170,7 +164,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyDiscard
                              bigMoneyTrash
                              bigMoneyRetrieve
-                             bigMoneyNextCard
+                             (nextCardByWeight bigSmithyCardWeight)
                              bigSmithyGain
                              bigSmithyThroneRoom
                              bigMoneyLibrary
@@ -182,13 +176,26 @@ bigSmithyStrategy = Strategy "Big Smithy"
 bigSmithyBuy :: Int -> DominionState Int
 bigSmithyBuy p = do
     player <- findPlayer p
-    _ <- doBuys p (player ^. field @"buys") bigSmithyCards
-    return p
+    doBuys p (player ^. field @"buys") bigSmithyCards
   where bigSmithyCards = [ (provinceCard, alwaysBuy)
+                        , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
                         , (smithyCard, buyN 2)
                         , (goldCard, alwaysBuy)
+                        , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 5)
+                        , (estateCard, buyIfNumberOfCardIsBelow provinceCard 2)
                         , (silverCard, alwaysBuy)
+                        , (estateCard, buyIfNumberOfCardIsBelow provinceCard 3)
                         ]
+
+nextCardByWeight :: (Card -> Int) -> Int -> DominionState (Maybe Card)
+nextCardByWeight weights p = do
+  player <- findPlayer p
+  return $ headMay $ sortByWeight weights $ player ^. field @"hand"
+
+bigSmithyCardWeight :: Card -> Int
+bigSmithyCardWeight (Card "Throne Room" _ _ _ _) = 11 -- This is for the Throne Room test
+bigSmithyCardWeight (Card "Smithy" _ _ _ _)      = 10
+bigSmithyCardWeight _                            = 1
 
 -- | Just like big money buy we also gain smithy cards.
 bigSmithyGain :: Int -> Int -> DominionState (Maybe Card)
@@ -214,7 +221,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyDiscard
                                 bigMoneyTrash
                                 bigMoneyRetrieve
-                                bigMoneyNextCard
+                                (nextCardByWeight villageSmithyEngine4CardWeight)
                                 bigSmithyGain
                                 bigSmithyThroneRoom
                                 bigMoneyLibrary
@@ -226,8 +233,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
 villageSmithyEngine4Buy :: Int -> DominionState Int
 villageSmithyEngine4Buy p = do
     player <- findPlayer p
-    _ <- doBuys p (player ^. field @"buys") bigVillageSmithyEngine4Cards
-    return p
+    doBuys p (player ^. field @"buys") bigVillageSmithyEngine4Cards
   where bigVillageSmithyEngine4Cards =  [
                                           (provinceCard, alwaysBuy)
                                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 3)
@@ -239,9 +245,19 @@ villageSmithyEngine4Buy p = do
                                         , (villageCard, buyIfLowerThanTerminalActions)
                                         , (smithyCard, alwaysBuy)
                                         , (villageCard, alwaysBuy)
+                                        , (silverCard, alwaysBuy)
                                         , (cellarCard, buyN 2)
                                         ]
 
+
+villageSmithyEngine4CardWeight :: Card -> Int
+villageSmithyEngine4CardWeight (Card "Village" _ _ _ _) = 10
+villageSmithyEngine4CardWeight (Card "Market" _ _ _ _)  = 9
+villageSmithyEngine4CardWeight (Card "Militia" _ _ _ _) = 8
+villageSmithyEngine4CardWeight (Card "Remodel" _ _ _ _) = 7
+villageSmithyEngine4CardWeight (Card "Smithy" _ _ _ _)  = 6
+villageSmithyEngine4CardWeight (Card "Cellar" _ _ _ _)  = 5
+villageSmithyEngine4CardWeight _                        = 1
 
 -- Strategy helpers
 
@@ -257,10 +273,6 @@ prefPlusCards (min', max') cs h
     | length pref > min' = pref
     | otherwise         = take min' $ pref ++ cs
   where pref = prefCards max' cs h
-
--- | Remove this list of cards from that list of cards.
-removeFromCards :: [Card] -> [Card] -> [Card]
-removeFromCards = foldr delete
 
 -- | Core for a simple discarding logic. (min, max) and the list of
 --  preferred cards to discard.
@@ -320,13 +332,13 @@ doBuys' p ( (c, a):xs) = do
 -- | Given a player, a number of buys, and a list of preferred cards to buy
 --  and a buy function, buy as many as possible given the number of buys and
 --  the amount of money the player has.
-doBuys :: Int -> Int -> [(Card, Card -> Int -> DominionState (Maybe Card))] -> DominionState [Card]
+doBuys :: Int -> Int -> [(Card, Card -> Int -> DominionState (Maybe Card))] -> DominionState Int
 -- doBuys p b cs | trace ("doBuys: " ++ show (p ^. playerName) ++ " (" ++ show b ++ ")") False = undefined
-doBuys _ 0 _      = return []
+doBuys p 0 _      = return p
 doBuys p b cards  = do
   bought <- doBuys' p cards
   case bought of
-    []  -> return []
+    []  -> return p
     cs  -> do
       more <- doBuys p (b - 1) cards
-      return $ cs ++ more
+      return p

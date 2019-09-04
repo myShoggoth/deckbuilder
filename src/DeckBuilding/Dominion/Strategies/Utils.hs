@@ -18,13 +18,15 @@ module DeckBuilding.Dominion.Strategies.Utils
     , buyCard
     , buyIfNumberOfCardIsBelow
     , buyIfLowerThanTerminalActions
+    , cardWeightCompare
+    , sortByWeight
     ) where
 
 import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList                  as DL
 import           Data.Generics.Product
-import           Data.List                   (intersect)
+import           Data.List                   (intersect, sortBy)
 import qualified Data.Map                    as Map
 import           DeckBuilding.Dominion.Cards
 import           DeckBuilding.Dominion.Types
@@ -122,3 +124,9 @@ buyCard (Just c) p = do
   (field @"players" . ix p . field @"buys") -= 1
   (field @"players" . ix p . field @"money") -= (c ^. field @"cost")
   return p
+
+sortByWeight :: (Card -> Int) -> [Card] -> [Card]
+sortByWeight weights = sortBy (cardWeightCompare weights)
+
+cardWeightCompare :: (Card -> Int) -> Card -> Card -> Ordering
+cardWeightCompare cardWeight c1 c2 = (cardWeight c2) `compare` (cardWeight c1)

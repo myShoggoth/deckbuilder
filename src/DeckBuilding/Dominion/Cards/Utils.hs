@@ -18,6 +18,10 @@ import qualified Data.Map                    as Map
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Dominion.Utils
 
+-- | A simple points-only Victory card
+-- | Victory Points
+-- | Card
+-- | Player Number
 simpleVictory :: Int -> Card -> Int -> DominionState Int
 simpleVictory v c p = do
   (field @"players" . ix p . field @"victory") += v
@@ -25,6 +29,9 @@ simpleVictory v c p = do
   return $ player ^. field @"victory"
 
 -- | For value cards, pass the money value.
+-- | Money Value
+-- | Card
+-- | Player Number
 valueCard :: Int -> Card -> Int -> DominionState Int
 valueCard m c p = do
   (field @"players" . ix p . field @"hand") %= delete c

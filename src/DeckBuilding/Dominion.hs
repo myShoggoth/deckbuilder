@@ -52,7 +52,6 @@ import           System.Random.Shuffle       (shuffle')
 
 -- | Creates a new player with a name and strategy and the default started deck.
 newPlayer :: Text.Text -> Strategy -> DominionPlayer
--- newPlayer n | trace ("newPlayer: " ++ show n) False = undefined
 newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 0
 
 {- |
@@ -70,21 +69,19 @@ evaluateHand pnum = do
   case mc of
     Nothing -> return pnum
     Just c -> do
-      yay <- evaluateCard c pnum player
-      if yay
-         then evaluateHand pnum
-         else return pnum
-
-evaluateCard :: Card -> Int -> DominionPlayer -> DominionState Bool
+      evaluateCard c pnum player
+      evaluateHand pnum
+ 
+evaluateCard :: Card -> Int -> DominionPlayer -> DominionState ()
 evaluateCard c@(Card _ _ _ Value _) pnum player = evaluateCard' c pnum
-evaluateCard c pnum player@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) = return False
+evaluateCard c pnum player@(DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) = discardCard c pnum
 evaluateCard c pnum player = evaluateCard' c pnum
 
-evaluateCard' :: Card -> Int -> DominionState Bool
+evaluateCard' :: Card -> Int -> DominionState ()
 evaluateCard' c pnum = do
   tell $ DL.singleton $ Play c
   _ <- (c ^. field @"action") c pnum
-  return True
+  return ()
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: DominionState [DominionPlayer]
@@ -122,7 +119,7 @@ resetTurn p = do
 
 configToGame :: DominionConfig -> StdGen -> DominionGame
 configToGame c = DominionGame
-                  (map (\p -> newPlayer (fst p) (snd p)) (c ^. field @"playerDefs"))
+                  (map (\p -> uncurry newPlayer p) (c ^. field @"playerDefs"))
                   (basicDecks (length (c ^. field @"playerDefs")) `Map.union` makeDecks (c ^. field @"kingdomCards"))
                   []
 
@@ -136,9 +133,10 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
     player <- findPlayer p
     tell $ DL.singleton $ Turn (player ^. field @"turns") player
     _ <- evaluateHand p
-    _ <- (player ^. field @"strategy" . field @"buyStrategy") p
-    _ <- resetTurn p
-    _ <- deal 5 p
+      >>= (player ^. field @"strategy" . field @"buyStrategy")
+      >>= resetTurn
+      >>= deal 5
+
     finished
 
   result      = do
@@ -148,7 +146,7 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
       tell $ DL.singleton $ GameOver $ map (\p -> (p ^. field @"playerName", p ^. field @"victory")) players'
       let grouped = groupBy (\p1 p2 -> (p1 ^. field @"victory") == (p2 ^. field @"victory") && (p1 ^. field @"turns") == (p2 ^. field @"turns")) players'
       return $ result' ((length . head) grouped) players'
-    where result' 1 l = Left $ playerName $ head l
+    where result' 1 l = Left $ (playerName $ head l, victory $ head l)
           result' n _ = Right n
 
   turnOrder  = do
