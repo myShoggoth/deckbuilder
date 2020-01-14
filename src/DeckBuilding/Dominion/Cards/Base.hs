@@ -68,8 +68,8 @@ goldCard        = Card "Gold"       6 (valueCard 3) Value (simpleVictory 0)
 -- | Silver cards need extra logic to make Merchant work in all cases.
 silverCardAction :: Card -> Int -> DominionState Int
 silverCardAction c p    = do
-    player <- findPlayer p
-    let monies = if (merchantCard `elem` (player ^. field @"played")) && (silverCard `notElem` (player ^. field @"played"))
+    thePlayer <- findPlayer p
+    let monies = if (merchantCard `elem` (thePlayer ^. field @"played")) && (silverCard `notElem` (thePlayer ^. field @"played"))
                     then 3
                     else 2
     valueCard monies c p
@@ -119,8 +119,8 @@ laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0) Action (simpleVi
 
 cellarCardAction :: Card -> Int -> DominionState Int
 cellarCardAction c p = do
-  player <- findPlayer p
-  discarded <- (player ^. field @"strategy" . field @"discardStrategy") (0, length (player ^. field @"hand")) p
+  thePlayer <- findPlayer p
+  discarded <- (thePlayer ^. field @"strategy" . field @"discardStrategy") (0, length (thePlayer ^. field @"hand")) p
   tell $ DL.singleton $ Discard discarded
   basicCardAction (length discarded) (-1) 0 0 c p
 
@@ -129,8 +129,8 @@ cellarCard      = Card "Cellar"     2 cellarCardAction Action (simpleVictory 0)
 
 chapelCardAction :: Card -> Int -> DominionState Int
 chapelCardAction c p = do
-  player <- findPlayer p
-  _ <- (player ^. field @"strategy" . field @"trashStrategy") (0, 4) p
+  thePlayer <- findPlayer p
+  _ <- (thePlayer ^. field @"strategy" . field @"trashStrategy") (0, 4) p
   basicCardAction 0 (-1) 0 0 c p
 
 chapelCard :: Card
@@ -138,9 +138,9 @@ chapelCard     = Card "Chapel"      2 chapelCardAction Action (simpleVictory 0)
 
 harbingerCardAction :: Card -> Int -> DominionState Int
 harbingerCardAction c p = do
-  player <- findPlayer p
+  thePlayer <- findPlayer p
   _ <- deal 1 p
-  _ <- (player ^. field @"strategy" . field @"retrieveStrategy") (0, 1) p
+  _ <- (thePlayer ^. field @"strategy" . field @"retrieveStrategy") (0, 1) p
   basicCardAction 0 0 0 0 c p
 
 harbingerCard :: Card
@@ -148,8 +148,8 @@ harbingerCard   = Card "Harbinger"  4 harbingerCardAction Action (simpleVictory 
 
 merchantCardAction :: Card -> Int -> DominionState Int
 merchantCardAction c p = do
-  player <- findPlayer p
-  let silverPlayed = silverCard `elem` (player ^. field @"played")
+  thePlayer <- findPlayer p
+  let silverPlayed = silverCard `elem` (thePlayer ^. field @"played")
   basicCardAction 1 0 0 (monies silverPlayed) c p
   where monies True  = 1
         monies False = 0
@@ -159,12 +159,12 @@ merchantCard    = Card "Merchant"   3 merchantCardAction Action (simpleVictory 0
 
 vassalCardAction :: Card -> Int -> DominionState Int
 vassalCardAction c p = do
-  player <- findPlayer p
+  thePlayer <- findPlayer p
   r <- use $ field @"random"
   _ <- basicCardAction 0 (-1) 0 2 c p
   let (enoughDeck, newDiscard)
-        | not (null (player ^. field @"deck")) = (player ^. field @"deck", player ^. field @"discard")
-        | otherwise                            = ( (player ^. field @"deck") ++ shuffle' (player ^. field @"discard") (length (player ^. field @"discard")) r, [])
+        | not (null (thePlayer ^. field @"deck")) = (thePlayer ^. field @"deck", thePlayer ^. field @"discard")
+        | otherwise                            = ( (thePlayer ^. field @"deck") ++ shuffle' (thePlayer ^. field @"discard") (length (thePlayer ^. field @"discard")) r, [])
   let topOfDeck Nothing                 = return p
       topOfDeck (Just c')               = if (c' ^. field @"cardType") == Value
           then do
@@ -187,11 +187,11 @@ defendsAgainstAttack _ p = moatCard `elem` (p ^. field @"hand")
 discardVictory :: Int -> Int -> DominionState (Maybe Card)
 discardVictory e p | p == e = return Nothing
 discardVictory _ p = do
-  player <- findPlayer p
-  if defendsAgainstAttack bureaucratCard player
+  thePlayer <- findPlayer p
+  if defendsAgainstAttack bureaucratCard thePlayer
     then return Nothing
     else
-      case find (`elem` victoryCards) (player ^. field @"hand") of
+      case find (`elem` victoryCards) (thePlayer ^. field @"hand") of
         Nothing -> return Nothing
         Just c  -> do
           (field @"players" . ix p . field @"hand") %= delete c
@@ -210,9 +210,9 @@ bureaucratCard :: Card
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory 0)
 
 gardensCardAction :: Card -> Int -> DominionState Int
-gardensCardAction c p = do
-  player <- findPlayer p
-  let points = length ( (player ^. field @"hand") ++ (player ^. field @"discard") ++ (player ^. field @"played") ++ (player ^. field @"deck") ) `div` 10
+gardensCardAction _ p = do
+  thePlayer <- findPlayer p
+  let points = length ( (thePlayer ^. field @"hand") ++ (thePlayer ^. field @"discard") ++ (thePlayer ^. field @"played") ++ (thePlayer ^. field @"deck") ) `div` 10
   pure points
 
 gardensCard :: Card
@@ -221,11 +221,11 @@ gardensCard     = Card "Gardens"    4 (valueCard 0) Value gardensCardAction
 militiaDiscard :: Int -> Int -> DominionState [Card]
 militiaDiscard e p | p == e = return []
 militiaDiscard _ p = do
-  player <- findPlayer p
-  if defendsAgainstAttack militiaCard player
+  thePlayer <- findPlayer p
+  if defendsAgainstAttack militiaCard thePlayer
     then return []
     else
-      (player ^. field @"strategy" . field @"discardStrategy") ( length (player ^. field @"hand") - 3, length (player ^. field @"hand") - 3 ) p
+      (thePlayer ^. field @"strategy" . field @"discardStrategy") ( length (thePlayer ^. field @"hand") - 3, length (thePlayer ^. field @"hand") - 3 ) p
 
 militiaCardAction :: Card -> Int -> DominionState Int
 militiaCardAction c p = do
@@ -238,8 +238,8 @@ militiaCard     = Card "Militia"    4 militiaCardAction Action (simpleVictory 0)
 
 moneylenderCardAction :: Card -> Int -> DominionState Int
 moneylenderCardAction c p = do
-  player <- findPlayer p
-  if copperCard `elem` (player ^. field @"hand")
+  thePlayer <- findPlayer p
+  if copperCard `elem` (thePlayer ^. field @"hand")
     then do
       (field @"players" . ix p . field @"hand") %= delete copperCard
       field @"trash" %= (copperCard :)
@@ -251,10 +251,10 @@ moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action (simpleVict
 
 poacherCardAction :: Card -> Int -> DominionState Int
 poacherCardAction c p = do
-  player <- findPlayer p
+  thePlayer <- findPlayer p
   _ <- basicCardAction 1 0 0 1 c p
   emptyDecks <- numEmptyDecks
-  _ <- (player ^. field @"strategy" . field @"discardStrategy") (emptyDecks, emptyDecks) p
+  _ <- (thePlayer ^. field @"strategy" . field @"discardStrategy") (emptyDecks, emptyDecks) p
   return p
 
 poacherCard :: Card
@@ -262,11 +262,11 @@ poacherCard     = Card "Poacher"      4 poacherCardAction Action (simpleVictory 
 
 remodelCardAction :: Card -> Int -> DominionState Int
 remodelCardAction c p = do
-  player <- findPlayer p
-  diff <- (player ^. field @"strategy" . field @"trashStrategy") (0, 1) p
+  thePlayer <- findPlayer p
+  diff <- (thePlayer ^. field @"strategy" . field @"trashStrategy") (0, 1) p
   _ <- if length diff == 1
     then do
-      newCard <- (player ^. field @"strategy" . field @"gainCardStrategy") (head diff ^. field @"cost" + 2) p
+      newCard <- (thePlayer ^. field @"strategy" . field @"gainCardStrategy") (head diff ^. field @"cost" + 2) p
       case newCard of
         Nothing -> do
           _ <- basicCardAction 0 0 0 0 c p
@@ -287,8 +287,8 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
 
 throneRoomCardAction :: Card -> Int -> DominionState Int
 throneRoomCardAction c p = do
-  player <- findPlayer p
-  mc <- (player ^. field @"strategy" . field @"throneRoomStrategy") p
+  thePlayer <- findPlayer p
+  mc <- (thePlayer ^. field @"strategy" . field @"throneRoomStrategy") p
   case mc of
     Nothing     -> basicCardAction 0 0 0 0 c p
     (Just card) -> do
@@ -306,8 +306,8 @@ throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action (simpleVicto
 banditDiscard :: Int -> Int -> DominionState ()
 banditDiscard e p | p == e = return ()
 banditDiscard _ p = do
-  player <- findPlayer p
-  if defendsAgainstAttack banditCard player
+  thePlayer <- findPlayer p
+  if defendsAgainstAttack banditCard thePlayer
     then return ()
     else do
       toptwo <- deal 2 p
@@ -344,8 +344,8 @@ councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action (simpleVict
 gainCurse :: Int -> Int -> DominionState Bool
 gainCurse e p | p == e = return False
 gainCurse _ p = do
-  player <- findPlayer p
-  if defendsAgainstAttack witchCard player
+  thePlayer <- findPlayer p
+  if defendsAgainstAttack witchCard thePlayer
     then return False
     else do
       (field @"players" . ix p . field @"discard") %= (curseCard:)
@@ -370,8 +370,8 @@ exch c c1 c2 p = do
 
 mineCardAction :: Card -> Int -> DominionState Int
 mineCardAction c p = do
-  player <- findPlayer p
-  mc <- firstCardInPlay $ intersect (player ^. field @"hand") treasureCards
+  thePlayer <- findPlayer p
+  mc <- firstCardInPlay $ intersect (thePlayer ^. field @"hand") treasureCards
   case mc of
     Nothing -> return p
     (Just card)
@@ -384,8 +384,8 @@ mineCard          = Card "Mine"       5 mineCardAction Action (simpleVictory 0)
 
 discardOrPlay :: Card -> Int -> DominionState Int
 discardOrPlay c p = do
-  player <- findPlayer p
-  keep <- (player ^. field @"strategy" . field @"libraryStrategy") c
+  thePlayer <- findPlayer p
+  keep <- (thePlayer ^. field @"strategy" . field @"libraryStrategy") c
   if (c ^. field @"cardType") == Value || keep
     then return p
     else do
@@ -395,8 +395,8 @@ discardOrPlay c p = do
 
 drawTo :: Int -> Int -> DominionState Int
 drawTo num p = do
-  player <- findPlayer p
-  let todraw = num - length (player ^. field @"hand")
+  thePlayer <- findPlayer p
+  let todraw = num - length (thePlayer ^. field @"hand")
   if todraw <= 0
     then return p
     else do
@@ -415,10 +415,10 @@ libraryCard     = Card "Library"      5 libraryCardAction Action (simpleVictory 
 sentryCardAction :: Card -> Int -> DominionState Int
 sentryCardAction c p = do
   _ <- basicCardAction 1 0 0 0 c p
-  player <- findPlayer p
-  let oldhand = player ^. field @"hand"
+  thePlayer <- findPlayer p
+  let oldhand = thePlayer ^. field @"hand"
   newcards <- deal 2 p
-  (trashem, disc, keep) <- (player ^. field @"strategy" . field @"sentryStrategy") newcards p
+  (trashem, disc, keep) <- (thePlayer ^. field @"strategy" . field @"sentryStrategy") newcards p
   field @"trash" %= (trashem ++)
   (field @"players" . ix p . field @"discard") %= (disc ++)
   (field @"players" . ix p . field @"deck") %= (keep ++)
@@ -430,8 +430,8 @@ sentryCard    = Card "Sentry"       5 sentryCardAction Action (simpleVictory 0)
 
 artisanCardAction :: Card -> Int -> DominionState Int
 artisanCardAction c p = do
-  player <- findPlayer p
-  mc <- (player ^. field @"strategy" . field @"gainCardStrategy") 5 p
+  thePlayer <- findPlayer p
+  mc <- (thePlayer ^. field @"strategy" . field @"gainCardStrategy") 5 p
   case mc of
     Nothing   -> return p
     Just card -> do
@@ -439,7 +439,7 @@ artisanCardAction c p = do
       field @"decks" %= Map.mapWithKey (decreaseCards card)
       (field @"players" . ix p . field @"hand") %= (card:)
       (field @"players" . ix p . field @"deck") %= delete card -- gainCardStrategy puts it in the deck by default
-      _ <- (player ^. field @"strategy" . field @"handToDeckStrategy") 1 p
+      _ <- (thePlayer ^. field @"strategy" . field @"handToDeckStrategy") 1 p
       return p
 
 artisanCard :: Card
@@ -448,8 +448,8 @@ artisanCard   = Card "Artisan"      6 artisanCardAction Action (simpleVictory 0)
 workshopCardAction :: Card -> Int -> DominionState Int
 workshopCardAction c p = do
   _ <- basicCardAction 0 (-1) 0 0 c p
-  player <- findPlayer p
-  _ <- (player ^. field @"strategy" . field @"gainCardStrategy") 4 p
+  thePlayer <- findPlayer p
+  _ <- (thePlayer ^. field @"strategy" . field @"gainCardStrategy") 4 p
   return p
 
 workshopCard :: Card

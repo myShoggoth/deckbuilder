@@ -27,8 +27,8 @@ import           DeckBuilding.Dominion.Utils
 
 courtyardCardAction :: Card -> Int -> DominionState Int
 courtyardCardAction c p = do
-  player <- findPlayer p
-  _ <- (player ^. field @"strategy" . field @"handToDeckStrategy") 1 p
+  thePlayer <- findPlayer p
+  _ <- (thePlayer ^. field @"strategy" . field @"handToDeckStrategy") 1 p
   basicCardAction 3 (-1) 0 0 c p
 
 courtyardCard :: Card
@@ -55,8 +55,8 @@ lurk (Right _) p                      = return p
 
 lurkerCardAction :: Card -> Int -> DominionState Int
 lurkerCardAction c p = do
-  player <- findPlayer p
-  ec <- (player ^. field @"strategy" . field @"lurkerStrategy") c p
+  thePlayer <- findPlayer p
+  ec <- (thePlayer ^. field @"strategy" . field @"lurkerStrategy") c p
   _ <- lurk ec p
   basicCardAction 0 0 0 0 c p
 
@@ -68,8 +68,8 @@ hasActionCards num cs = num <= length (filter (\c -> (c ^. field @"cardType") ==
 
 shantyTownCardAction :: Card -> Int -> DominionState Int
 shantyTownCardAction c p = do
-  player <- findPlayer p
-  if hasActionCards 1 (player ^. field @"hand")
+  thePlayer <- findPlayer p
+  if hasActionCards 1 (thePlayer ^. field @"hand")
     then basicCardAction 0 1 0 0 c p
     else basicCardAction 2 1 0 0 c p
 
@@ -78,8 +78,8 @@ shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action (simpleVicto
 
 conspiratorCardAction :: Card -> Int -> DominionState Int
 conspiratorCardAction c p = do
-  player <- findPlayer p
-  if hasActionCards 2 (player ^. field @"played")
+  thePlayer <- findPlayer p
+  if hasActionCards 2 (thePlayer ^. field @"played")
     then basicCardAction 1 0 0 2 c p
     else basicCardAction 0 (-1) 0 2 c p
 
@@ -88,8 +88,8 @@ conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action (simpleVict
 
 ironworksCardAction :: Card -> Int -> DominionState Int
 ironworksCardAction c p = do
-  player <- findPlayer p
-  mc <- (player ^. field @"strategy" . field @"gainCardStrategy") 4 p
+  thePlayer <- findPlayer p
+  mc <- (thePlayer ^. field @"strategy" . field @"gainCardStrategy") 4 p
   case mc of
     Nothing   -> return p
     Just card
@@ -102,9 +102,9 @@ ironworksCard :: Card
 ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictory 0)
 
 dukeCardAction :: Card -> Int -> DominionState Int
-dukeCardAction c p = do
-  player <- findPlayer p
-  let points = length $ filter (== duchyCard) ( (player ^. field @"hand") ++ (player ^. field @"discard") ++ (player ^. field @"played") ++ (player ^. field @"deck") )
+dukeCardAction _ p = do
+  thePlayer <- findPlayer p
+  let points = length $ filter (== duchyCard) ( (thePlayer ^. field @"hand") ++ (thePlayer ^. field @"discard") ++ (thePlayer ^. field @"played") ++ (thePlayer ^. field @"deck") )
   return points
 
 dukeCard :: Card

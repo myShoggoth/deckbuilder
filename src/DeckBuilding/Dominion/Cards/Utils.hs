@@ -23,10 +23,10 @@ import           DeckBuilding.Dominion.Utils
 -- | Card
 -- | Player Number
 simpleVictory :: Int -> Card -> Int -> DominionState Int
-simpleVictory v c p = do
+simpleVictory v _ p = do
   (field @"players" . ix p . field @"victory") += v
-  player <- findPlayer p
-  return $ player ^. field @"victory"
+  thePlayer <- findPlayer p
+  return $ thePlayer ^. field @"victory"
 
 -- | For value cards, pass the money value.
 -- | Money Value

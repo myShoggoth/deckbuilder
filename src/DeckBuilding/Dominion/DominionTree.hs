@@ -11,12 +11,12 @@ import           Data.Maybe
 --import Debug.Trace
 
 buildDominionTrees :: [DominionMove] -> [Result] -> [DominionTree]
-buildDominionTrees moves results = buildDominionTree <$> zip games results
-  where games = findGames moves
+buildDominionTrees moves res = buildDominionTree <$> zip theGames res
+  where theGames = findGames moves
 
 buildDominionTree :: ([DominionMove], Result) -> DominionTree
 -- buildDominionTree moves result | trace ("buildDominionTree " <> show moves <> " " <> show result) False=undefined
-buildDominionTree (moves, result) = DominionTree (buildGameTurn <$> gameTurns) result
+buildDominionTree (moves, res) = DominionTree (buildGameTurn <$> gameTurns) res
   where allTurns :: [[DominionMove]] = findTurns moves
         gameTurns = List.groupBy sameTurn allTurns
 
@@ -53,13 +53,15 @@ findTurns (x:xs) = ( x : turn) : findTurns moves
 
 buildGameTurn :: [[DominionMove]] -> GameTurn
 --buildGameTurn moves | trace ("buildGameTurn " <> show moves) False=undefined
-buildGameTurn turns@((Turn n _:_):_) = GameTurn n $ buildPlayerTurn <$> turns
+buildGameTurn manyTurns@((Turn n _:_):_) = GameTurn n $ buildPlayerTurn <$> manyTurns
 buildGameTurn (x:_) = error $ "buildGameTurn: Found non-Turn move where Turn expected: " ++ show x
+buildGameTurn _ = error $ "buildGameTurn: whaaaa"
 
 buildPlayerTurn :: [DominionMove] -> PlayerTurn
 --buildPlayerTurn moves | trace ("buildPlayerTurn " <> show moves) False=undefined
-buildPlayerTurn (Turn _ p:moves) = let (plays, buys) = break isBuy moves in PlayerTurn (playerName p) (buildPlays plays) (catMaybes (buildBuy <$> buys))
+buildPlayerTurn (Turn _ p:moves) = let (plays, theBuys) = break isBuy moves in PlayerTurn (playerName p) (buildPlays plays) (catMaybes (buildBuy <$> theBuys))
 buildPlayerTurn (x:_) = error $ "buildPlayerTurn: Found non-Turn move where Turn expected: " ++ show x
+buildPlayerTurn _ = error $ "buildPlayerTurn: I can't even."
 
 buildPlays :: [DominionMove] -> [CardPlay]
 --buildPlays moves | trace ("buildPlays " <> show moves) False=undefined

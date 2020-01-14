@@ -87,7 +87,7 @@ removeFromCards = foldr delete
 -- left.
 discardCard :: Card -> Int -> DominionState ()
 discardCard card p = do
-  player <- findPlayer p
-  let newHand = removeFromCards (player ^. field @"hand") [card]
+  thePlayer <- findPlayer p
+  let newHand = removeFromCards (thePlayer ^. field @"hand") [card]
   (field @"players" . ix p . field @"discard") %= (++ [card])
   (field @"players" . ix p . field @"hand") .= newHand

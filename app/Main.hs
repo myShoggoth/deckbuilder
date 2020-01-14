@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans      #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -19,12 +20,7 @@ import           Data.Text.Prettyprint.Doc.Render.Text
 import qualified Data.DList                             as DL
 import qualified Data.List                              as List
 import qualified Data.Text.IO                           as Text
-import           Data.Text.Lazy                         (toStrict, pack, unpack)
-import           Data.Text                              (Text(..))
-import qualified Data.Text                              as Text (concat)
 import           System.Random
-import           Data.Generics.Product                  hiding (list)
-import           Control.Lens
 import           Control.Arrow                          ((&&&))
 import           Control.Monad.RWS
 import           Control.Monad.Extra
@@ -57,14 +53,13 @@ genGens n g = do
 -- | Run n games with a set of players and kingdom cards.
 runDominionGames :: LayoutOptions -> DominionConfig -> IO [(Result, Int)]
 runDominionGames layoutOptions c = do
-  results :: [Result] <- forM gses $ \g -> do
-    let (result, output) = evalRWS (runGame False :: DominionState Result) c g
-        dt = buildDominionTree (DL.toList output, result)
-    loud <- isLoud
+  results' :: [Result] <- forM gses $ \g -> do
+    let (res, output) = evalRWS (runGame False :: DominionState Result) c g
+        dt = buildDominionTree (DL.toList output, res)
     ifM isLoud ( Text.putStrLn $ (renderStrict . layoutPretty layoutOptions . pretty) dt ) (pure ())
-    ifM isLoud (putStrLn $ show result <> " ") (pure ())
-    pure result
-  pure $ map (head &&& length) $ List.group $ List.sort results
+    ifM isLoud (putStrLn $ show res <> " ") (pure ())
+    pure res
+  pure $ map (head &&& length) $ List.group $ List.sort results'
   where gses = map (configToGame c) (seeds c)
 
 -- | Basic usage of the library, pick some kingdom cards and run a few
@@ -86,19 +81,19 @@ main = do
               (randomKingdomDecks kingdomCards2ndEdition g1)
               n
               gens
-  result <- runDominionGames layoutOptions conf
-  (Text.putStrLn . renderStrict . layoutPretty layoutOptions . pretty) result
+  res <- runDominionGames layoutOptions conf
+  (Text.putStrLn . renderStrict . layoutPretty layoutOptions . pretty) res
   where
     layoutOptions = LayoutOptions { layoutPageWidth = AvailablePerLine 80 1 }
 
 instance Pretty DominionTree where
-    pretty (DominionTree turns results) = vsep [ "Turns", align $ pretty turns, "Results", align $ pretty results ]
+    pretty (DominionTree turns' results') = vsep [ "Turns", align $ pretty turns', "Results", align $ pretty results' ]
 
 instance Pretty GameTurn where
-    pretty (GameTurn n turns) = align $ vsep [ "Turn" <+> pretty n, pretty turns ]
+    pretty (GameTurn n turns') = align $ vsep [ "Turn" <+> pretty n, pretty turns' ]
 
 instance Pretty PlayerTurn where
-    pretty (PlayerTurn pname played bought) = align $ vsep [ "Player" <+> pretty pname, pretty played, pretty bought ]
+    pretty (PlayerTurn pname played' bought) = align $ vsep [ "Player" <+> pretty pname, pretty played', pretty bought ]
 
 instance Pretty CardPlay where
     pretty (Standard c) = sep [ "Played", pretty $ cardName c ]
@@ -110,7 +105,7 @@ instance Pretty BoughtCard where
     pretty (BoughtCard c) = sep [ "Bought", pretty $ cardName c ]
 
 instance Pretty Result where
-    pretty (Left (s, n))   = pretty $ s
+    pretty (Left (s, _))   = pretty $ s
     pretty (Right n)  = pretty $ show n <> " players tied"
 
 instance Pretty DominionMove where

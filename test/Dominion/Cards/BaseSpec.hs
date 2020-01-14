@@ -232,3 +232,13 @@ spec = do
       length (p1AfterCard ^. field @"deck") `shouldBe` 6
       length (p1AfterCard ^. field @"hand") `shouldBe` 5
       (p1AfterCard ^. field @"actions") `shouldBe` 0
+
+  describe "remodelCardAction" $ do
+    let afterCard = fst $ execRWS ((remodelCard ^. field @"action") remodelCard 0) c afterDeal
+    let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
+    it "trashes a copper and gains a silver into the hand" $ do
+      length (afterCard ^. field @"trash") `shouldBe` 1
+      length (p1AfterCard ^. field @"hand") `shouldBe` 4
+      length (p1AfterCard ^. field @"deck") `shouldBe` 6
+      -- TODO: look up remodel card and make sure we're doing the right thing
+--      silverCard `elem` (p1AfterCard ^. field @"hand") `shouldBe` True

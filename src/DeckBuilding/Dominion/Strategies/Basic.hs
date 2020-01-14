@@ -62,8 +62,8 @@ bigMoneyStrategy = Strategy "Big Money"
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: Int -> DominionState Int
 bigMoneyBuy p = do
-    player <- findPlayer p
-    doBuys p (player ^. field @"buys") bigMoneyCards
+    thePlayer <- findPlayer p
+    doBuys p (thePlayer ^. field @"buys") bigMoneyCards
   where bigMoneyCards = [ (provinceCard, alwaysBuy)
                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
                         , (goldCard, alwaysBuy)
@@ -135,10 +135,10 @@ bigMoneySentry cs _ = do
 -- | Meh?
 bigMoneyHandToDeck :: Int -> Int -> DominionState [Card]
 bigMoneyHandToDeck n p = do
-    player <- findPlayer p
-    let cards = take n $ (player ^. field @"hand") `intersect` handToDeckCards
+    thePlayer <- findPlayer p
+    let cards = take n $ (thePlayer ^. field @"hand") `intersect` handToDeckCards
     (field @"players" . ix p . field @"deck") %= (cards++)
-    (field @"players" . ix p . field @"hand") .= ((player ^. field @"hand") \\ cards)
+    (field @"players" . ix p . field @"hand") .= ((thePlayer ^. field @"hand") \\ cards)
     return cards
   where handToDeckCards = [ estateCard
                           , copperCard
@@ -175,8 +175,8 @@ bigSmithyStrategy = Strategy "Big Smithy"
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: Int -> DominionState Int
 bigSmithyBuy p = do
-    player <- findPlayer p
-    doBuys p (player ^. field @"buys") bigSmithyCards
+    thePlayer <- findPlayer p
+    doBuys p (thePlayer ^. field @"buys") bigSmithyCards
   where bigSmithyCards = [ (provinceCard, alwaysBuy)
                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
                         , (smithyCard, buyN 2)
@@ -189,8 +189,8 @@ bigSmithyBuy p = do
 
 nextCardByWeight :: (Card -> Int) -> Int -> DominionState (Maybe Card)
 nextCardByWeight weights p = do
-  player <- findPlayer p
-  return $ headMay $ sortByWeight weights $ player ^. field @"hand"
+  thePlayer <- findPlayer p
+  return $ headMay $ sortByWeight weights $ thePlayer ^. field @"hand"
 
 bigSmithyCardWeight :: Card -> Int
 bigSmithyCardWeight (Card "Throne Room" _ _ _ _) = 11 -- This is for the Throne Room test
@@ -232,8 +232,8 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
 -- | The buy strategy
 villageSmithyEngine4Buy :: Int -> DominionState Int
 villageSmithyEngine4Buy p = do
-    player <- findPlayer p
-    doBuys p (player ^. field @"buys") bigVillageSmithyEngine4Cards
+    thePlayer <- findPlayer p
+    doBuys p (thePlayer ^. field @"buys") bigVillageSmithyEngine4Cards
   where bigVillageSmithyEngine4Cards =  [
                                           (provinceCard, alwaysBuy)
                                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 3)
@@ -264,7 +264,7 @@ villageSmithyEngine4CardWeight _                        = 1
 -- | Take the list of preferred cards and figure out which ones are in the hand.
 --  Take up to the max.
 prefCards :: Int -> [Card] -> [Card] -> [Card]
-prefCards max' cs h= take max' $ intersect h cs
+prefCards max' cs h = take max' $ intersect h cs
 
 -- | Given a (min, max), take up to max of the preferred cards and fill out
 --  with whatever is left. Order those cards appropriately.
@@ -278,9 +278,9 @@ prefPlusCards (min', max') cs h
 --  preferred cards to discard.
 doDiscard :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doDiscard minmax cards p = do
-  player <- findPlayer p
-  let toDiscard = prefPlusCards minmax cards (player ^. field @"hand")
-  let newHand = removeFromCards (player ^. field @"hand") toDiscard
+  thePlayer <- findPlayer p
+  let toDiscard = prefPlusCards minmax cards (thePlayer ^. field @"hand")
+  let newHand = removeFromCards (thePlayer ^. field @"hand") toDiscard
   (field @"players" . ix p . field @"discard") %= (++ toDiscard)
   (field @"players" . ix p . field @"hand") .= newHand
   return toDiscard
@@ -289,9 +289,9 @@ doDiscard minmax cards p = do
 --  preferred cards to trash.
 doTrash :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doTrash minmax cards p = do
-  player <- findPlayer p
-  let toTrash = prefPlusCards minmax cards (player ^. field @"hand")
-  let newHand = removeFromCards (player ^. field @"hand") toTrash
+  thePlayer <- findPlayer p
+  let toTrash = prefPlusCards minmax cards (thePlayer ^. field @"hand")
+  let newHand = removeFromCards (thePlayer ^. field @"hand") toTrash
   field @"trash" %= (toTrash ++)
   (field @"players" . ix p . field @"hand") .= newHand
   return toTrash
@@ -300,12 +300,12 @@ doTrash minmax cards p = do
 --  and the list of preferred cards to retrieve.
 doRetrieveDiscard :: (Int, Int) -> [Card] -> Int -> DominionState [Card]
 doRetrieveDiscard (min', max') cards p = do
-  player <- findPlayer p
-  let pref = take max' $ intersect (player ^. field @"discard") cards
+  thePlayer <- findPlayer p
+  let pref = take max' $ intersect (thePlayer ^. field @"discard") cards
   let toRetrieve
         | length pref > min' = pref
-        | otherwise         = take min' $ pref ++ (player ^. field @"discard")
-  let newDiscard = foldr delete (player ^. field @"discard") toRetrieve
+        | otherwise         = take min' $ pref ++ (thePlayer ^. field @"discard")
+  let newDiscard = foldr delete (thePlayer ^. field @"discard") toRetrieve
   (field @"players" . ix p . field @"deck") %= (toRetrieve++)
   (field @"players" . ix p . field @"discard") .= newDiscard
   return toRetrieve
@@ -313,8 +313,8 @@ doRetrieveDiscard (min', max') cards p = do
 -- | Find the first card in the list that the player has in its hand, if any.
 findFirstCard :: [Card] -> Int -> DominionState (Maybe Card)
 findFirstCard cards p = do
-  player <- findPlayer p
-  return $ case (player ^. field @"hand") `intersect` cards of
+  thePlayer <- findPlayer p
+  return $ case (thePlayer ^. field @"hand") `intersect` cards of
     []    -> Nothing
     (x:_) -> Just x
 
@@ -339,6 +339,6 @@ doBuys p b cards  = do
   bought <- doBuys' p cards
   case bought of
     []  -> return p
-    cs  -> do
-      more <- doBuys p (b - 1) cards
+    _  -> do
+      _ <- doBuys p (b - 1) cards
       return p
