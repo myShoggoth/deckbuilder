@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE OverloadedLabels          #-}
 
 {-|
 Module      : DeckBuilding.Legendary
@@ -21,16 +22,24 @@ Here is a longer description of this module, containing some
 commentary with @some markup@. Totes.
 -}
 module DeckBuilding.Legendary
-  () where
+  ( configToGame
+  , evaluateHand
+  , resetTurn
+  ) where
 
 import           Control.Lens
 import           Control.Monad.RWS
 import qualified Data.DList                   as DL
+import           Data.Foldable
 import qualified Data.List                    as L
+import qualified Data.Text                    as Text
 import           Data.Generics.Product
 import           DeckBuilding.Legendary.Types
 import           DeckBuilding.Legendary.Utils
+import           DeckBuilding.Legendary.Cards.Base
 import           DeckBuilding.Types
+import           System.Random               (StdGen, split)
+import           System.Random.Shuffle       (shuffle')
 
 {-
 doTurn -
@@ -49,16 +58,25 @@ doTurn -
 gameResult
 -}
 
+-- | Creates a new player with a name and strategy and the default started deck.
+newPlayer :: Text.Text -> Strategy -> LegendaryPlayer
+newPlayer n = LegendaryPlayer n [] (replicate 8 shieldAgent ++ replicate 4 shieldTrooper) [] [] 0 0 6 [] 0 0
+
 {- |
   Evaluates the cards in the deck. Since cards can cause more to be drawn,
   the default case is to run a card and then recursively call with the new
   hand for the player.
 -}
-evaluateHand :: Int -> [Card] -> LegendaryState Int
-evaluateHand pnum []     = return pnum
-evaluateHand pnum (x:_) = do
-  tell $ DL.singleton $ Play x
-  (x ^. field @"action") x pnum >>= evaluateHand pnum
+evaluateHand :: Int -> LegendaryState Int
+evaluateHand pnum = do
+  thePlayer <- findPlayer pnum
+  mc <- (thePlayer ^. field @"strategy" . field @"nextCard") pnum
+  case mc of
+    Nothing -> return pnum
+    Just c -> do
+      tell $ DL.singleton $ Play c
+      _ <- (c ^. field @"action") c pnum
+      evaluateHand pnum
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
 resetTurn :: Int -> LegendaryState Int
@@ -67,7 +85,7 @@ resetTurn p = do
   (field @"players" . ix p . field @"discard") %= ( ((player ^. field @"hand") ++ (player ^. field @"played") ) ++)
   (field @"players" . ix p . field @"played") .= []
   (field @"players" . ix p . field @"hand") .= []
-  (field @"players" . ix p . field @"money") .= 0
+  (field @"players" . ix p . field @"unusedMoney") .= 0
   (field @"players" . ix p . field @"victory") .= 0
   (field @"players" . ix p . field @"turns") += 1
   return p
@@ -78,23 +96,72 @@ sortByPoints = do
   players' <- use $ field @"players"
   return $ L.sort players'
 
+configToGame :: LegendaryConfig -> StdGen -> LegendaryGame
+configToGame c = LegendaryGame
+                  (map (\p -> uncurry newPlayer p) (c ^. #playerDefs))
+                  (c ^. #scheme)
+                  [(theMastermind c)]
+                  30 -- starting number of Wounds
+                  (genBystanders nPlayers) -- starting number of Bystanders
+                  30 -- starting number of SHIELD Offciers
+                  (genVillainDeck nPlayers (c ^. #villainDeck))
+                  (genHeroDeck nPlayers (c ^. #heroDeck))
+                  [] -- Escapees
+                  (c ^. #entrance)
+                  (take 5 $ repeat Nothing) -- Start w/ empty HQ
+                  [] -- KO pile
+  where nPlayers = length $ playerDefs c
+        genBystanders n = take (30 - bystandersInVillainDeck n) $ c ^. #bystanders
+        genVillainDeck n vs =    (concat vs)
+                              <> (take (bystandersInVillainDeck n) $ reverse $  c ^. #bystanders)
+                              <> (take 5 $ repeat masterStrike)
+                              <> (take (twists $ c ^. #scheme) $ repeat schemeTwist)
+        genHeroDeck n hs = concat $ take (numHeros n) hs
+        numHeros n = case n of
+            5 -> 6
+            _ -> 5
+        bystandersInVillainDeck n = case n of
+            2 -> 2
+            3 -> 8
+            4 -> 8
+            5 -> 12
+            _ -> error $ "Unsupported number of players: " <> show n
+
+
 instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
+  start = do
+    r <- use $ field @"random"
+    gs <- get
+
+    (field @"heroDeck") .= shuffle' (gs ^. #heroDeck) (length $ gs ^. #heroDeck) r
+    (field @"villainDeck") .= shuffle' (gs ^. #villainDeck) (length $ gs ^. #villainDeck) (snd (split r))
+    (field @"bystanders") .= shuffle' (gs ^. #bystanders) (length $ gs ^. #bystanders) (snd (split $ snd $ split r))
+
+    (field @"random") .= (snd $ split $ snd $ split $ snd $ split r)
+    to <- turnOrder
+    void $ sequence $ (deal 6) <$> to
+    pure ()
+    
+
   finished    = do
     gs <- get
-    mmEvilWins' <- gs ^. field @"mastermind" . field @"mmEvilWins"
-    sEvilWins' <- gs ^. field @"scheme" . field @"sEvilWins"
-    villainDeck' <- use $ field @"villainDeck"
-    return $ mmEvilWins' && sEvilWins' && L.null villainDeck'
+    mmEvilWins' <- sequence $ gs ^.. #masterminds . traverse . #mmEvilWins
+    sEvilWins' <- gs ^. #scheme . #evilWins
+    villainDeck' <- use #villainDeck
+    return $ (any (== True) mmEvilWins') && sEvilWins' && L.null villainDeck'
 
   runTurn p = do
-    player <- findPlayer p
-    tell $ DL.singleton $ Turn (player ^. field @"turns") player
-    _ <- (player ^. field @"strategy" . field @"orderHand") p
-      >>= evaluateHand p
-      >>= (player ^. field @"strategy" . field @"buyStrategy")
-      >>= (player ^. field @"strategy" . field @"attackStrategy")
-      >>= deal 6
-    _ <- resetTurn p
+    thePlayer <- findPlayer p
+    drawVillain 1 p
+    fillHq p
+    tell $ DL.singleton $ Turn (thePlayer ^. field @"turns") thePlayer
+    _ <- evaluateHand p
+      >>= (thePlayer ^. field @"strategy" . field @"buyStrategy")
+      >>= (thePlayer ^. field @"strategy" . field @"attackStrategy")
+      >>= resetTurn
+      >>= deal (thePlayer ^. field @"nextTurnCards")
+
+    (field @"players" . ix p . field @"nextTurnCards") .= 6
     finished
 
   result      = do
@@ -112,6 +179,5 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
 
   tallyPoints p = do
     player <- findPlayer p
-    (field @"players" . ix p . field @"hand") .= ((player ^. field @"deck") ++ (player ^. field @"discard") ++ (player ^. field @"hand") ++ (player ^. field @"played"))
-    _ <- evaluateHand p (player ^. field @"hand")
-    return ()
+    vpts <- mapM (\c -> (c ^. #victoryPoints) c p) $ player ^. field @"victoryPile"
+    (field @"players" . ix p . field @"victory") .= foldr (+) 0 vpts

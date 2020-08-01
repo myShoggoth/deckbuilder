@@ -27,4 +27,4 @@ runTurns (x:xs) False = runTurn x >>= runTurns xs
 
 runGame :: Game c l g => Bool -> RWS c l g Result
 runGame True  = result
-runGame False = turnOrder >>= flip runTurns False >>= runGame
+runGame False = start *> turnOrder >>= flip runTurns False >>= runGame

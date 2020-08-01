@@ -124,6 +124,8 @@ configToGame c = DominionGame
                   []
 
 instance Game DominionConfig (DL.DList DominionMove) DominionGame where
+  start       = pure ()
+
   finished    = do
     decks' <- use $ field @"decks"
     emptyDecks <- numEmptyDecks

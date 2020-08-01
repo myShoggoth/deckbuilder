@@ -20,6 +20,7 @@ instance {-# OVERLAPPING #-} Eq Result where
   _              == _              = False
 
 class (Monoid c, Monoid l) => Game c l g where
+  start :: RWS c l g ()
   finished :: RWS c l g Bool
   result :: RWS c l g Result
   runTurn :: Int -> RWS c l g Bool
