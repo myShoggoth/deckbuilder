@@ -16,16 +16,18 @@ module DeckBuilding.Dominion.Utils
     , discardCard
     ) where
 
-import           Control.Lens
-import           Control.Monad               (filterM)
-import           Control.Monad.RWS
-import qualified Data.DList                  as DL
-import           Data.Generics.Product
-import           Data.List                   (delete, find)
-import qualified Data.Map                    as Map
-import           DeckBuilding.Dominion.Types
-import           System.Random               (split)
-import           System.Random.Shuffle
+import Control.Lens ( preuse, (^.), use, (%=), (.=), Ixed(ix) )
+import Control.Monad (filterM)
+import Control.Monad.RWS
+    ( MonadWriter(tell), MonadState(get) )
+import qualified Data.DList as DL
+import Data.Generics.Product ( HasField(field) )
+import Data.List (delete, find)
+import qualified Data.Map as Map
+import DeckBuilding.Dominion.Types
+    ( DominionPlayer, Card, DominionState, DominionMove(Deal) )
+import System.Random (split)
+import System.Random.Shuffle ( shuffle' )
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> Int -> DominionState [Card]

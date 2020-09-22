@@ -10,13 +10,32 @@
 
 module DeckBuilding.Legendary.Cards.Base where
 
-import DeckBuilding.Legendary.Types hiding (bystander)
+import DeckBuilding.Legendary.Types
+    ( DrawDiscardChoice(DiscardChoice, DrawChoice),
+      VillainCard(VillainCard),
+      HeroCard(HeroCard),
+      HeroClass(Tech, Ranged),
+      HeroTeam(SHIELD),
+      CityLocation(location),
+      Location(Bridge, Rooftops),
+      Scheme(Scheme),
+      Mastermind(Mastermind),
+      LegendaryState )
 import DeckBuilding.Legendary.Cards.Utils
+    ( valueCard,
+      koNOfTopofDeck,
+      gainRecruit,
+      koNFromHand,
+      adjustNextTurnCards,
+      vpPerClass,
+      classOrWound,
+      emptyWoundPile,
+      recruitN )
 import DeckBuilding.Legendary.Utils
-
-import           Data.Generics.Product
-import           Control.Lens
-import           Control.Monad
+    ( deal, findPlayer, capturedAction )
+import Data.Generics.Product ( HasField(field) )
+import Control.Lens ( (^..), folded, (^.), use )
+import Control.Monad ( forM_, void )
 
 -- S.H.I.E.L.D.
 
@@ -100,6 +119,7 @@ mastersOfEvil =    (take 2 $ repeat whirlwind)
 
 -- Dr. Doom
 
+drdoom :: Mastermind
 drdoom =
   Mastermind
     "Dr. Doom"
@@ -121,7 +141,7 @@ monarch'sDecree :: VillainCard
 monarch'sDecree = VillainCard "Monarch's Decree" 9 False False (\_ _ -> pure 5) Nothing (Just drawOrDiscard) Nothing
   where
     drawOrDiscard :: VillainCard -> CityLocation -> Int -> LegendaryState Int
-    drawOrDiscard c loc pnum = do
+    drawOrDiscard _ _ pnum = do
       ps <- use $ field @"players"
       p <- findPlayer pnum
       ((p ^. #strategy . #othersDrawOrDiscardStrategy) 1 pnum) >>= \case
@@ -132,7 +152,7 @@ monarch'sDecree = VillainCard "Monarch's Decree" 9 False False (\_ _ -> pure 5) 
             then return ()
             else do
               op <- findPlayer opnum
-              (op ^. #strategy . #discardStrategy) (1, 1) opnum
+              _ <- (op ^. #strategy . #discardStrategy) (1, 1) opnum
               return ()
       return pnum
           
@@ -143,7 +163,7 @@ monarch'sDecree = VillainCard "Monarch's Decree" 9 False False (\_ _ -> pure 5) 
 
 
 drdoomMasterStrike :: Int -> LegendaryState ()
-drdoomMasterStrike p = do
+drdoomMasterStrike _ = do
   ps <- use $ field @"players"
   forM_ [0 .. length ps - 1] $ \pnum -> do
     p <- findPlayer pnum

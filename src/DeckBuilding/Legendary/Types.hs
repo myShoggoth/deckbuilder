@@ -16,8 +16,8 @@ import           Data.Text
 import           System.Random
 import           GHC.Generics
 import           Control.Lens
-import           Data.Generics.Product
-import           Data.Generics.Labels
+import Data.Generics.Product ()
+import Data.Generics.Labels ()
 
 data LegendaryMove = Turn Int LegendaryPlayer |
                     Play HeroCard |
@@ -99,6 +99,7 @@ data CityLocation = CityLocation {
   next :: Maybe CityLocation
 } deriving stock (Show, Generic)
 
+defaultCity :: CityLocation
 defaultCity =
   CityLocation Sewers Nothing []
     ( Just $ CityLocation Bank Nothing []

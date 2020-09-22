@@ -27,19 +27,29 @@ module DeckBuilding.Legendary
   , resetTurn
   ) where
 
-import           Control.Lens
-import           Control.Monad.RWS
-import qualified Data.DList                   as DL
-import           Data.Foldable
-import qualified Data.List                    as L
-import qualified Data.Text                    as Text
-import           Data.Generics.Product
-import           DeckBuilding.Legendary.Types
-import           DeckBuilding.Legendary.Utils
-import           DeckBuilding.Legendary.Cards.Base
-import           DeckBuilding.Types
-import           System.Random               (StdGen, split)
-import           System.Random.Shuffle       (shuffle')
+import Control.Lens
+    ( (^..), (^.), use, (%=), (+=), (.=), Ixed(ix) )
+import Control.Monad.RWS
+    ( void, MonadWriter(tell), MonadState(get) )
+import qualified Data.DList as DL
+import qualified Data.List as L
+import qualified Data.Text as Text
+import Data.Generics.Product ( HasField(field) )
+import DeckBuilding.Legendary.Types
+    ( LegendaryPlayer(LegendaryPlayer, playerName, victory),
+      Strategy,
+      LegendaryGame(LegendaryGame),
+      Scheme(twists),
+      LegendaryConfig(playerDefs, theMastermind),
+      LegendaryState,
+      LegendaryMove(Play, Turn) )
+import DeckBuilding.Legendary.Utils
+    ( deal, findPlayer, drawVillain, fillHq )
+import DeckBuilding.Legendary.Cards.Base
+    ( shieldAgent, shieldTrooper, masterStrike, schemeTwist )
+import DeckBuilding.Types ( Game(..) )
+import System.Random (StdGen, split)
+import System.Random.Shuffle (shuffle')
 
 {-
 doTurn -
@@ -138,8 +148,8 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
     (field @"bystanders") .= shuffle' (gs ^. #bystanders) (length $ gs ^. #bystanders) (snd (split $ snd $ split r))
 
     (field @"random") .= (snd $ split $ snd $ split $ snd $ split r)
-    to <- turnOrder
-    void $ sequence $ (deal 6) <$> to
+    order <- turnOrder
+    void $ sequence $ (deal 6) <$> order
     pure ()
     
 

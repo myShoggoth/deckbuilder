@@ -11,16 +11,16 @@ module DeckBuilding.Legendary.Strategies.Basic
     ( dumbStrategy
     ) where
 
-import           Control.Lens
-import           Data.Generics.Product
-import           Data.List                              (delete, intersect,
-                                                         (\\), sortOn)
-import qualified Data.Map                               as Map
-import           Safe (headMay)
-import           DeckBuilding.Legendary.Cards.Base
-import           DeckBuilding.Legendary.Cards.Utils
-import           DeckBuilding.Legendary.Types
-import           DeckBuilding.Legendary.Utils
+import Control.Lens ( (^.), use, (.=), (<>=), Ixed(ix) )
+import Data.Generics.Product ( HasField(field) )
+import Data.List (sortOn)
+import Safe (headMay)
+import DeckBuilding.Legendary.Types
+    ( Strategy(Strategy),
+      DrawDiscardChoice(DrawChoice),
+      HeroCard(cost),
+      LegendaryState )
+import DeckBuilding.Legendary.Utils ( findPlayer )
 
 -- Strategies
 
@@ -67,30 +67,30 @@ dumbNextCard pnum = do
     return $ headMay $ p ^. #hand
 
 dumbDiscard :: (Int, Int) -> Int -> LegendaryState [HeroCard]
-dumbDiscard (_, _) pnum = undefined
+dumbDiscard (_, _) _ = undefined
 
 dumbTrash :: (Int, Int) -> Int -> LegendaryState [HeroCard]
-dumbTrash (_, _) pnum = undefined
+dumbTrash (_, _) _ = undefined
 
 dumbRetrieve :: (Int, Int) -> Int -> LegendaryState [HeroCard]
-dumbRetrieve (_, _) pnum = undefined
+dumbRetrieve (_, _) _ = undefined
 
 dumbOrderHand :: Int -> LegendaryState [HeroCard]
-dumbOrderHand pnum = undefined
+dumbOrderHand _ = undefined
 
 dumbGain :: Int -> Int -> LegendaryState (Maybe HeroCard)
-dumbGain cost pnum = undefined
+dumbGain _ _ = undefined
 
 dumbAttack :: Int -> LegendaryState Int
 dumbAttack pnum = pure pnum
 
 dumbKONOf :: (Int, Int) -> [HeroCard] -> Int -> LegendaryState ([HeroCard], [HeroCard])
-dumbKONOf (_, _) cs pnum = undefined
+dumbKONOf (_, _) _ _ = undefined
 
 dumbRecruitNStrategy :: [HeroCard] -> Int -> Int -> Int -> LegendaryState [HeroCard]
 dumbRecruitNStrategy [] _ _ _ = pure []
 dumbRecruitNStrategy _ 0 _ _ = pure []
-dumbRecruitNStrategy possibles number maxcost pnum = do
+dumbRecruitNStrategy possibles number maxcost _ = do
     pure $ take number $ sortOn cost $ filter (\x -> cost x <= maxcost) possibles
 
 dumbOthersDrawOrDiscardStrategy :: Int -> Int -> LegendaryState DrawDiscardChoice

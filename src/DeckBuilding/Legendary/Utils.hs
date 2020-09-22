@@ -18,7 +18,6 @@ import           DeckBuilding.Legendary.Types
 import           System.Random                (split)
 import           System.Random.Shuffle
 import qualified Data.List                    as List
-import           Control.Applicative          ((<|>))
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> Int -> LegendaryState [HeroCard]
@@ -47,7 +46,7 @@ findPlayer p = do
     Nothing      -> error $ "Unable to find player #" <> show p
 
 capturedAction :: VillainCard -> Int -> LegendaryState ()
-capturedAction c pnum = (field @"entrance" . field @"hostages") <>= [c]
+capturedAction c _ = (field @"entrance" . field @"hostages") <>= [c]
 
 drawVillain :: Int -> Int -> LegendaryState ()
 drawVillain n p = do
@@ -57,16 +56,16 @@ drawVillain n p = do
     else do
       let (newVillains, newVillainDeck) = splitAt n vdeck
       (field @"villainDeck") .= newVillainDeck
-      void $ sequence $ (enterVillain p) <$> newVillains
+      void $ sequence $ enterVillain <$> newVillains
   where
-    enterVillain :: Int -> VillainCard -> LegendaryState ()
-    enterVillain p v =
+    enterVillain :: VillainCard -> LegendaryState ()
+    enterVillain v =
       if isBystander v
         then capturedAction v p
         else do
           entr <- use $ field @"entrance"
-          let (newCity, escapees) = advanceVillain entr v [] 
-          field @"escapees" <>= escapees
+          let (newCity,escaped) = advanceVillain entr v [] 
+          field @"escapees" <>= escaped
           field @"entrance" .= newCity
 
     -- | Advance this villain one city location.
@@ -81,11 +80,11 @@ drawVillain n p = do
         Just v -> case next loc of
           Nothing -> (CityLocation (loc ^. #location) (Just incomingv) incomingb Nothing, v : hostages loc)
           Just nl -> do
-            let (nnl, escapees) = advanceVillain nl v (loc ^. #hostages)
-            (CityLocation (loc ^. #location) (Just incomingv) incomingb (Just nnl), escapees)
+            let (nnl, escaped) = advanceVillain nl v (loc ^. #hostages)
+            (CityLocation (loc ^. #location) (Just incomingv) incomingb (Just nnl), escaped)
 
 fillHq :: Int -> LegendaryState ()
-fillHq p = do
+fillHq _ = do
   hdeck <- use $ field @"heroDeck"
   hqs :: [Maybe HeroCard] <- use $ field @"hq"
   let missing = length . filter (== Nothing) $ hqs
