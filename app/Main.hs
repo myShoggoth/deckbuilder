@@ -6,26 +6,53 @@
 
 module Main where
 
-import           DeckBuilding.Dominion
-import           DeckBuilding.Dominion.Cards
-import           DeckBuilding.Dominion.DominionTree
-import           DeckBuilding.Dominion.Strategies.Basic
-import           DeckBuilding.Dominion.Types
-import           DeckBuilding.Types
-import           DeckBuilding
-
-import           Data.Text.Prettyprint.Doc
-import           Data.Text.Prettyprint.Doc.Render.Text
-
+import DeckBuilding.Dominion ( configToGame, randomKingdomDecks )
+import DeckBuilding.Dominion.Cards ( kingdomCards2ndEdition )
+import DeckBuilding.Dominion.DominionTree ( buildDominionTree )
+import DeckBuilding.Dominion.Strategies.Basic
+    ( bigMoneyStrategy, bigSmithyStrategy, villageSmithyEngine4 )
+import DeckBuilding.Dominion.Types
+    ( DominionConfig(DominionConfig, seeds),
+      DominionMove(..),
+      DominionPlayer(playerName, hand),
+      Card(cardName),
+      DominionState,
+      PlayerTurn(PlayerTurn),
+      CardPlay(..),
+      BoughtCard(..),
+      DominionTree(DominionTree),
+      GameTurn(GameTurn) )
+import DeckBuilding.Types ( Result )
+import DeckBuilding ( runGame )
+import Data.Text.Prettyprint.Doc
+    ( (<+>),
+      align,
+      layoutPretty,
+      list,
+      sep,
+      vsep,
+      LayoutOptions(..),
+      PageWidth(AvailablePerLine),
+      Pretty(pretty) )
+import Data.Text.Prettyprint.Doc.Render.Text ( renderStrict )
 import qualified Data.DList                             as DL
 import qualified Data.List                              as List
 import qualified Data.Text.IO                           as Text
-import           System.Random
+import System.Random ( newStdGen, RandomGen(split), StdGen )
 import           Control.Arrow                          ((&&&))
-import           Control.Monad.RWS
-import           Control.Monad.Extra
-
-import           System.Console.CmdArgs
+import Control.Monad.RWS ( evalRWS )
+import Control.Monad.Extra ( forM, ifM )
+import System.Console.CmdArgs
+    ( Data,
+      Typeable,
+      (&=),
+      cmdArgs,
+      details,
+      help,
+      summary,
+      verbosity,
+      isLoud,
+      Default(def) )
 
 data DeckBuilder = DeckBuilder
   { times :: Int
@@ -37,7 +64,7 @@ deckBuilder = DeckBuilder
   { times = def &= help "Number of games to run."
   } &=
   verbosity &=
-  help "stack run -- deckbuilder-exe 1" &=
+  help "stack run -- deckbuilder-exe --times 1" &=
   summary "DeckBuilder version 0.1.0.2, (C) Andrew Boardman" &=
   details [ "DeckBuilder runs a simulation of deck building games."
           , "You can create new strategies and run them against each other."

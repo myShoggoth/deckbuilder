@@ -9,14 +9,17 @@ module DeckBuilding.Dominion.Cards.Utils
     , basicCardAction
     , gainCard
     , simpleVictory
+    , hasActionCards
     ) where
 
-import           Control.Lens
-import           Data.Generics.Product
-import           Data.List
+import Control.Lens ( (^.), (%=), (+=), Ixed(ix) )
+import Data.Generics.Product ( HasField(field) )
+import Data.List ( find, delete )
 import qualified Data.Map                    as Map
-import           DeckBuilding.Dominion.Types
-import           DeckBuilding.Dominion.Utils
+import DeckBuilding.Dominion.Types
+    ( Card, CardType(Action), DominionState )
+import DeckBuilding.Dominion.Utils
+    ( deal, decreaseCards, findPlayer )
 
 -- | A simple points-only Victory card
 -- | Victory Points
@@ -61,3 +64,6 @@ gainCard cards highestPrice p = obtain highestCostCard
           (field @"players" . ix p . field @"deck") %= (c:)
           return $ Just c
         highestCostCard = find (\c -> (c ^. field @"cost") < highestPrice) cards
+
+hasActionCards :: Int -> [Card] -> Bool
+hasActionCards num cs = num <= length (filter (\c -> (c ^. field @"cardType") == Action) cs)

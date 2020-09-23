@@ -20,9 +20,15 @@ instance {-# OVERLAPPING #-} Eq Result where
   _              == _              = False
 
 class (Monoid c, Monoid l) => Game c l g where
+  -- | Create the initial state of the 'Game' turn.
   start :: RWS c l g ()
+  -- | Returns whether or not the 'Game' is over.
   finished :: RWS c l g Bool
+  -- | Calculate the end 'Result' scores.
   result :: RWS c l g Result
+  -- | Run a turn for 'Player' n.
   runTurn :: Int -> RWS c l g Bool
+  -- | Returns a list of the 'Player' numbers in order for this 'Game' turn.
   turnOrder :: RWS c l g [Int]
+  -- | Count up the total points for 'Player' n.
   tallyPoints :: Int -> RWS c l g ()

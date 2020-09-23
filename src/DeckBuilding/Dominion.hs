@@ -32,19 +32,34 @@ module DeckBuilding.Dominion
     , configToGame
     ) where
 
-import           Control.Lens
-import           Control.Monad.RWS
-import qualified Data.DList                  as DL
-import           Data.Generics.Product
-import           Data.List                   (groupBy, sort)
-import qualified Data.Map                    as Map
-import qualified Data.Text                   as Text
-import           DeckBuilding.Dominion.Cards
-import           DeckBuilding.Dominion.Types
-import           DeckBuilding.Dominion.Utils
-import           DeckBuilding.Types
-import           System.Random               (StdGen)
-import           System.Random.Shuffle       (shuffle')
+import Control.Lens ( (^.), use, (%=), (+=), (.=), Ixed(ix) )
+import Control.Monad.RWS ( MonadWriter(tell) )
+import qualified Data.DList as DL
+import Data.Generics.Product ( HasField(field) )
+import Data.List (groupBy, sort)
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+import DeckBuilding.Dominion.Cards
+    ( goldCard,
+      silverCard,
+      copperCard,
+      provinceCard,
+      duchyCard,
+      estateCard )
+import DeckBuilding.Dominion.Types
+    ( DominionPlayer(DominionPlayer, playerName, victory),
+      Strategy,
+      Card(Card),
+      CardType(Value),
+      DominionGame(DominionGame),
+      DominionConfig,
+      DominionState,
+      DominionMove(Play, Turn, GameOver) )
+import DeckBuilding.Dominion.Utils
+    ( deal, numEmptyDecks, findPlayer, discardCard )
+import DeckBuilding.Types ( Game(..) )
+import System.Random (StdGen)
+import System.Random.Shuffle (shuffle')
 
 -- Dominion
 
@@ -71,12 +86,17 @@ evaluateHand pnum = do
     Just c -> do
       evaluateCard c pnum thePlayer
       evaluateHand pnum
- 
+
+-- | Determine whether or not to play a card. 'Value' cards are played
+-- automatically, 'Action' cards can only be played if the player has
+-- remaining action points.
 evaluateCard :: Card -> Int -> DominionPlayer -> DominionState ()
 evaluateCard c@(Card _ _ _ Value _) pnum _ = evaluateCard' c pnum
 evaluateCard c pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) = discardCard c pnum
 evaluateCard c pnum _ = evaluateCard' c pnum
 
+-- | We know the 'Card' will be played, so 'tell' to the 'Writer' that
+-- we're playing the card, then call the 'action' function.
 evaluateCard' :: Card -> Int -> DominionState ()
 evaluateCard' c pnum = do
   tell $ DL.singleton $ Play c

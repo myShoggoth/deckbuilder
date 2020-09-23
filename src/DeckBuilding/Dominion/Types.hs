@@ -1,21 +1,22 @@
-{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
     ) where
 
-import           Control.Monad.RWS
-import qualified Data.DList        as DL
-import qualified Data.Map          as Map
-import qualified Data.Semigroup    as Semi
-import           Data.Text
-import           GHC.Generics
-import           System.Random
-import           DeckBuilding.Types
+import Control.Monad.RWS ( RWS )
+import qualified Data.DList as DL
+import qualified Data.Map as Map
+import qualified Data.Semigroup as Semi
+import Data.Text ( unpack, Text )
+import GHC.Generics ( Generic )
+import System.Random ( StdGen )
+import DeckBuilding.Types ( Result )
 
 data DominionMove = Turn Int DominionPlayer |
                     Play Card |
@@ -54,7 +55,7 @@ data DominionConfig = DominionConfig {
   games        :: Int,
   -- | One random number generator per game
   seeds        :: [StdGen]
-} deriving Show
+} deriving stock (Show, Generic)
 
 instance Semi.Semigroup DominionConfig where
   c1 <> c2 = DominionConfig
@@ -67,6 +68,7 @@ instance Monoid DominionConfig where
   mempty = DominionConfig [] [] 0 []
   mappend = (Semi.<>)
 
+-- | Represents the state of a single game of Dominion.
 data DominionGame = DominionGame {
   -- | The players of the game.
   players :: [DominionPlayer],
@@ -76,8 +78,14 @@ data DominionGame = DominionGame {
   trash   :: [Card],
   -- | The current random number generator, needs to be updated when used.
   random  :: StdGen
-} deriving Show
+} deriving stock (Show, Generic)
 
+-- | The two 'CardType's are
+-- * 'Value' - The 'Card' does not require an action to play,
+-- and normally givens money or victory points (not useful
+-- until scoring).
+-- * 'Action' - Does require an action to play, each type of action
+-- 'Card' has its own logic.
 data CardType = Value | Action
   deriving (Show, Eq)
 
@@ -91,7 +99,7 @@ data Card = Card {
     The function that changes that game state based on the card. This is the
     core of the whole engine.
 
-    Card: The card being played.
+    'Card': The card being played.
     Int: The number of the player that is playing the card.
 
     Updates the game state based on what the card does, then returns the
@@ -101,9 +109,9 @@ data Card = Card {
   -- | Value or Action
   cardType :: CardType,
   -- | The function that determines the score for the card
-  -- at the end of thee game
+  -- at the end of the game
   score    :: Card -> Int -> DominionState Int
-}
+} deriving stock (Generic)
 
 instance Ord Card where
   compare c1 c2 = compare (cardName c1) (cardName c2)
@@ -119,8 +127,8 @@ instance Show Card where
   called at different times in the game for the player to make a decision.
 
   To create a new strategy, implement each of the functions (or use one of
-  the basic ones if that's good enough) and create a Strategy. Then pass it
-  when creating a DominionPlayer and see how it does in the game.
+  the basic ones if that's good enough) and create a 'Strategy'. Then pass it
+  when creating a 'DominionPlayer' and see how it does in the game.
 
   Because these are done in the context of the State Monad, the strategy
   can see the entire game state, including stuff real players wouldn't be
@@ -166,7 +174,7 @@ data Strategy = Strategy {
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
   lurkerStrategy     :: Card -> Int -> DominionState (Either Card Card)
-}
+} deriving stock (Generic)
 
 instance Show Strategy where
   show s = unpack $ strategyName s
@@ -198,7 +206,7 @@ data DominionPlayer = DominionPlayer {
   turns      :: Int,
   -- | The Strategy used by this player.
   strategy   :: Strategy
-} deriving Show
+} deriving stock (Show, Generic)
 
 instance Eq DominionPlayer where
   a == b = playerName a == playerName b
@@ -208,30 +216,30 @@ instance Ord DominionPlayer where
     | victory p1 == victory p2  = turns (p1 :: DominionPlayer) `compare` turns (p2 :: DominionPlayer)
     | otherwise                 = victory p2 `compare` victory p1
 
-deriving instance Generic DominionGame
-deriving instance Generic DominionPlayer
-deriving instance Generic Card
-deriving instance Generic Strategy
-deriving instance Generic DominionConfig
-
 data CardPlay = Standard Card | PlayThroneRoom Card | PlayRemodel Card Card | PlayCellar [Card]
   deriving (Show, Eq)
 
 data BoughtCard = BoughtCard Card
   deriving (Show, Eq)
 
+-- | A representation of a 'Player''s turn.
+-- * Which cards were played.
+-- * Which cards were bought.
 data PlayerTurn = PlayerTurn
   { player      :: Text
   , cardsPlayed :: [CardPlay]
   , cardsBought :: [BoughtCard]
   } deriving (Show, Eq)
 
+-- | A single turn in a game, what turn number it is and each 'Player''s
+-- 'PlayerTurn'.
 data GameTurn = GameTurn
   { number :: Int
   , playerTurns :: [PlayerTurn]
   } deriving (Show, Eq)
 
-
+-- | A single game of Dominion, including all of the 'GameTurn's,
+-- and the end 'Result'.
 data DominionTree = DominionTree
   { turns :: [GameTurn]
   , results :: Result

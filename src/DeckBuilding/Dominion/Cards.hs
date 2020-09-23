@@ -1,12 +1,11 @@
 module DeckBuilding.Dominion.Cards
-    ( module DeckBuilding.Dominion.Cards.Base
-    , module DeckBuilding.Dominion.Cards.Intrigue
+    ( module X
     , actionTerminatorCards
     ) where
 
-import           DeckBuilding.Dominion.Cards.Base
-import           DeckBuilding.Dominion.Cards.Intrigue
-import           DeckBuilding.Dominion.Types
+import DeckBuilding.Dominion.Cards.Base as X
+import DeckBuilding.Dominion.Cards.Intrigue as X
+import DeckBuilding.Dominion.Types ( Card )
 
 actionTerminatorCards :: [Card]
-actionTerminatorCards = baseSetActionTerminators
+actionTerminatorCards = X.baseSetActionTerminators
