@@ -10,6 +10,7 @@
 
 module DeckBuilding.Legendary.Cards.Base where
 
+import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import DeckBuilding.Legendary.Types
     ( DrawDiscardChoice(DiscardChoice, DrawChoice),
       VillainCard(VillainCard),
@@ -54,17 +55,17 @@ bystander = VillainCard "Bystander" 0 False True (\_ _ -> return 1) (Just captur
 masterStrike :: VillainCard
 masterStrike = VillainCard "Master Strike" 0 False False (\_ _ -> return 0) (Just doMasterStrike) Nothing Nothing
 
-doMasterStrike :: VillainCard -> Int -> LegendaryState ()
+doMasterStrike :: VillainCard -> PlayerNumber -> LegendaryState ()
 doMasterStrike _ pnum = do
-  mms <- use $ field @"masterminds"
+  mms <- use $ #masterminds
   forM_ mms $ \mm -> (mm ^. #masterStrikeAction) pnum
 
 schemeTwist :: VillainCard
 schemeTwist = VillainCard "Scheme Twist" 0 False False (\_ _ -> return 0) (Just doSchemeTwist) Nothing Nothing
 
-doSchemeTwist :: VillainCard -> Int -> LegendaryState ()
+doSchemeTwist :: VillainCard -> PlayerNumber -> LegendaryState ()
 doSchemeTwist _ pnum = do
-  scheme <- use $ field @"scheme"
+  scheme <- use $ #scheme
   (scheme ^. #schemeTwistAction) pnum
 
 -- Henchmen
@@ -97,7 +98,7 @@ sentinels = take 15 $ repeat sentinel
 
 whirlwind :: VillainCard
 whirlwind = VillainCard "Whirlwind" 4 False False (\_ _ -> return 2) Nothing (Just attack) Nothing
-  where attack :: VillainCard -> CityLocation -> Int -> LegendaryState Int
+  where attack :: VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber
         attack c loc pnum = if location loc == Rooftops || location loc == Bridge
           then koNFromHand 2 c loc pnum
           else pure pnum
@@ -140,19 +141,19 @@ darkTechnology = VillainCard "Dark Technology" 9 False False (\_ _ -> pure 5) No
 monarch'sDecree :: VillainCard
 monarch'sDecree = VillainCard "Monarch's Decree" 9 False False (\_ _ -> pure 5) Nothing (Just drawOrDiscard) Nothing
   where
-    drawOrDiscard :: VillainCard -> CityLocation -> Int -> LegendaryState Int
+    drawOrDiscard :: VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber
     drawOrDiscard _ _ pnum = do
       ps <- use $ field @"players"
       p <- findPlayer pnum
       ((p ^. #strategy . #othersDrawOrDiscardStrategy) 1 pnum) >>= \case
-        DrawChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == pnum
+        DrawChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == (unPlayerNumber pnum)
             then return ()
-            else void $ deal 1 opnum
-        DiscardChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == pnum
+            else void $ deal 1 $ PlayerNumber opnum
+        DiscardChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == (unPlayerNumber pnum)
             then return ()
             else do
-              op <- findPlayer opnum
-              _ <- (op ^. #strategy . #discardStrategy) (1, 1) opnum
+              op <- findPlayer $ PlayerNumber opnum
+              _ <- (op ^. #strategy . #discardStrategy) (1, 1) $ PlayerNumber opnum
               return ()
       return pnum
           
@@ -162,14 +163,14 @@ monarch'sDecree = VillainCard "Monarch's Decree" 9 False False (\_ _ -> pure 5) 
 --treasuresOfLatveria :: VillainCard
 
 
-drdoomMasterStrike :: Int -> LegendaryState ()
+drdoomMasterStrike :: PlayerNumber -> LegendaryState ()
 drdoomMasterStrike _ = do
   ps <- use $ field @"players"
   forM_ [0 .. length ps - 1] $ \pnum -> do
-    p <- findPlayer pnum
+    p <- findPlayer $ PlayerNumber pnum
     if (6 == (length $ p ^. #hand)) &&
        (0 < (length $ filter (== Tech) $ (p ^. #hand) ^.. folded . #heroClass . folded))
-      then void $ (p ^. #strategy . #discardStrategy) (2, 2) pnum
+      then void $ (p ^. #strategy . #discardStrategy) (2, 2) $ PlayerNumber pnum
       else pure ()
   pure ()
 

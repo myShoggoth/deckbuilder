@@ -15,6 +15,7 @@ import Control.Lens ( (^.), use, (.=), (<>=), Ixed(ix) )
 import Data.Generics.Product ( HasField(field) )
 import Data.List (sortOn)
 import Safe (headMay)
+import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Legendary.Types
     ( Strategy(Strategy),
       DrawDiscardChoice(DrawChoice),
@@ -39,13 +40,13 @@ dumbStrategy = Strategy "Really Dumb"
                             dumbRecruitNStrategy
                             dumbOthersDrawOrDiscardStrategy
 
-dumbBuy :: Int -> LegendaryState Int
+dumbBuy :: PlayerNumber -> LegendaryState PlayerNumber
 dumbBuy pnum = do
     p <- findPlayer pnum
-    hqs <- use $ field @"hq"
+    hqs <- use $ #hq
     let (unused, bought, hq') = doBuy (p ^. #unusedMoney) [] hqs
-    (field @"players" . ix pnum . field @"unusedMoney") .= unused
-    (field @"players" . ix pnum . field @"discard") <>= bought
+    (field @"players" . ix (unPlayerNumber pnum) . #unusedMoney) .= unused
+    (field @"players" . ix (unPlayerNumber pnum) . #discard) <>= bought
     field @"hq" .= hq'
     pure pnum
   where
@@ -61,37 +62,37 @@ dumbBuy pnum = do
               else let (unused', b', hqrest') = doBuy n b hqrest
                    in (unused', b', x:hqrest')
 
-dumbNextCard :: Int -> LegendaryState (Maybe HeroCard)
+dumbNextCard :: PlayerNumber -> LegendaryState (Maybe HeroCard)
 dumbNextCard pnum = do
     p <- findPlayer pnum
     return $ headMay $ p ^. #hand
 
-dumbDiscard :: (Int, Int) -> Int -> LegendaryState [HeroCard]
+dumbDiscard :: (Int, Int) -> PlayerNumber -> LegendaryState [HeroCard]
 dumbDiscard (_, _) _ = undefined
 
-dumbTrash :: (Int, Int) -> Int -> LegendaryState [HeroCard]
+dumbTrash :: (Int, Int) -> PlayerNumber -> LegendaryState [HeroCard]
 dumbTrash (_, _) _ = undefined
 
-dumbRetrieve :: (Int, Int) -> Int -> LegendaryState [HeroCard]
+dumbRetrieve :: (Int, Int) -> PlayerNumber -> LegendaryState [HeroCard]
 dumbRetrieve (_, _) _ = undefined
 
-dumbOrderHand :: Int -> LegendaryState [HeroCard]
+dumbOrderHand :: PlayerNumber -> LegendaryState [HeroCard]
 dumbOrderHand _ = undefined
 
-dumbGain :: Int -> Int -> LegendaryState (Maybe HeroCard)
+dumbGain :: Int -> PlayerNumber -> LegendaryState (Maybe HeroCard)
 dumbGain _ _ = undefined
 
-dumbAttack :: Int -> LegendaryState Int
+dumbAttack :: PlayerNumber -> LegendaryState PlayerNumber
 dumbAttack pnum = pure pnum
 
-dumbKONOf :: (Int, Int) -> [HeroCard] -> Int -> LegendaryState ([HeroCard], [HeroCard])
+dumbKONOf :: (Int, Int) -> [HeroCard] -> PlayerNumber -> LegendaryState ([HeroCard], [HeroCard])
 dumbKONOf (_, _) _ _ = undefined
 
-dumbRecruitNStrategy :: [HeroCard] -> Int -> Int -> Int -> LegendaryState [HeroCard]
+dumbRecruitNStrategy :: [HeroCard] -> Int -> Int -> PlayerNumber -> LegendaryState [HeroCard]
 dumbRecruitNStrategy [] _ _ _ = pure []
 dumbRecruitNStrategy _ 0 _ _ = pure []
 dumbRecruitNStrategy possibles number maxcost _ = do
     pure $ take number $ sortOn cost $ filter (\x -> cost x <= maxcost) possibles
 
-dumbOthersDrawOrDiscardStrategy :: Int -> Int -> LegendaryState DrawDiscardChoice
+dumbOthersDrawOrDiscardStrategy :: Int -> PlayerNumber -> LegendaryState DrawDiscardChoice
 dumbOthersDrawOrDiscardStrategy _ _ = pure DrawChoice

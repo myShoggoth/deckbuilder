@@ -35,13 +35,15 @@ spec = do
               firstGameKingdomCards
               1
               [g]
+  let p0 = PlayerNumber 0
+      p1 = PlayerNumber 1
   let dg = configToGame c g
-  let afterDeal               = fst $ execRWS (deal 5 0) c dg
+  let afterDeal               = fst $ execRWS (deal 5 p0) c dg
   let (Just p1AfterDeal)      = afterDeal ^? field @"players" . ix 0
-  let afterDeal2              = fst $ execRWS (deal 5 1) c afterDeal
-  let afterEvaluate           = fst $ execRWS (evaluateHand 0) c afterDeal2
+  let afterDeal2              = fst $ execRWS (deal 5 p1) c afterDeal
+  let afterEvaluate           = fst $ execRWS (evaluateHand p0) c afterDeal2
   let (Just p1AfterEvaluate)  = afterEvaluate ^? field @"players" . ix 0
-  let afterReset              = fst $ execRWS (resetTurn 0) c afterEvaluate
+  let afterReset              = fst $ execRWS (resetTurn p0) c afterEvaluate
   let (Just p1AfterReset)     = afterReset ^? field @"players" . ix 0
 
   describe "Utils.deal" $ do
@@ -65,11 +67,6 @@ spec = do
     it "calculates the right amount of money" $
       p1AfterEvaluate ^. field @"money" `shouldBe` length (filter (== copperCard) (p1AfterEvaluate ^. field @"played"))
 
-  {- Don't calculate victory points as we go anymore
-    it "calculates the right amount of victory" $
-      p1AfterEvaluate ^. field @"victory" `shouldBe` length (filter (== estateCard) (p1AfterEvaluate ^. field @"played"))
-      -}
-
   describe "resetTurn" $ do
     it "has an empty played pile" $
       length (p1AfterReset ^. field @"played") `shouldBe` 0
@@ -90,12 +87,12 @@ spec = do
       (p1AfterReset ^. field @"actions") `shouldBe` 1
 
   describe "doTurn" $ do
-    let afterDoTurn = fst $ execRWS ((runTurn 0) :: DominionState Bool) c afterDeal2
+    let afterDoTurn = fst $ execRWS ((runTurn p0) :: DominionState Bool) c afterDeal2
 
     it "bought a card" $ do
       length ((afterDoTurn ^. field @"players") !! 0 ^. field @"discard") `shouldBe` 6
 
   describe "doTurns" $ do
-    let afterDoTurns = fst $ execRWS ((runTurns [0..1] False) :: DominionState Bool) c afterDeal2
+    let afterDoTurns = fst $ execRWS ((runTurns (PlayerNumber <$> [0..1]) False) :: DominionState Bool) c afterDeal2
     it "has players with more cards" $ do
       length ((afterDoTurns ^. field @"players") !! 0 ^. field @"discard") `shouldBe` 6

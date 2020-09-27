@@ -40,13 +40,15 @@ spec = do
               legacyVirus
               drdoom
               [g]
+  let p0 = PlayerNumber 0
+      p1 = PlayerNumber 1
   let dg = configToGame c g
-  let afterDeal               = fst $ execRWS (deal 6 0) c dg
+  let afterDeal               = fst $ execRWS (deal 6 p0) c dg
   let (Just p1AfterDeal)      = afterDeal ^? field @"players" . ix 0
-  let afterDeal2              = fst $ execRWS (deal 6 1) c afterDeal
-  let afterEvaluate           = fst $ execRWS (evaluateHand 0) c afterDeal2
+  let afterDeal2              = fst $ execRWS (deal 6 p1) c afterDeal
+  let afterEvaluate           = fst $ execRWS (evaluateHand p0) c afterDeal2
   let (Just p1AfterEvaluate)  = afterEvaluate ^? field @"players" . ix 0
-  let afterReset              = fst $ execRWS (resetTurn 0) c afterEvaluate
+  let afterReset              = fst $ execRWS (resetTurn p0) c afterEvaluate
   let (Just p1AfterReset)     = afterReset ^? field @"players" . ix 0
 
   describe "Utils.deal" $ do
@@ -89,12 +91,12 @@ spec = do
       length (p1AfterReset ^. field @"hand") `shouldBe` 0
 
   describe "doTurn" $ do
-    let afterDoTurn = fst $ execRWS ((runTurn 0) :: LegendaryState Bool) c afterDeal2
+    let afterDoTurn = fst $ execRWS ((runTurn p0) :: LegendaryState Bool) c afterDeal2
 
     it "bought a card" $ do
       length ((afterDoTurn ^. field @"players") !! 0 ^. field @"discard") `shouldBe` 6
 
   describe "doTurns" $ do
-    let afterDoTurns = fst $ execRWS ((runTurns [0..1] False) :: LegendaryState Bool) c afterDeal2
+    let afterDoTurns = fst $ execRWS ((runTurns (PlayerNumber <$> [0..1]) False) :: LegendaryState Bool) c afterDeal2
     it "has players with more cards" $ do
       length ((afterDoTurns ^. field @"players") !! 0 ^. field @"discard") `shouldBe` 6

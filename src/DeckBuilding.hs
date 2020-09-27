@@ -18,13 +18,13 @@ module DeckBuilding
 
 import Control.Monad.RWS ( RWS )
 import DeckBuilding.Types
-    ( Game(turnOrder, runTurn, result, start), Result )
+    ( Game(turnOrder, runTurn, result, start), Result, PlayerNumber )
 
 -- | Run the 'Game' turns given a 'Player' turn order.
 -- When a game turn finds that 'finished' returns True,
 -- it will pass True as the second argument and we will
 -- short circuit and return True.
-runTurns :: Game c l g => [Int] -> Bool -> RWS c l g Bool
+runTurns :: Game c l g => [PlayerNumber] -> Bool -> RWS c l g Bool
 runTurns _      True  = return True
 runTurns []     False = return False
 runTurns (x:xs) False = runTurn x >>= runTurns xs

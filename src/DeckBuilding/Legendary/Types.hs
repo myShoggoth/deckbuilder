@@ -9,13 +9,14 @@ module DeckBuilding.Legendary.Types
     ( module DeckBuilding.Legendary.Types
     ) where
 
-import           Control.Monad.RWS
-import qualified Data.DList         as DL
-import qualified Data.Semigroup     as Semi
-import           Data.Text
-import           System.Random
-import           GHC.Generics
-import           Control.Lens
+import DeckBuilding.Types ( PlayerNumber )
+import Control.Monad.RWS ( RWS )
+import qualified Data.DList as DL
+import qualified Data.Semigroup as Semi
+import Data.Text ( Text, unpack )
+import System.Random ( StdGen )
+import GHC.Generics ( Generic )
+import Control.Lens ( (^.) )
 import Data.Generics.Product ()
 import Data.Generics.Labels ()
 
@@ -60,7 +61,7 @@ instance Monoid LegendaryConfig where
   mappend = (Semi.<>)
 
 memptyScheme :: Scheme
-memptyScheme = Scheme "" (pure True) ((\_ -> pure ()) :: Int -> LegendaryState ()) 0
+memptyScheme = Scheme "" (pure True) ((\_ -> pure ()) :: PlayerNumber -> LegendaryState ()) 0
 
 memptyMastermind :: Mastermind
 memptyMastermind = Mastermind "" 0 0 (pure True) (\_ -> pure ()) [] [[]]
@@ -70,7 +71,7 @@ data Mastermind = Mastermind {
   attack              :: Int,
   victoryPoints       :: Int,
   mmEvilWins          :: LegendaryState Bool,
-  masterStrikeAction  :: Int -> LegendaryState (),
+  masterStrikeAction  :: PlayerNumber -> LegendaryState (),
   aspects             :: [VillainCard],
   alwaysLeads         :: [[VillainCard]]
 } deriving stock (Generic)
@@ -82,7 +83,7 @@ instance Show Mastermind where
 data Scheme = Scheme {
   schemeName        :: Text,
   evilWins          :: LegendaryState Bool,
-  schemeTwistAction :: Int -> LegendaryState (),
+  schemeTwistAction :: PlayerNumber -> LegendaryState (),
   twists            :: Int
 } deriving stock (Generic)
 
@@ -154,7 +155,7 @@ data HeroCard = HeroCard {
     Updates the game state based on what the card does, then returns the
     player's new hand.
   -}
-  action    :: HeroCard -> Int -> LegendaryState Int,
+  action    :: HeroCard -> PlayerNumber -> LegendaryState PlayerNumber,
   heroClass :: [HeroClass],
   heroTeam  :: HeroTeam
 } deriving stock (Generic)
@@ -173,10 +174,10 @@ data VillainCard = VillainCard {
   attack        :: Int,
   bribable      :: Bool,
   isBystander   :: Bool,
-  victoryPoints :: (VillainCard -> Int -> LegendaryState Int),
-  ambushAction  :: Maybe (VillainCard -> Int -> LegendaryState ()),
-  fightAction   :: Maybe (VillainCard -> CityLocation -> Int -> LegendaryState Int),
-  escapeAction  :: Maybe (VillainCard -> Int -> LegendaryState ())
+  victoryPoints :: (VillainCard -> PlayerNumber -> LegendaryState Int),
+  ambushAction  :: Maybe (VillainCard -> PlayerNumber -> LegendaryState ()),
+  fightAction   :: Maybe (VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber),
+  escapeAction  :: Maybe (VillainCard -> PlayerNumber -> LegendaryState ())
 } deriving stock (Generic)
 
 instance Ord VillainCard where
@@ -211,31 +212,31 @@ data Strategy = Strategy {
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
-  buyStrategy      :: Int -> LegendaryState Int,
+  buyStrategy      :: PlayerNumber -> LegendaryState PlayerNumber,
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  nextCard           :: Int -> LegendaryState (Maybe HeroCard),
+  nextCard           :: PlayerNumber -> LegendaryState (Maybe HeroCard),
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
-  discardStrategy  :: (Int, Int) -> Int -> LegendaryState [HeroCard],
+  discardStrategy  :: (Int, Int) -> PlayerNumber -> LegendaryState [HeroCard],
   -- | like discardStrategy, except for trashing cards.
-  trashStrategy    :: (Int, Int) -> Int -> LegendaryState [HeroCard],
+  trashStrategy    :: (Int, Int) -> PlayerNumber -> LegendaryState [HeroCard],
   -- | Like discardStrategy, except for retrieving cards from the player's
   --  discard pile.
-  retrieveStrategy :: (Int, Int) -> Int -> LegendaryState [HeroCard],
+  retrieveStrategy :: (Int, Int) -> PlayerNumber -> LegendaryState [HeroCard],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  orderHand        :: Int -> LegendaryState [HeroCard],
+  orderHand        :: PlayerNumber -> LegendaryState [HeroCard],
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
-  gainCardStrategy :: Int -> Int -> LegendaryState (Maybe HeroCard),
-  attackStrategy   :: Int -> LegendaryState Int,
-  koNOfStrategy  :: (Int, Int) -> [HeroCard] -> Int -> LegendaryState ([HeroCard], [HeroCard]),
+  gainCardStrategy :: Int -> PlayerNumber -> LegendaryState (Maybe HeroCard),
+  attackStrategy   :: PlayerNumber -> LegendaryState PlayerNumber,
+  koNOfStrategy  :: (Int, Int) -> [HeroCard] -> PlayerNumber -> LegendaryState ([HeroCard], [HeroCard]),
   -- | Possible cards -> Number to recruit -> max cost
-  recruitNStrategy :: [HeroCard] -> Int -> Int -> Int -> LegendaryState ([HeroCard]),
+  recruitNStrategy :: [HeroCard] -> Int -> Int -> PlayerNumber -> LegendaryState ([HeroCard]),
   -- | Others must draw or discard N cards -> because of player P
-  othersDrawOrDiscardStrategy :: Int -> Int -> LegendaryState DrawDiscardChoice
+  othersDrawOrDiscardStrategy :: Int -> PlayerNumber -> LegendaryState DrawDiscardChoice
 } deriving stock (Generic)
 
 instance Show Strategy where

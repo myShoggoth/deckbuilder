@@ -47,7 +47,7 @@ import DeckBuilding.Legendary.Utils
     ( deal, findPlayer, drawVillain, fillHq )
 import DeckBuilding.Legendary.Cards.Base
     ( shieldAgent, shieldTrooper, masterStrike, schemeTwist )
-import DeckBuilding.Types ( Game(..) )
+import DeckBuilding.Types ( Game(..), PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random (StdGen, split)
 import System.Random.Shuffle (shuffle')
 
@@ -77,33 +77,33 @@ newPlayer n = LegendaryPlayer n [] (replicate 8 shieldAgent ++ replicate 4 shiel
   the default case is to run a card and then recursively call with the new
   hand for the player.
 -}
-evaluateHand :: Int -> LegendaryState Int
+evaluateHand :: PlayerNumber -> LegendaryState PlayerNumber
 evaluateHand pnum = do
   thePlayer <- findPlayer pnum
-  mc <- (thePlayer ^. field @"strategy" . field @"nextCard") pnum
+  mc <- (thePlayer ^. #strategy . #nextCard) pnum
   case mc of
     Nothing -> return pnum
     Just c -> do
       tell $ DL.singleton $ Play c
-      _ <- (c ^. field @"action") c pnum
+      _ <- (c ^. #action) c pnum
       evaluateHand pnum
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
-resetTurn :: Int -> LegendaryState Int
+resetTurn :: PlayerNumber -> LegendaryState PlayerNumber
 resetTurn p = do
   player <- findPlayer p
-  (field @"players" . ix p . field @"discard") %= ( ((player ^. field @"hand") ++ (player ^. field @"played") ) ++)
-  (field @"players" . ix p . field @"played") .= []
-  (field @"players" . ix p . field @"hand") .= []
-  (field @"players" . ix p . field @"unusedMoney") .= 0
-  (field @"players" . ix p . field @"victory") .= 0
-  (field @"players" . ix p . field @"turns") += 1
+  (field @"players" . ix (unPlayerNumber p) . #discard) %= ( ((player ^. #hand) ++ (player ^. #played) ) ++)
+  (field @"players" . ix (unPlayerNumber p) . #played) .= []
+  (field @"players" . ix (unPlayerNumber p) . #hand) .= []
+  (field @"players" . ix (unPlayerNumber p) . #unusedMoney) .= 0
+  (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
+  (field @"players" . ix (unPlayerNumber p) . #turns) += 1
   return p
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: LegendaryState [LegendaryPlayer]
 sortByPoints = do
-  players' <- use $ field @"players"
+  players' <- use $ #players
   return $ L.sort players'
 
 configToGame :: LegendaryConfig -> StdGen -> LegendaryGame
@@ -140,7 +140,7 @@ configToGame c = LegendaryGame
 
 instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
   start = do
-    r <- use $ field @"random"
+    r <- use $ #random
     gs <- get
 
     (field @"heroDeck") .= shuffle' (gs ^. #heroDeck) (length $ gs ^. #heroDeck) r
@@ -164,30 +164,30 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
     thePlayer <- findPlayer p
     drawVillain 1 p
     fillHq p
-    tell $ DL.singleton $ Turn (thePlayer ^. field @"turns") thePlayer
+    tell $ DL.singleton $ Turn (thePlayer ^. #turns) thePlayer
     _ <- evaluateHand p
-      >>= (thePlayer ^. field @"strategy" . field @"buyStrategy")
-      >>= (thePlayer ^. field @"strategy" . field @"attackStrategy")
+      >>= (thePlayer ^. #strategy . #buyStrategy)
+      >>= (thePlayer ^. #strategy . #attackStrategy)
       >>= resetTurn
-      >>= deal (thePlayer ^. field @"nextTurnCards")
+      >>= deal (thePlayer ^. #nextTurnCards)
 
-    (field @"players" . ix p . field @"nextTurnCards") .= 6
+    (field @"players" . ix (unPlayerNumber p) . #nextTurnCards) .= 6
     finished
 
   result      = do
       turnOrder' <- turnOrder
       mapM_ tallyPoints turnOrder'
       players' <- sortByPoints
-      let grouped = L.groupBy (\p1 p2 -> (p1 ^. field @"victory") == (p2 ^. field @"victory") && (p1 ^. field @"turns") == (p2 ^. field @"turns")) players'
+      let grouped = L.groupBy (\p1 p2 -> (p1 ^. #victory) == (p2 ^. #victory) && (p1 ^. #turns) == (p2 ^. #turns)) players'
       return $ result' ((length . head) grouped) players'
     where result' 1 l = Left $ (playerName $ head l, victory $ head l)
           result' n _ = Right n
 
   turnOrder  = do
-    players' <- use $ field @"players"
-    return [0 .. length players' - 1]
+    players' <- use $ #players
+    return $ PlayerNumber <$> [0 .. length players' - 1]
 
   tallyPoints p = do
     player <- findPlayer p
-    vpts <- mapM (\c -> (c ^. #victoryPoints) c p) $ player ^. field @"victoryPile"
-    (field @"players" . ix p . field @"victory") .= foldr (+) 0 vpts
+    vpts <- mapM (\c -> (c ^. #victoryPoints) c p) $ player ^. #victoryPile
+    (field @"players" . ix (unPlayerNumber p) . #victory) .= foldr (+) 0 vpts

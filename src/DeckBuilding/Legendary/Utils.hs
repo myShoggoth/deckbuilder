@@ -10,47 +10,55 @@
 
 module DeckBuilding.Legendary.Utils where
 
-import           Control.Lens
-import           Control.Monad.RWS
-import qualified Data.DList                   as DL
-import           Data.Generics.Product
-import           DeckBuilding.Legendary.Types
-import           System.Random                (split)
-import           System.Random.Shuffle
-import qualified Data.List                    as List
+import Control.Lens
+    ( preuse, (^.), use, (%=), (.=), (<>=), Ixed(ix) )
+import Data.Generics.Product ( HasField(field) )
+import Control.Monad.RWS ( void, MonadWriter(tell) )
+import qualified Data.DList as DL
+import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
+import DeckBuilding.Legendary.Types
+    ( CityLocation(CityLocation, villain, next, hostages),
+      HeroCard,
+      LegendaryMove(Deal),
+      LegendaryPlayer,
+      LegendaryState,
+      VillainCard(isBystander) )
+import System.Random (split)
+import System.Random.Shuffle ( shuffle' )
+import qualified Data.List as List
 
 -- | Deal n cards, reshuffling the player's deck if needed.
-deal :: Int -> Int -> LegendaryState [HeroCard]
+deal :: Int -> PlayerNumber -> LegendaryState [HeroCard]
 deal 0   _    = return []
 deal num pnum = do
   p <- findPlayer pnum
-  r <- use $ field @"random"
+  r <- use $ #random
   let (enoughDeck, newDiscard)
-          | length (p ^. field @"deck") >= num   = (p ^. field @"deck", p ^. field @"discard")
-          | null (p ^. field @"discard")         = (p ^. field @"deck", [])
-          | otherwise                   = ( (p ^. field @"deck") ++ shuffle' (p ^. field @"discard") (length (p ^. field @"discard")) r, [])
+          | length (p ^. #deck) >= num   = (p ^. #deck, p ^. #discard)
+          | null (p ^. #discard)         = (p ^. #deck, [])
+          | otherwise                   = ( (p ^. #deck) ++ shuffle' (p ^. #discard) (length (p ^. #discard)) r, [])
   let (newCards, newDeck)  = splitAt num enoughDeck
   field @"random" %= (snd . split)
-  (field @"players" . ix pnum . field @"deck") .= newDeck
-  (field @"players" . ix pnum . field @"discard") .= newDiscard
-  (field @"players" . ix pnum . field @"hand") %= (++ newCards)
+  (field @"players" . ix (unPlayerNumber pnum) . #deck) .= newDeck
+  (field @"players" . ix (unPlayerNumber pnum) . #discard) .= newDiscard
+  (field @"players" . ix (unPlayerNumber pnum) . #hand) %= (++ newCards)
   tell $ DL.singleton $ Deal num newCards
   return newCards
 
 -- | Find player # n, error if not found
-findPlayer :: Int -> LegendaryState LegendaryPlayer
+findPlayer :: PlayerNumber -> LegendaryState LegendaryPlayer
 findPlayer p = do
-  mp <- preuse(field @"players" . ix p)
+  mp <- preuse(field @"players" . ix (unPlayerNumber p))
   case mp of
     Just player' -> pure player'
     Nothing      -> error $ "Unable to find player #" <> show p
 
-capturedAction :: VillainCard -> Int -> LegendaryState ()
-capturedAction c _ = (field @"entrance" . field @"hostages") <>= [c]
+capturedAction :: VillainCard -> PlayerNumber -> LegendaryState ()
+capturedAction c _ = (#entrance . #hostages) <>= [c]
 
-drawVillain :: Int -> Int -> LegendaryState ()
+drawVillain :: Int -> PlayerNumber -> LegendaryState ()
 drawVillain n p = do
-  vdeck <- use $ field @"villainDeck"
+  vdeck <- use $ #villainDeck
   if List.null vdeck
     then error "Villain deck is empty!"
     else do
@@ -63,7 +71,7 @@ drawVillain n p = do
       if isBystander v
         then capturedAction v p
         else do
-          entr <- use $ field @"entrance"
+          entr <- use $ #entrance
           let (newCity,escaped) = advanceVillain entr v [] 
           field @"escapees" <>= escaped
           field @"entrance" .= newCity
@@ -83,10 +91,10 @@ drawVillain n p = do
             let (nnl, escaped) = advanceVillain nl v (loc ^. #hostages)
             (CityLocation (loc ^. #location) (Just incomingv) incomingb (Just nnl), escaped)
 
-fillHq :: Int -> LegendaryState ()
+fillHq :: PlayerNumber -> LegendaryState ()
 fillHq _ = do
-  hdeck <- use $ field @"heroDeck"
-  hqs :: [Maybe HeroCard] <- use $ field @"hq"
+  hdeck <- use $ #heroDeck
+  hqs :: [Maybe HeroCard] <- use $ #hq
   let missing = length . filter (== Nothing) $ hqs
   let (newHeroes, newHeroDeck) = splitAt missing hdeck
   let newhq = allocate newHeroes hqs

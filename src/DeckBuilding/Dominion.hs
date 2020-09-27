@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE OverloadedLabels          #-}
 
 {-|
 Module      : DeckBuilding.Dominion
@@ -36,7 +37,8 @@ import Control.Lens ( (^.), use, (%=), (+=), (.=), Ixed(ix) )
 import Control.Monad.RWS ( MonadWriter(tell) )
 import qualified Data.DList as DL
 import Data.Generics.Product ( HasField(field) )
-import Data.List (groupBy, sort)
+import Data.Generics.Labels ()
+import Data.List (groupBy, sort, group)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import DeckBuilding.Dominion.Cards
@@ -46,18 +48,19 @@ import DeckBuilding.Dominion.Cards
       provinceCard,
       duchyCard,
       estateCard )
+import DeckBuilding.Types ( Game(..), PlayerNumber(PlayerNumber, unPlayerNumber) )
 import DeckBuilding.Dominion.Types
     ( DominionPlayer(DominionPlayer, playerName, victory),
       Strategy,
       Card(Card),
       CardType(Value),
+      DominionAIGame(..),
       DominionGame(DominionGame),
       DominionConfig,
       DominionState,
       DominionMove(Play, Turn, GameOver) )
 import DeckBuilding.Dominion.Utils
-    ( deal, numEmptyDecks, findPlayer, discardCard )
-import DeckBuilding.Types ( Game(..) )
+    ( deal, numEmptyDecks, findPlayer, discardCard, executeMoves )
 import System.Random (StdGen)
 import System.Random.Shuffle (shuffle')
 
@@ -77,10 +80,10 @@ newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateC
   If the player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand :: Int -> DominionState Int
+evaluateHand :: PlayerNumber -> DominionState PlayerNumber
 evaluateHand pnum = do
   thePlayer <- findPlayer pnum
-  mc <- (thePlayer ^. field @"strategy" . field @"nextCard") pnum
+  mc <- (thePlayer ^. #strategy . #nextCard) pnum
   case mc of
     Nothing -> return pnum
     Just c -> do
@@ -90,23 +93,23 @@ evaluateHand pnum = do
 -- | Determine whether or not to play a card. 'Value' cards are played
 -- automatically, 'Action' cards can only be played if the player has
 -- remaining action points.
-evaluateCard :: Card -> Int -> DominionPlayer -> DominionState ()
+evaluateCard :: Card -> PlayerNumber -> DominionPlayer -> DominionState ()
 evaluateCard c@(Card _ _ _ Value _) pnum _ = evaluateCard' c pnum
 evaluateCard c pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _) = discardCard c pnum
 evaluateCard c pnum _ = evaluateCard' c pnum
 
 -- | We know the 'Card' will be played, so 'tell' to the 'Writer' that
 -- we're playing the card, then call the 'action' function.
-evaluateCard' :: Card -> Int -> DominionState ()
+evaluateCard' :: Card -> PlayerNumber -> DominionState ()
 evaluateCard' c pnum = do
-  tell $ DL.singleton $ Play c
-  _ <- (c ^. field @"action") c pnum
+  tell $ DL.singleton $ Play pnum c
+  _ <- (c ^. #action) c pnum
   return ()
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: DominionState [DominionPlayer]
 sortByPoints = do
-  players' <- use $ field @"players"
+  players' <- use #players
   return $ sort players'
 
 -- | Given a set of potential kingdom cards, pick a random ten to play with.
@@ -124,40 +127,63 @@ basicDecks numPlayers
     | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
-resetTurn :: Int -> DominionState Int
+resetTurn :: PlayerNumber -> DominionState PlayerNumber
 resetTurn p = do
   thePlayer <- findPlayer p
-  (field @"players" . ix p . field @"discard") %= ( ((thePlayer ^. field @"hand") ++ (thePlayer ^. field @"played") ) ++)
-  (field @"players" . ix p . field @"played") .= []
-  (field @"players" . ix p . field @"hand") .= []
-  (field @"players" . ix p . field @"actions") .= 1
-  (field @"players" . ix p . field @"buys") .= 1
-  (field @"players" . ix p . field @"money") .= 0
-  (field @"players" . ix p . field @"victory") .= 0
-  (field @"players" . ix p . field @"turns") += 1
+  (field @"players" . ix (unPlayerNumber p) . #discard) %= ( ((thePlayer ^. #hand) ++ (thePlayer ^. #played) ) ++)
+  (field @"players" . ix (unPlayerNumber p) . #played) .= []
+  (field @"players" . ix (unPlayerNumber p) . #hand) .= []
+  (field @"players" . ix (unPlayerNumber p) . #actions) .= 1
+  (field @"players" . ix (unPlayerNumber p) . #buys) .= 1
+  (field @"players" . ix (unPlayerNumber p) . #money) .= 0
+  (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
+  (field @"players" . ix (unPlayerNumber p) . #turns) += 1
   return p
 
 configToGame :: DominionConfig -> StdGen -> DominionGame
 configToGame c = DominionGame
-                  (map (\p -> uncurry newPlayer p) (c ^. field @"playerDefs"))
-                  (basicDecks (length (c ^. field @"playerDefs")) `Map.union` makeDecks (c ^. field @"kingdomCards"))
+                  (map (\p -> uncurry newPlayer p) (c ^. #playerDefs))
+                  (basicDecks (length (c ^. #playerDefs)) `Map.union` makeDecks (c ^. #kingdomCards))
                   []
+
+mkDominionAIGame :: PlayerNumber -> DominionState DominionAIGame
+mkDominionAIGame pnum = do
+  thePlayer <- findPlayer pnum
+  decks' <- use $ #decks
+  trash' <- use $ #trash
+  pure DominionAIGame
+    { playerNum = pnum
+    , hand = thePlayer ^. #hand
+    , played = thePlayer ^. #played
+    , actions = thePlayer ^. #actions
+    , buys = thePlayer ^. #buys
+    , money = thePlayer ^. #money
+    , turns = thePlayer ^. #turns
+    , cards = buildCardMap thePlayer
+    , trash = trash'
+    , decks = decks'
+    }
+  where
+    buildCardMap :: DominionPlayer -> Map.Map Card Int
+    buildCardMap p = Map.fromList $ map (\x -> (head x, length x)) $ group $ sort allCards
+      where
+        allCards = (p ^. #hand) <> (p ^. #played) <> (p ^. #discard) <> (p ^. #deck)
 
 instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   start       = pure ()
 
   finished    = do
-    decks' <- use $ field @"decks"
+    decks' <- use #decks
     emptyDecks <- numEmptyDecks
     return $ (decks' Map.! provinceCard == 0) || emptyDecks >= 3
 
   runTurn p   = do
     thePlayer <- findPlayer p
-    tell $ DL.singleton $ Turn (thePlayer ^. field @"turns") thePlayer
+    tell $ DL.singleton $ Turn p (thePlayer ^. #turns) thePlayer
     _ <- evaluateHand p
-      >>= (thePlayer ^. field @"strategy" . field @"buyStrategy")
-      >>= resetTurn
-      >>= deal 5
+    aig <- mkDominionAIGame p
+    _ <- executeMoves aig (thePlayer ^. #strategy . #buyStrategy $ aig)
+    _ <- resetTurn p >>= deal 5
 
     finished
 
@@ -165,20 +191,20 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
       turnOrder' <- turnOrder
       mapM_ tallyPoints turnOrder'
       players' <- sortByPoints
-      tell $ DL.singleton $ GameOver $ map (\p -> (p ^. field @"playerName", p ^. field @"victory")) players'
-      let grouped = groupBy (\p1 p2 -> (p1 ^. field @"victory") == (p2 ^. field @"victory") && (p1 ^. field @"turns") == (p2 ^. field @"turns")) players'
+      tell $ DL.singleton $ GameOver $ map (\p -> (p ^. #playerName, p ^. #victory)) players'
+      let grouped = groupBy (\p1 p2 -> (p1 ^. #victory) == (p2 ^. #victory) && (p1 ^. #turns) == (p2 ^. #turns)) players'
       return $ result' ((length . head) grouped) players'
     where result' 1 l = Left $ (playerName $ head l, victory $ head l)
           result' n _ = Right n
 
   turnOrder  = do
-    players' <- use $ field @"players"
-    return [0 .. (length players' - 1)]
+    players' <- use #players
+    return $ PlayerNumber <$> [0 .. (length players' - 1)]
 
   tallyPoints p = do
     thePlayer <- findPlayer p
-    (field @"players" . ix p . field @"hand") .= ((thePlayer ^. field @"deck") ++ (thePlayer ^. field @"discard") ++ (thePlayer ^. field @"hand") ++ (thePlayer ^. field @"played"))
+    (field @"players" . ix (unPlayerNumber p) . #hand) .= ((thePlayer ^. #deck) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #hand) ++ (thePlayer ^. #played))
     player' <- findPlayer p
-    mapM_ victoryPts (player' ^. field @"hand")
+    mapM_ victoryPts (player' ^. #hand)
       where victoryPts :: Card -> DominionState Int
             victoryPts c@(Card _ _ _ _ s) = s c p

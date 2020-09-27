@@ -5,6 +5,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE OverloadedLabels          #-}
 
 module DeckBuilding.Dominion.Cards.Intrigue
     ( courtyardCard
@@ -24,6 +25,7 @@ import DeckBuilding.Dominion.Cards.Base
     ( treasureCards, duchyCard, victoryCards )
 import DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory, valueCard, basicCardAction, hasActionCards )
+import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
     ( Card(Card), CardType(Value, Action), DominionState )
 import DeckBuilding.Dominion.Utils
@@ -35,10 +37,10 @@ import DeckBuilding.Dominion.Utils
 courtyardCard :: Card
 courtyardCard   = Card "Courtyard"    2 courtyardCardAction Action (simpleVictory 0)
   where
-    courtyardCardAction :: Card -> Int -> DominionState Int
+    courtyardCardAction :: Card -> PlayerNumber -> DominionState PlayerNumber
     courtyardCardAction c p = do
       thePlayer <- findPlayer p
-      _ <- (thePlayer ^. field @"strategy" . field @"handToDeckStrategy") 1 p
+      _ <- (thePlayer ^. #strategy . #handToDeckStrategy) 1 p
       basicCardAction 3 (-1) 0 0 c p
 
 -- | +1 Action
@@ -47,13 +49,13 @@ courtyardCard   = Card "Courtyard"    2 courtyardCardAction Action (simpleVictor
 lurkerCard :: Card
 lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
   where
-    lurkerCardAction :: Card -> Int -> DominionState Int
+    lurkerCardAction :: Card -> PlayerNumber -> DominionState PlayerNumber
     lurkerCardAction c p = do
       thePlayer <- findPlayer p
-      ec <- (thePlayer ^. field @"strategy" . field @"lurkerStrategy") c p
+      ec <- (thePlayer ^. #strategy . #lurkerStrategy) c p
       _ <- lurk ec p
       basicCardAction 0 0 0 0 c p
-    lurk :: Either Card Card -> Int -> DominionState Int
+    lurk :: Either Card Card -> PlayerNumber -> DominionState PlayerNumber
     lurk (Left c) p                       = do
       icip <- isCardInPlay c
       if icip
@@ -63,11 +65,11 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
           return p
         else return p
     lurk (Right c@(Card _ _ _ Action _)) p  = do
-      trsh <- use $ field @"trash"
+      trsh <- use #trash
       if c `elem` trsh
         then do
           field @"trash" %= delete c
-          (field @"players" . ix p . field @"discard") %= (c:)
+          (field @"players" . ix (unPlayerNumber p) . #discard) %= (c:)
           return p
         else return p
     lurk (Right _) p                      = return p
@@ -78,10 +80,10 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
 shantyTownCard :: Card
 shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action (simpleVictory 0)
   where
-    shantyTownCardAction :: Card -> Int -> DominionState Int
+    shantyTownCardAction :: Card -> PlayerNumber -> DominionState PlayerNumber
     shantyTownCardAction c p = do
       thePlayer <- findPlayer p
-      if hasActionCards 1 (thePlayer ^. field @"hand")
+      if hasActionCards 1 (thePlayer ^. #hand)
         then basicCardAction 0 1 0 0 c p
         else basicCardAction 2 1 0 0 c p
 
@@ -91,10 +93,10 @@ shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action (simpleVicto
 conspiratorCard :: Card
 conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action (simpleVictory 0)
   where
-    conspiratorCardAction :: Card -> Int -> DominionState Int
+    conspiratorCardAction :: Card -> PlayerNumber -> DominionState PlayerNumber
     conspiratorCardAction c p = do
       thePlayer <- findPlayer p
-      if hasActionCards 2 (thePlayer ^. field @"played")
+      if hasActionCards 2 (thePlayer ^. #played)
         then basicCardAction 1 0 0 2 c p
         else basicCardAction 0 (-1) 0 2 c p
 
@@ -108,14 +110,14 @@ conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action (simpleVict
 ironworksCard :: Card
 ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictory 0)
   where
-    ironworksCardAction :: Card -> Int -> DominionState Int
+    ironworksCardAction :: Card -> PlayerNumber -> DominionState PlayerNumber
     ironworksCardAction c p = do
       thePlayer <- findPlayer p
-      mc <- (thePlayer ^. field @"strategy" . field @"gainCardStrategy") 4 p
+      mc <- (thePlayer ^. #strategy . #gainCardStrategy) 4 p
       case mc of
         Nothing   -> return p
         Just card
-              | (card ^. field @"cardType") == Action -> basicCardAction 0 0 0 0 c p
+              | (card ^. #cardType) == Action -> basicCardAction 0 0 0 0 c p
               | card `elem` treasureCards             -> basicCardAction 0 (-1) 0 1 c p
               | card `elem` victoryCards              -> basicCardAction 1 (-1) 0 0 c p
               | otherwise                             -> basicCardAction 0 (-1) 0 0 c p
@@ -124,10 +126,10 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
 dukeCard :: Card
 dukeCard        = Card "Duke"         5 (valueCard 0) Action dukeCardAction
   where
-    dukeCardAction :: Card -> Int -> DominionState Int
+    dukeCardAction :: Card -> PlayerNumber -> DominionState Int
     dukeCardAction _ p = do
       thePlayer <- findPlayer p
-      let points = length $ filter (== duchyCard) ( (thePlayer ^. field @"hand") ++ (thePlayer ^. field @"discard") ++ (thePlayer ^. field @"played") ++ (thePlayer ^. field @"deck") )
+      let points = length $ filter (== duchyCard) ( (thePlayer ^. #hand) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #played) ++ (thePlayer ^. #deck) )
       return points
 
 -- | $2

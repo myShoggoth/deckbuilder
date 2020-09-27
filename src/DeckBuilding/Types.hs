@@ -2,6 +2,7 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE DerivingVia #-}
 
 module DeckBuilding.Types
     ( module DeckBuilding.Types
@@ -19,6 +20,9 @@ instance {-# OVERLAPPING #-} Eq Result where
   (Right n1)     == (Right n2)     = n1 == n2
   _              == _              = False
 
+newtype PlayerNumber = PlayerNumber { unPlayerNumber :: Int }
+  deriving (Show, Eq) via Int
+
 class (Monoid c, Monoid l) => Game c l g where
   -- | Create the initial state of the 'Game' turn.
   start :: RWS c l g ()
@@ -27,8 +31,8 @@ class (Monoid c, Monoid l) => Game c l g where
   -- | Calculate the end 'Result' scores.
   result :: RWS c l g Result
   -- | Run a turn for 'Player' n.
-  runTurn :: Int -> RWS c l g Bool
+  runTurn :: PlayerNumber -> RWS c l g Bool
   -- | Returns a list of the 'Player' numbers in order for this 'Game' turn.
-  turnOrder :: RWS c l g [Int]
+  turnOrder :: RWS c l g [PlayerNumber]
   -- | Count up the total points for 'Player' n.
-  tallyPoints :: Int -> RWS c l g ()
+  tallyPoints :: PlayerNumber -> RWS c l g ()

@@ -22,7 +22,7 @@ import DeckBuilding.Dominion.Types
       BoughtCard(..),
       DominionTree(DominionTree),
       GameTurn(GameTurn) )
-import DeckBuilding.Types ( Result )
+import DeckBuilding.Types ( Result, PlayerNumber(unPlayerNumber) )
 import DeckBuilding ( runGame )
 import Data.Text.Prettyprint.Doc
     ( (<+>),
@@ -120,7 +120,7 @@ instance Pretty GameTurn where
     pretty (GameTurn n turns') = align $ vsep [ "Turn" <+> pretty n, pretty turns' ]
 
 instance Pretty PlayerTurn where
-    pretty (PlayerTurn pname played' bought) = align $ vsep [ "Player" <+> pretty pname, pretty played', pretty bought ]
+    pretty (PlayerTurn pnum played' bought) = align $ vsep [ "Player" <+> pretty (unPlayerNumber pnum), pretty played', pretty bought ]
 
 instance Pretty CardPlay where
     pretty (Standard c) = sep [ "Played", pretty $ cardName c ]
@@ -136,14 +136,14 @@ instance Pretty Result where
     pretty (Right n)  = pretty $ show n <> " players tied"
 
 instance Pretty DominionMove where
-    pretty (Turn n p)     = pretty $ "Turn " <> show n <> " for player " <> show (playerName p) <> ": "
+    pretty (Turn _ n p)     = pretty $ "Turn " <> show n <> " for player " <> show (playerName p) <> ": "
                               <> "Hand = " <> show (hand p)
-    pretty (Play c)       = pretty $ "Playing " <> show c
-    pretty (Deal n xs)    = pretty $ "Dealing " <> show n <> " card(s): " <> show xs
-    pretty (Discard xs)   = pretty $ "Discarding: " <> show xs
-    pretty (ThroneRoom c) = pretty $ "Using Thrown Room on " <> show c
-    pretty (Remodel c c') = pretty $ "Remodelling " <> show c <> " into " <> show c'
-    pretty (Buy c)        = pretty $ "Buying " <> show c
-    pretty (Retrieve xs)  = pretty $ "Retrieving " <> show xs
-    pretty (Trash xs)     = pretty $ "Trashing " <> show xs
+    pretty (Play _ c)       = pretty $ "Playing " <> show c
+    pretty (Deal _ n xs)    = pretty $ "Dealing " <> show n <> " card(s): " <> show xs
+    pretty (Discard _ xs)   = pretty $ "Discarding: " <> show xs
+    pretty (ThroneRoom _ c) = pretty $ "Using Thrown Room on " <> show c
+    pretty (Remodel _ c c') = pretty $ "Remodelling " <> show c <> " into " <> show c'
+    pretty (Buy _ c)        = pretty $ "Buying " <> show c
+    pretty (Retrieve _ xs)  = pretty $ "Retrieving " <> show xs
+    pretty (Trash _ xs)     = pretty $ "Trashing " <> show xs
     pretty (GameOver xs)  = pretty $ "Game Over!\n" <> "Results: " <> show xs
