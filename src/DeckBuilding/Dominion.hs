@@ -31,6 +31,7 @@ module DeckBuilding.Dominion
     , makeDecks
     , randomKingdomDecks
     , configToGame
+    , mkDominionAIGame
     ) where
 
 import Control.Lens ( (^.), use, (%=), (+=), (.=), Ixed(ix) )
@@ -58,9 +59,9 @@ import DeckBuilding.Dominion.Types
       DominionGame(DominionGame),
       DominionConfig,
       DominionState,
-      DominionMove(Play, Turn, GameOver) )
+      DominionMove(Turn, GameOver) )
 import DeckBuilding.Dominion.Utils
-    ( deal, numEmptyDecks, findPlayer, discardCard, executeMoves )
+    ( deal, numEmptyDecks, findPlayer, discardCard, mkDominionAIGame, executeBuys )
 import System.Random (StdGen)
 import System.Random.Shuffle (shuffle')
 
@@ -80,12 +81,12 @@ newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateC
   If the player is out of actions we can only run Value cards (ones that don't
   require actions), and skip all cards that require actions.
 -}
-evaluateHand :: PlayerNumber -> DominionState PlayerNumber
+evaluateHand :: PlayerNumber -> DominionState ()
 evaluateHand pnum = do
   thePlayer <- findPlayer pnum
   mc <- (thePlayer ^. #strategy . #nextCard) pnum
   case mc of
-    Nothing -> return pnum
+    Nothing -> return ()
     Just c -> do
       evaluateCard c pnum thePlayer
       evaluateHand pnum
@@ -102,9 +103,10 @@ evaluateCard c pnum _ = evaluateCard' c pnum
 -- we're playing the card, then call the 'action' function.
 evaluateCard' :: Card -> PlayerNumber -> DominionState ()
 evaluateCard' c pnum = do
-  tell $ DL.singleton $ Play pnum c
-  _ <- (c ^. #action) c pnum
-  return ()
+  mdm <- (c ^. #action) c pnum
+  case mdm of
+    Nothing -> return ()
+    Just dm -> tell $ DL.singleton dm
 
 -- | Returns the list of players in total points order, highest first.
 sortByPoints :: DominionState [DominionPlayer]
@@ -127,7 +129,7 @@ basicDecks numPlayers
     | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
-resetTurn :: PlayerNumber -> DominionState PlayerNumber
+resetTurn :: PlayerNumber -> DominionState ()
 resetTurn p = do
   thePlayer <- findPlayer p
   (field @"players" . ix (unPlayerNumber p) . #discard) %= ( ((thePlayer ^. #hand) ++ (thePlayer ^. #played) ) ++)
@@ -138,36 +140,12 @@ resetTurn p = do
   (field @"players" . ix (unPlayerNumber p) . #money) .= 0
   (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
   (field @"players" . ix (unPlayerNumber p) . #turns) += 1
-  return p
 
 configToGame :: DominionConfig -> StdGen -> DominionGame
 configToGame c = DominionGame
                   (map (\p -> uncurry newPlayer p) (c ^. #playerDefs))
                   (basicDecks (length (c ^. #playerDefs)) `Map.union` makeDecks (c ^. #kingdomCards))
                   []
-
-mkDominionAIGame :: PlayerNumber -> DominionState DominionAIGame
-mkDominionAIGame pnum = do
-  thePlayer <- findPlayer pnum
-  decks' <- use $ #decks
-  trash' <- use $ #trash
-  pure DominionAIGame
-    { playerNum = pnum
-    , hand = thePlayer ^. #hand
-    , played = thePlayer ^. #played
-    , actions = thePlayer ^. #actions
-    , buys = thePlayer ^. #buys
-    , money = thePlayer ^. #money
-    , turns = thePlayer ^. #turns
-    , cards = buildCardMap thePlayer
-    , trash = trash'
-    , decks = decks'
-    }
-  where
-    buildCardMap :: DominionPlayer -> Map.Map Card Int
-    buildCardMap p = Map.fromList $ map (\x -> (head x, length x)) $ group $ sort allCards
-      where
-        allCards = (p ^. #hand) <> (p ^. #played) <> (p ^. #discard) <> (p ^. #deck)
 
 instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   start       = pure ()
@@ -180,10 +158,12 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
   runTurn p   = do
     thePlayer <- findPlayer p
     tell $ DL.singleton $ Turn p (thePlayer ^. #turns) thePlayer
-    _ <- evaluateHand p
+    evaluateHand p
     aig <- mkDominionAIGame p
-    _ <- executeMoves aig (thePlayer ^. #strategy . #buyStrategy $ aig)
-    _ <- resetTurn p >>= deal 5
+    let buys = (thePlayer ^. #strategy . #buyStrategy $ aig) 
+    executeBuys buys aig
+    resetTurn p
+    _ <- deal 5 p
 
     finished
 

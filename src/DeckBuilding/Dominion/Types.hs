@@ -7,11 +7,13 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
     ) where
 
+import Control.Lens.At (Index)
 import Control.Monad.RWS ( RWS )
 import qualified Data.DList as DL
 import qualified Data.Map as Map
@@ -22,27 +24,41 @@ import System.Random ( StdGen )
 import DeckBuilding.Types ( Result, PlayerNumber )
 
 data DominionMove = Turn PlayerNumber Int DominionPlayer |
-                    Play PlayerNumber Card |
                     Deal PlayerNumber Int [Card] |
-                    Discard PlayerNumber [Card] |
-                    ThroneRoom PlayerNumber Card |
-                    Remodel PlayerNumber Card Card |
                     Buy PlayerNumber Card |
-                    Retrieve PlayerNumber [Card] |
-                    Trash PlayerNumber [Card] |
+                    Cellar PlayerNumber [Card] |
+                    PlayBasic PlayerNumber Card Int Int Int Int |
+                    PlayValue PlayerNumber Card Int |
+                    ThroneRoom PlayerNumber Card DominionMove DominionMove |
+                    Remodel PlayerNumber Card Card |
+                    Vassal PlayerNumber (Maybe DominionMove) |
+                    Militia PlayerNumber (Map.Map PlayerNumber (Either Card [Card])) |
+                    MoneyLender PlayerNumber Card |
+                    Poacher PlayerNumber [Card] |
+                    Chapel PlayerNumber [Card] |
+                    Harbinger PlayerNumber (Maybe Card) |
+                    Bureaucrat PlayerNumber (Map.Map PlayerNumber (Maybe Card)) |
+                    Bandit PlayerNumber (Map.Map PlayerNumber (Either Card BanditDecision)) |
+                    CouncilRoom PlayerNumber [Card] (Map.Map PlayerNumber (Maybe Card)) |
+                    Witch PlayerNumber [Card] (Map.Map PlayerNumber (Either Card (Maybe Card))) |
+                    Mine PlayerNumber Card Card |
+                    Library PlayerNumber [Card] [Card] |
+                    Sentry PlayerNumber [Card] [Card] [Card] |
+                    Artisan PlayerNumber Card Card |
+                    Workshop PlayerNumber Card |
                     GameOver [(Text, Int)]
 
 instance Show DominionMove where
   show (Turn _ n p )    = "Turn " <> show n <> " for player " <> show (playerName p)
-  show (Play _ c)       = " Playing " <> show c
   show (Deal _ n xs)    = "    Dealing " <> show n <> " card(s):\n"
                         <> show xs
-  show (Discard _ xs)   = "    Discarding: " <> show xs
-  show (ThroneRoom _ c) = "  Using Thrown Room on " <> show c
-  show (Remodel _ c c') = "  Remodelling " <> show c <> " into " <> show c'
   show (Buy _ c)        = "  Buying " <> show c
-  show (Retrieve _ xs)  = "  Retrieving " <> show xs
-  show (Trash _ xs)     = "  Trashing " <> show xs
+  show (Cellar _ xs)    = "  Cellared " <> show xs
+  show (PlayValue _ c m)= "  Playing value card " <> show (cardName c) <> " to gain $" <> show m
+  show (PlayBasic _ c d a b m) = "  Playing basic action card " <> show (cardName c) <> ": draw " <> show d <> ", actions " <> show a <> ", buys " <> show b <> ", $" <> show m
+  show (ThroneRoom _ c _ _) = "  Using Thrown Room on " <> show c
+  show (Remodel _ c c') = "  Remodelling " <> show c <> " into " <> show c'
+  show (Harbinger _ mc)   = "    Harbinger, discarding " <> show mc
   show (GameOver xs)  = "Game Over!\n"
                         <> "Results: " <> show xs
 
@@ -131,13 +147,15 @@ data Card = Card {
     Updates the game state based on what the card does, then returns the
     player number.
   -}
-  action   :: Card -> PlayerNumber -> DominionState PlayerNumber,
+  action   :: Card -> PlayerNumber -> DominionState (Maybe DominionMove),
   -- | Value or Action
   cardType :: CardType,
   -- | The function that determines the score for the card
   -- at the end of the game
   score    :: Card -> PlayerNumber -> DominionState Int
 } deriving stock (Generic)
+
+type instance Index Card = Card
 
 instance Ord Card where
   compare c1 c2 = compare (cardName c1) (cardName c2)
@@ -172,34 +190,39 @@ data Strategy = Strategy {
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
-  discardStrategy    :: (Int, Int) -> PlayerNumber -> DominionState [Card],
-  -- | like discardStrategy, except for trashing cards.
-  trashStrategy      :: (Int, Int) -> PlayerNumber -> DominionState [Card],
+  discardStrategy    :: DominionAIGame -> (Int, Int) -> [Card],
+  -- | The player is being prompted to trash zero or more cards from either
+  -- their hand only, or the discard pile and the hand. (min, max) are the 
+  -- minimum and maximum numbers of cards that may be trashed, and the
+  -- discard pile is passed in if applicable.
+  -- Return value is a tuple of the card trashing from the hand and the discard
+  -- pile, respectively.
+  trashStrategy      :: DominionAIGame -> (Int, Int) -> [Card] -> [Card],
   -- | Like discardStrategy, except for retrieving cards from the player's
   --  discard pile.
-  retrieveStrategy   :: (Int, Int) -> PlayerNumber -> DominionState [Card],
+  retrieveStrategy   :: DominionAIGame -> (Int, Int) -> [Card] -> [Card],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
   nextCard           :: PlayerNumber -> DominionState (Maybe Card),
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
-  gainCardStrategy   :: Int -> PlayerNumber -> DominionState (Maybe Card),
+  gainCardStrategy   :: DominionAIGame -> Int -> Maybe Card,
   -- | Specifically for the Throne Room card, lets the strategy pick which
   --  card (Just Card) to play twice, or none if Nothing. Pick a card remaining
   --  in the player's hand.
-  throneRoomStrategy :: PlayerNumber -> DominionState (Maybe Card),
+  throneRoomStrategy :: DominionAIGame -> Maybe Card,
   -- | For the Library card, called when the player draws an action and returns
   --  whether or not the player wants to skip that card.
-  libraryStrategy    :: Card -> DominionState Bool,
+  libraryStrategy    :: DominionAIGame -> Card -> Bool,
   -- | For the Sentry card, gives the top two cards of the player's deck, then
   --  says which ones that player wants to (trash, discard, keep).
-  sentryStrategy     :: [Card] -> PlayerNumber -> DominionState ([Card], [Card], [Card]),
+  sentryStrategy     :: DominionAIGame -> [Card] -> ([Card], [Card], [Card]),
   -- | For cards like Artisan, pick n cards that the player would like to put
   --  back onto the top of their deck. The function does that work.
-  handToDeckStrategy :: Int -> PlayerNumber -> DominionState [Card],
+  handToDeckStrategy :: DominionAIGame -> Int -> [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  lurkerStrategy     :: Card -> PlayerNumber -> DominionState (Either Card Card)
+  lurkerStrategy     :: DominionAIGame -> Card -> Either Card Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -271,3 +294,10 @@ data DominionTree = DominionTree
   , results :: Result
   } deriving (Show, Eq)
 
+-- | A decision for the victim of the Bandit card:
+-- Did you have to trash a treasure card, and if so which one?
+-- What cards did you discard?
+data BanditDecision = BanditDecision
+  { trashed :: Maybe Card
+  , discarded :: [Card]
+  } deriving (Show, Eq)

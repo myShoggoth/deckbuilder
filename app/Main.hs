@@ -21,7 +21,8 @@ import DeckBuilding.Dominion.Types
       CardPlay(..),
       BoughtCard(..),
       DominionTree(DominionTree),
-      GameTurn(GameTurn) )
+      GameTurn(GameTurn),
+      BanditDecision(discarded, trashed))
 import DeckBuilding.Types ( Result, PlayerNumber(unPlayerNumber) )
 import DeckBuilding ( runGame )
 import Data.Text.Prettyprint.Doc
@@ -38,8 +39,9 @@ import Data.Text.Prettyprint.Doc.Render.Text ( renderStrict )
 import qualified Data.DList                             as DL
 import qualified Data.List                              as List
 import qualified Data.Text.IO                           as Text
+import Data.Map (mapWithKey)
 import System.Random ( newStdGen, RandomGen(split), StdGen )
-import           Control.Arrow                          ((&&&))
+import Control.Arrow ((&&&))
 import Control.Monad.RWS ( evalRWS )
 import Control.Monad.Extra ( forM, ifM )
 import System.Console.CmdArgs
@@ -136,14 +138,52 @@ instance Pretty Result where
     pretty (Right n)  = pretty $ show n <> " players tied"
 
 instance Pretty DominionMove where
-    pretty (Turn _ n p)     = pretty $ "Turn " <> show n <> " for player " <> show (playerName p) <> ": "
-                              <> "Hand = " <> show (hand p)
-    pretty (Play _ c)       = pretty $ "Playing " <> show c
-    pretty (Deal _ n xs)    = pretty $ "Dealing " <> show n <> " card(s): " <> show xs
-    pretty (Discard _ xs)   = pretty $ "Discarding: " <> show xs
-    pretty (ThroneRoom _ c) = pretty $ "Using Thrown Room on " <> show c
-    pretty (Remodel _ c c') = pretty $ "Remodelling " <> show c <> " into " <> show c'
-    pretty (Buy _ c)        = pretty $ "Buying " <> show c
-    pretty (Retrieve _ xs)  = pretty $ "Retrieving " <> show xs
-    pretty (Trash _ xs)     = pretty $ "Trashing " <> show xs
-    pretty (GameOver xs)  = pretty $ "Game Over!\n" <> "Results: " <> show xs
+    pretty (Turn _ n p) = pretty $ "Turn " <> show n <> " for player " <> show (playerName p) <> ": "
+                                <> "Hand = " <> show (hand p)
+    pretty (Deal _ n xs) = pretty $ "Dealing " <> show n <> " card(s): " <> show xs
+    pretty (Buy _ c) = pretty $ "Buying " <> show c
+    pretty (Cellar _ xs) = pretty $ "Cellaring card(s): " <> show xs
+    pretty (PlayBasic _ c _ _ _ _) = pretty $ "Playing " <> show c
+    pretty (PlayValue _ c _) = pretty $ "Playing " <> show c
+    pretty (ThroneRoom _ c m1 m2) = pretty $ "Throne Rooming " <> show c <> "\n"
+                                                              <> "  " <> show m1 <> "\n"
+                                                              <> "  " <> show m2
+    pretty (Remodel _ c1 c2) = pretty $ "Remodeling " <> show c1 <> " into " show c2
+    pretty (Vassal _ c) = pretty $ "Vassals, playing " <> show c
+    pretty (Militia _ responses) = pretty $ "Militia!\n"
+                                         <> flip mapWithKey responses (\p resp -> "  Player " <> show p <> " " <>
+                                                                        (case resp of
+                                                                          Left c -> " showed " <> show c
+                                                                          Right xs -> " discarded " <> show xs
+                                                                        )
+                                                                        <> show "\n"
+                                                                        )
+    pretty (MoneyLender _ _) = pretty $ "Moneylendered a copperCard"
+    pretty (Poacher _ xs) = pretty $ "Poacher, discarded " <> show xs
+    pretty (Chapel _ xs) = pretty $ "Chapelled " <> show xs
+    pretty (Harbinger _ mc) = pretty $ "Harbingered " <> show mc
+    pretty (Bureaucrat _ shown) = pretty $ "Bureaucrat:\n"
+                                        <> flip mapWithKey shown (\mc p -> "  Player " <> show p <> " shows " <> show mc)
+    pretty (Bandit _ responses) = pretty $ "Bandit:\n"
+                                        <> flip mapWithKey responses (\p resp -> "  Player " <> show p <>
+                                                                        (case resp of
+                                                                          Left c -> " showed " <> show c
+                                                                          Right decision -> " discarded " <> show (discarded decision) <> " and trashed " <> show (trashed decision)
+                                                                        )
+                                                                        <> show "\n"
+                                                                      )
+    pretty (CouncilRoom _ xs draws) = pretty $ "CouncilRoom for " <> show xs <> "\n"
+                                            <> flip mapWithKey draws (\p mc -> " Player " <> show p <> " draws " <> show mc <> "\n")
+    pretty (Witch _ xs responses) = pretty $ "Witch drew " <> show xs <> "\n"
+                                          <> flip mapWithKey responses (\p resp -> "  Player " <> show p <>
+                                                                          (case resp of
+                                                                            Left c -> " showed " <> show c
+                                                                            Right mc -> " gained " <> show mc
+                                                                          )
+                                                                        )
+    pretty (Mine _ c1 c2) = pretty $ "Mined " <> show c1 <> " into " <> show c2
+    pretty (Library _ keeps discards) = pretty $ "Libraried and kept " <> show keeps <> ", discarded " <> show discards
+    pretty (Sentry _ trashed discarded keeps) = pretty $ "Sentried to trash " <> show trashed <> ", discarded " <> show discarded <> ", and kept " <> show keeps
+    pretty (Artisan _ c1 c2) = pretty $ "Artisan to gain " <> show c1 <> " and put " <> show c2 <> " back on the deck"
+    pretty (Workshop _ c) = pretty $ "Workshopped a " <> show c
+    pretty (GameOver xs) = pretty $ "Game Over!\n" <> "Results: " <> show xs

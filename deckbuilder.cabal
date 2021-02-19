@@ -22,7 +22,7 @@ library
                      , DeckBuilding.Dominion.Utils
                      , DeckBuilding.Dominion.Cards
                      , DeckBuilding.Dominion.Cards.Base
-                     , DeckBuilding.Dominion.Cards.Intrigue
+--                    , DeckBuilding.Dominion.Cards.Intrigue
                      , DeckBuilding.Dominion.Cards.Utils
                      , DeckBuilding.Dominion.DominionTree
                      , DeckBuilding.Dominion.Strategies.Basic
@@ -34,6 +34,7 @@ library
                      , DeckBuilding.Legendary.Cards.Base
                      , DeckBuilding.Legendary.Strategies.Basic
   build-depends:       base >= 4.7 && < 5
+                     , containers
                      , random-shuffle
                      , MonadRandom
                      , random
@@ -51,6 +52,7 @@ executable deckbuilder-exe
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
+                     , containers
                      , deckbuilder
                      , random
                      , lens
@@ -68,19 +70,19 @@ test-suite deckbuilder-test
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
+                     , containers
                      , deckbuilder
-                     , random
+                     , dlist
+                     , generic-lens
                      , hspec
                      , lens
                      , mtl
-                     , containers
-                     , dlist
-                     , generic-lens
+                     , random
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   other-modules:       DominionSpec
                      , Dominion.CardsSpec
                      , Dominion.Cards.BaseSpec
-                     , Dominion.Cards.IntrigueSpec
+--                     , Dominion.Cards.IntrigueSpec
                      , Dominion.DominionTreeSpec
                      , LegendarySpec
   default-language:    Haskell2010

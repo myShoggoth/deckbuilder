@@ -6,23 +6,26 @@
 {-# LANGUAGE OverloadedLabels          #-}
 
 module DeckBuilding.Dominion.Cards.Utils
-    ( valueCard
-    , basicCardAction
-    , gainCard
+    ( gainCard
     , simpleVictory
     , hasActionCards
+    , valueCardAction
+    , basicCardAction
+    , trashCards
+    , discardCards
     ) where
 
-import Control.Lens ( (^.), (%=), (+=), Ixed(ix) )
+import Control.Lens ( (^.), (%=), (+=), Ixed(ix), (.=) )
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
-import Data.List ( find, delete )
+import Data.List ( find )
 import qualified Data.Map as Map
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
-    ( Card, CardType(Action), DominionState )
+    ( Card, CardType(Action), DominionState, DominionMove(PlayValue, PlayBasic),
+      DominionPlayer, DominionAIGame )
 import DeckBuilding.Dominion.Utils
-    ( deal, decreaseCards, findPlayer )
+    ( decreaseCards, findPlayer, removeFromCards )
 
 -- | A simple points-only Victory card
 -- | Victory Points
@@ -34,39 +37,28 @@ simpleVictory v _ p = do
   thePlayer <- findPlayer p
   return $ thePlayer ^. field @"victory"
 
--- | For value cards, pass the money value.
--- | Money Value
--- | Card
--- | Player Number
-valueCard :: Int -> Card -> PlayerNumber -> DominionState PlayerNumber
-valueCard m c p = do
-  (field @"players" . ix (unPlayerNumber p) . #hand) %= delete c
-  (field @"players" . ix (unPlayerNumber p) . #played) %= (c:)
-  (field @"players" . ix (unPlayerNumber p) . #money) += m
-  return p
+valueCardAction :: Int -> Card -> PlayerNumber -> DominionState (Maybe DominionMove)
+valueCardAction m c p = pure $ Just $ PlayValue p c m
 
--- | For basic card values: draw cards, +actions, +buys, +money
-basicCardAction :: Int -> Int -> Int -> Int -> Card -> PlayerNumber -> DominionState PlayerNumber
-basicCardAction draw a b m c p = do
-  (field @"players" . ix (unPlayerNumber p) . #actions) += a
-  (field @"players" . ix (unPlayerNumber p) . #buys) += b
-  _ <- deal draw p
-  valueCard m c p
-
+basicCardAction :: Int -> Int -> Int -> Int -> Card -> PlayerNumber -> DominionState (Maybe DominionMove)
+basicCardAction d a b m c p = pure $ Just $ PlayBasic p c d a b m
 
 -- | Given a list of cards in descending priorty order to gain and a max price,
 --  gain the first card in the list that's available that is under the max
 --  price.
 --  TODO: same structure as buying cards (Card,Card->Player->State Game Bool)
-gainCard :: [Card] -> Int -> PlayerNumber -> DominionState (Maybe Card)
-gainCard cards highestPrice p = obtain highestCostCard
-  where obtain :: Maybe Card -> DominionState (Maybe Card)
-        obtain Nothing  = return Nothing
-        obtain (Just c) = do
-          field @"decks" %= Map.mapWithKey (decreaseCards c)
-          (field @"players" . ix (unPlayerNumber p) . #deck) %= (c:)
-          return $ Just c
-        highestCostCard = find (\c -> (c ^. #cost) < highestPrice) cards
+gainCard :: [Card] -> Int -> Maybe Card
+gainCard cards highestPrice = find (\c -> (c ^. #cost) < highestPrice) cards
 
 hasActionCards :: Int -> [Card] -> Bool
 hasActionCards num cs = num <= length (filter (\c -> (c ^. #cardType) == Action) cs)
+
+trashCards :: PlayerNumber -> DominionPlayer -> [Card] -> DominionState ()
+trashCards p thePlayer toTrash = do
+  field @"trash" %= (toTrash ++)
+  (field @"players" . ix (unPlayerNumber p) . #hand) .= removeFromCards (thePlayer ^. #hand) toTrash
+
+discardCards :: PlayerNumber -> DominionPlayer -> [Card] -> DominionState ()
+discardCards p thePlayer toDiscard = do
+  (field @"players" . ix (unPlayerNumber p) . #discard) %= (toDiscard ++)
+  (field @"players" . ix (unPlayerNumber p) . #hand) .= removeFromCards (thePlayer ^. #hand) toDiscard

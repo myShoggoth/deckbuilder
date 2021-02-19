@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Dominion.DominionTreeSpec
-    ( spec
+    ( -- spec
     ) where
 
 import           DeckBuilding.Dominion.Cards
@@ -11,7 +11,7 @@ import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Types
 import           Test.Hspec
-
+{- 
 spec :: Spec
 spec = do
   describe "minimal games" $ do
@@ -78,3 +78,4 @@ spec = do
                     (Right 2)
                   ]
       buildDominionTrees moves [Right 2] `shouldBe` dtree
+ -}

@@ -6,7 +6,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Dominion.Cards.IntrigueSpec
-    ( spec
+    ( --spec
     ) where
 
 import           Control.Lens
@@ -23,6 +23,7 @@ import           DeckBuilding.Dominion.Utils
 import           DeckBuilding.Types
 import           System.Random
 import           Test.Hspec
+{- 
 
 gainAction :: Int -> PlayerNumber -> DominionState (Maybe Card)
 gainAction = gainCard firstGameKingdomCards
@@ -121,3 +122,4 @@ spec = do
       let (Just p2AfterCard) = afterCard ^? field @"players" . ix 1
       (p2AfterCard ^. field @"victory") `shouldBe` 2
       -}
+ -}

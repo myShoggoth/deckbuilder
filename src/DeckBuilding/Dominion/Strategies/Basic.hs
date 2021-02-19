@@ -64,8 +64,8 @@ import DeckBuilding.Dominion.Types
     , CardType(Action)
     , DominionState
     , Strategy(Strategy)
-    , DominionMove
-    , DominionAIGame(..) )
+    , DominionAIGame(..)
+    , DominionMove)
 import DeckBuilding.Dominion.Utils ( findPlayer, removeFromCards )
 
 -- Strategies
@@ -101,15 +101,15 @@ bigMoneyBuy g = doBuys g bigMoneyCards
                         ]
 
 -- | If you can discard a card, get rid of victory cards and coppers.
-bigMoneyDiscard :: (Int, Int) -> PlayerNumber -> DominionState [Card]
-bigMoneyDiscard rng = doDiscard rng discardCards
+bigMoneyDiscard :: DominionAIGame -> (Int, Int) -> [Card]
+bigMoneyDiscard g rng = doDiscard g rng discardCards
   where discardCards = victoryCards ++ [copperCard]
 
 -- | If you can trash a card, get rid of curses, estates, and coppers.
 --  Note: this logic is dumb and could cause your strategy to not have any
 --  money. Write something better, maybe using countCards?
-bigMoneyTrash :: (Int, Int) -> PlayerNumber -> DominionState [Card]
-bigMoneyTrash rng = doTrash rng trashCards
+bigMoneyTrash :: DominionAIGame -> (Int, Int) -> [Card] -> [Card]
+bigMoneyTrash g rng discards = doTrash g rng trashCards $ (g ^. #hand) ++ discards
 
 -- | Such trash.
 trashCards :: [Card]
@@ -117,8 +117,8 @@ trashCards = [curseCard, estateCard, copperCard]
 
 -- | If you can retrieve a card from your discard into your hand, get something
 --  worth it.
-bigMoneyRetrieve :: (Int, Int) -> PlayerNumber -> DominionState [Card]
-bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
+bigMoneyRetrieve :: DominionAIGame -> (Int, Int) -> [Card] -> [Card]
+bigMoneyRetrieve aig rng discardPile = doRetrieveDiscard aig rng retrieveCards discardPile
   where retrieveCards = [ goldCard
                         , marketCard
                         , festivalCard
@@ -131,8 +131,8 @@ bigMoneyRetrieve rng = doRetrieveDiscard rng retrieveCards
 
 -- | When you're given the opportunity to gain a card, the is the list in
 --  descending cost order. Would be good to make this better ala buy.
-bigMoneyGain :: Int -> PlayerNumber -> DominionState (Maybe Card)
-bigMoneyGain = gainCard gainCards
+bigMoneyGain :: DominionAIGame -> Int -> Maybe Card
+bigMoneyGain _ n = gainCard gainCards n
   where gainCards = [ provinceCard
                     , goldCard
                     , duchyCard
@@ -143,30 +143,25 @@ bigMoneyCardWeight :: Card -> Int
 bigMoneyCardWeight _ = 1
 
 -- | We don't buy throne rooms in big money.
-bigMoneyThroneRoom :: PlayerNumber -> DominionState (Maybe Card)
-bigMoneyThroneRoom _ = return Nothing
+bigMoneyThroneRoom :: DominionAIGame -> Maybe Card
+bigMoneyThroneRoom _ = Nothing
 
 -- | We don't buy libraries in big money.
-bigMoneyLibrary :: Card -> DominionState Bool
-bigMoneyLibrary _ = return True
+bigMoneyLibrary :: DominionAIGame -> Card -> Bool
+bigMoneyLibrary _ _ = True
 
 -- | Simple stupid version of this logic, trash any trash cards, discard
 --  remaining victory cards, keep the rest in whatever order.
-bigMoneySentry :: [Card] -> PlayerNumber -> DominionState ([Card], [Card], [Card])
-bigMoneySentry cs _ = do
+bigMoneySentry :: DominionAIGame -> [Card] -> ([Card], [Card], [Card])
+bigMoneySentry _ cs =
   let trash' = cs `intersect` trashCards
-  let disc = (trash' \\ cs) `intersect` victoryCards
-  let keep = (trash' ++ disc) \\ cs
-  return (trash', disc, keep)
+      disc = (trash' \\ cs) `intersect` victoryCards
+      keep = (trash' ++ disc) \\ cs
+    in (trash', disc, keep)
 
 -- | Meh?
-bigMoneyHandToDeck :: Int -> PlayerNumber -> DominionState [Card]
-bigMoneyHandToDeck n p = do
-    thePlayer <- findPlayer p
-    let someCards = take n $ (thePlayer ^. #hand) `intersect` handToDeckCards
-    (field @"players" . ix (unPlayerNumber p) . #deck) %= (someCards++)
-    (field @"players" . ix (unPlayerNumber p) . #hand) .= ((thePlayer ^. #hand) \\ someCards)
-    return someCards
+bigMoneyHandToDeck :: DominionAIGame -> Int -> [Card]
+bigMoneyHandToDeck g n = take n $ (g ^. #hand) `intersect` handToDeckCards
   where handToDeckCards = [ estateCard
                           , copperCard
                           , smithyCard
@@ -176,10 +171,8 @@ findInPlayAction :: Map.Map Card Int -> Card
 findInPlayAction decks' = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. #cardType == Action) && v > 0) decks'
 
 -- | Just need something
-bigMoneyLurker :: Card -> PlayerNumber -> DominionState (Either Card Card)
-bigMoneyLurker _ _ = do
-  decks' <- use #decks
-  return $ Left $ findInPlayAction decks'
+bigMoneyLurker :: DominionAIGame -> Card -> Either Card Card
+bigMoneyLurker _ c = Left c
 
 -- Big smithy
 
@@ -223,8 +216,8 @@ bigSmithyCardWeight (Card "Smithy" _ _ _ _)      = 10
 bigSmithyCardWeight _                            = 1
 
 -- | Just like big money buy we also gain smithy cards.
-bigSmithyGain :: Int -> PlayerNumber -> DominionState (Maybe Card)
-bigSmithyGain = gainCard gainCards
+bigSmithyGain :: DominionAIGame -> Int -> Maybe Card
+bigSmithyGain g n = gainCard gainCards n
   where gainCards = [ provinceCard
                     , goldCard
                     , smithyCard
@@ -233,8 +226,8 @@ bigSmithyGain = gainCard gainCards
                     ]
 
 -- | If we somehow had a throne room, definitely double the smithy.
-bigSmithyThroneRoom :: PlayerNumber -> DominionState (Maybe Card)
-bigSmithyThroneRoom = findFirstCard throneRoomCards
+bigSmithyThroneRoom :: DominionAIGame -> Maybe Card
+bigSmithyThroneRoom g = findFirstCard g throneRoomCards
   where throneRoomCards = [smithyCard]
 
 
@@ -299,45 +292,27 @@ prefPlusCards (min', max') cs h
 
 -- | Core for a simple discarding logic. (min, max) and the list of
 --  preferred cards to discard.
-doDiscard :: (Int, Int) -> [Card] -> PlayerNumber -> DominionState [Card]
-doDiscard minmax cs p = do
-  thePlayer <- findPlayer p
-  let toDiscard = prefPlusCards minmax cs (thePlayer ^. #hand)
-  let newHand = removeFromCards (thePlayer ^. #hand) toDiscard
-  (field @"players" . ix (unPlayerNumber p) . #discard) %= (++ toDiscard)
-  (field @"players" . ix (unPlayerNumber p) . #hand) .= newHand
-  return toDiscard
+doDiscard :: DominionAIGame -> (Int, Int) -> [Card] -> [Card]
+doDiscard g minmax cs = prefPlusCards minmax cs (g ^. #hand)
 
 -- | Core for a simple trashing logic. (min, max) and the list of
 --  preferred cards to trash.
-doTrash :: (Int, Int) -> [Card] -> PlayerNumber -> DominionState [Card]
-doTrash minmax cs p = do
-  thePlayer <- findPlayer p
-  let toTrash = prefPlusCards minmax cs (thePlayer ^. #hand)
-  let newHand = removeFromCards (thePlayer ^. #hand) toTrash
-  field @"trash" %= (toTrash ++)
-  (field @"players" . ix (unPlayerNumber p) . #hand) .= newHand
-  return toTrash
+doTrash :: DominionAIGame -> (Int, Int) -> [Card] -> [Card] -> [Card]
+doTrash g minmax cs possibles = prefPlusCards minmax cs possibles
 
 -- | Core for a simple card retrieving from the discard pile logic. (min, max)
 --  and the list of preferred cards to retrieve.
-doRetrieveDiscard :: (Int, Int) -> [Card] -> PlayerNumber -> DominionState [Card]
-doRetrieveDiscard (min', max') cs p = do
-  thePlayer <- findPlayer p
-  let pref = take max' $ intersect (thePlayer ^. #discard) cs
-  let toRetrieve
+doRetrieveDiscard :: DominionAIGame -> (Int, Int) -> [Card] -> [Card] -> [Card]
+doRetrieveDiscard pnum (min', max') cs discardPile = do
+  let pref = take max' $ intersect discardPile cs
+      toRetrieve
         | length pref > min' = pref
-        | otherwise         = take min' $ pref ++ (thePlayer ^. #discard)
-  let newDiscard = foldr delete (thePlayer ^. #discard) toRetrieve
-  (field @"players" . ix (unPlayerNumber p) . #deck) %= (toRetrieve++)
-  (field @"players" . ix (unPlayerNumber p) . #discard) .= newDiscard
-  return toRetrieve
+        | otherwise         = take min' $ pref ++ discardPile
+    in toRetrieve
 
 -- | Find the first card in the list that the player has in its hand, if any.
-findFirstCard :: [Card] -> PlayerNumber -> DominionState (Maybe Card)
-findFirstCard cs p = do
-  thePlayer <- findPlayer p
-  return $ case (thePlayer ^. #hand) `intersect` cs of
+findFirstCard :: DominionAIGame -> [Card] -> Maybe Card
+findFirstCard g cs = case (g ^. #hand) `intersect` cs of
     []    -> Nothing
     (x:_) -> Just x
 

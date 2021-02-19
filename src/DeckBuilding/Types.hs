@@ -21,7 +21,7 @@ instance {-# OVERLAPPING #-} Eq Result where
   _              == _              = False
 
 newtype PlayerNumber = PlayerNumber { unPlayerNumber :: Int }
-  deriving (Show, Eq) via Int
+  deriving (Show, Eq, Ord) via Int
 
 class (Monoid c, Monoid l) => Game c l g where
   -- | Create the initial state of the 'Game' turn.

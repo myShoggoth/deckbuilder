@@ -11,7 +11,7 @@ import DeckBuilding.Dominion.Types
       BoughtCard(..),
       CardPlay(..),
       Card(Card),
-      DominionMove(GameOver, Turn, ThroneRoom, Remodel, Discard, Play,
+      DominionMove(GameOver, Turn, ThroneRoom, Remodel, Harbinger,
                    Buy, Deal) )
 import qualified Data.List as List
 import Data.Maybe ( catMaybes )
@@ -88,10 +88,7 @@ buildPlayerTurn _ = error $ "buildPlayerTurn: I can't even."
 buildPlays :: [DominionMove] -> [CardPlay]
 --buildPlays moves | trace ("buildPlays " <> show moves) False=undefined
 buildPlays [] = []
-buildPlays (Play _ (Card "Throne Room" _ _ _ _):ThroneRoom _ c:moves) = PlayThroneRoom c : buildPlays moves
-buildPlays (Play _ (Card "Remodel" _ _ _ _):Remodel _ c c':moves) = PlayRemodel c c' : buildPlays moves
-buildPlays (Play _ (Card "Cellar" _ _ _ _):Discard _ c:moves) = PlayCellar c : buildPlays moves
-buildPlays (Play _ c:moves) = Standard c : buildPlays moves
+-- TODO: Rewrite this given new structure for DominionMoves
 buildPlays (Deal _ _ _:moves) = buildPlays moves -- TODO: skipping these for now
 buildPlays (x:xs) = error $ "Non-play move found: " <> show x <> "\nOthers: " <> show xs
 
