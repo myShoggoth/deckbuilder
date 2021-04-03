@@ -68,6 +68,7 @@ import DeckBuilding.Dominion.Types
     , DominionMove)
 import DeckBuilding.Dominion.Utils ( findPlayer, removeFromCards )
 
+import Debug.Trace
 -- Strategies
 
 -- Big money

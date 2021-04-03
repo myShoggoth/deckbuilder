@@ -39,6 +39,8 @@ import Data.Text.Prettyprint.Doc.Render.Text ( renderStrict )
 import qualified Data.DList                             as DL
 import qualified Data.List                              as List
 import qualified Data.Text.IO                           as Text
+import qualified Data.Text as Text
+import qualified Data.Map as Map
 import Data.Map (mapWithKey)
 import System.Random ( newStdGen, RandomGen(split), StdGen )
 import Control.Arrow ((&&&))
@@ -148,39 +150,60 @@ instance Pretty DominionMove where
     pretty (ThroneRoom _ c m1 m2) = pretty $ "Throne Rooming " <> show c <> "\n"
                                                               <> "  " <> show m1 <> "\n"
                                                               <> "  " <> show m2
-    pretty (Remodel _ c1 c2) = pretty $ "Remodeling " <> show c1 <> " into " show c2
+    pretty (Remodel _ c1 c2) = pretty $ "Remodeling " <> show c1 <> " into " <> show c2
     pretty (Vassal _ c) = pretty $ "Vassals, playing " <> show c
     pretty (Militia _ responses) = pretty $ "Militia!\n"
-                                         <> flip mapWithKey responses (\p resp -> "  Player " <> show p <> " " <>
-                                                                        (case resp of
-                                                                          Left c -> " showed " <> show c
-                                                                          Right xs -> " discarded " <> show xs
-                                                                        )
-                                                                        <> show "\n"
-                                                                        )
-    pretty (MoneyLender _ _) = pretty $ "Moneylendered a copperCard"
+                                         <> responses2String responses
+      where
+        responses2String :: Map.Map PlayerNumber (Either Card [Card]) -> String
+        responses2String responses = unlines $ map response2String $ Map.toList responses
+        response2String :: (PlayerNumber, Either Card [Card]) -> String
+        response2String (p, ec) = "  Player " <> show p <>
+                                  (case ec of
+                                    Left c -> " showed " <> show c
+                                    Right mc -> " discarded " <> show mc)
+                                  <> "\n"
+    pretty (MoneyLender _ _) = pretty $ ("Moneylendered a copperCard" :: Text.Text)
     pretty (Poacher _ xs) = pretty $ "Poacher, discarded " <> show xs
     pretty (Chapel _ xs) = pretty $ "Chapelled " <> show xs
     pretty (Harbinger _ mc) = pretty $ "Harbingered " <> show mc
     pretty (Bureaucrat _ shown) = pretty $ "Bureaucrat:\n"
-                                        <> flip mapWithKey shown (\mc p -> "  Player " <> show p <> " shows " <> show mc)
+                                        <> shown2String shown
+      where
+        shown2String :: Map.Map PlayerNumber (Maybe Card) -> String
+        shown2String shown = unlines $ map show2String $ Map.toList shown
+        show2String :: (PlayerNumber, Maybe Card) -> String
+        show2String (p, mc) = " Player " <> show p <> " shows " <> show mc <> "\n"
     pretty (Bandit _ responses) = pretty $ "Bandit:\n"
-                                        <> flip mapWithKey responses (\p resp -> "  Player " <> show p <>
-                                                                        (case resp of
-                                                                          Left c -> " showed " <> show c
-                                                                          Right decision -> " discarded " <> show (discarded decision) <> " and trashed " <> show (trashed decision)
-                                                                        )
-                                                                        <> show "\n"
-                                                                      )
+                                        <> responses2String responses
+      where
+        responses2String :: Map.Map PlayerNumber (Either Card BanditDecision) -> String
+        responses2String responses = unlines $ map response2String $ Map.toList responses
+        response2String :: (PlayerNumber, Either Card BanditDecision) -> String
+        response2String (p, bd) = "  Player " <> show p <>
+                                  (case bd of
+                                    Left c -> " showed " <> show c
+                                    Right decision -> " discarded " <> show (discarded decision) <> " and trashed " <> show (trashed decision))
+                                  <> "\n"
     pretty (CouncilRoom _ xs draws) = pretty $ "CouncilRoom for " <> show xs <> "\n"
-                                            <> flip mapWithKey draws (\p mc -> " Player " <> show p <> " draws " <> show mc <> "\n")
+                                            <> draws2String draws
+      where
+        draws2String :: Map.Map PlayerNumber (Maybe Card) -> String
+        draws2String draws = unlines $ map draw2String $ Map.toList draws
+        draw2String :: (PlayerNumber, Maybe Card) -> String
+        draw2String (p, mc) = " Player " <> show p <> " draws " <> show mc <> "\n"
+
     pretty (Witch _ xs responses) = pretty $ "Witch drew " <> show xs <> "\n"
-                                          <> flip mapWithKey responses (\p resp -> "  Player " <> show p <>
-                                                                          (case resp of
-                                                                            Left c -> " showed " <> show c
-                                                                            Right mc -> " gained " <> show mc
-                                                                          )
-                                                                        )
+                                          <> responses2String responses
+      where
+        responses2String :: Map.Map PlayerNumber (Either Card (Maybe Card)) -> String
+        responses2String responses = unlines $ map response2String $ Map.toList responses
+        response2String :: (PlayerNumber, Either Card (Maybe Card)) -> String
+        response2String (p, ec) = "  Player " <> show p <>
+                                  (case ec of
+                                    Left c -> " showed " <> show c
+                                    Right mc -> " gained " <> show mc)
+
     pretty (Mine _ c1 c2) = pretty $ "Mined " <> show c1 <> " into " <> show c2
     pretty (Library _ keeps discards) = pretty $ "Libraried and kept " <> show keeps <> ", discarded " <> show discards
     pretty (Sentry _ trashed discarded keeps) = pretty $ "Sentried to trash " <> show trashed <> ", discarded " <> show discarded <> ", and kept " <> show keeps

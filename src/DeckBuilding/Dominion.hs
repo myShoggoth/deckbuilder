@@ -48,7 +48,8 @@ import DeckBuilding.Dominion.Cards
       copperCard,
       provinceCard,
       duchyCard,
-      estateCard )
+      estateCard,
+      curseCard )
 import DeckBuilding.Types ( Game(..), PlayerNumber(PlayerNumber, unPlayerNumber) )
 import DeckBuilding.Dominion.Types
     ( DominionPlayer(DominionPlayer, playerName, victory),
@@ -61,7 +62,7 @@ import DeckBuilding.Dominion.Types
       DominionState,
       DominionMove(Turn, GameOver) )
 import DeckBuilding.Dominion.Utils
-    ( deal, numEmptyDecks, findPlayer, discardCard, mkDominionAIGame, executeBuys )
+    ( deal, numEmptyDecks, findPlayer, discardCard, mkDominionAIGame, executeBuys, cardPlayed )
 import System.Random (StdGen)
 import System.Random.Shuffle (shuffle')
 
@@ -104,6 +105,7 @@ evaluateCard c pnum _ = evaluateCard' c pnum
 evaluateCard' :: Card -> PlayerNumber -> DominionState ()
 evaluateCard' c pnum = do
   mdm <- (c ^. #action) c pnum
+  cardPlayed c pnum
   case mdm of
     Nothing -> return ()
     Just dm -> tell $ DL.singleton dm
@@ -123,10 +125,11 @@ makeDecks :: [Card] -> Map.Map Card Int
 makeDecks cs = Map.fromList $ (, 10) <$> cs
 
 -- | Basic decks that are in all games, numbers based on the total players.
+-- TODO: Only add curses if there are witches in game.
 basicDecks :: Int -> Map.Map Card Int
 basicDecks numPlayers
-    | numPlayers == 2 = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 8), (duchyCard, 8), (provinceCard, 8) ]
-    | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12) ]
+    | numPlayers == 2 = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 8), (duchyCard, 8), (provinceCard, 8), (curseCard, 10) ]
+    | otherwise       = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 12), (duchyCard, 12), (provinceCard, 12), (curseCard, 10 * (numPlayers - 1)) ]
 
 -- | Move played cards to discard pile, reset actions, buys, money, victory.
 resetTurn :: PlayerNumber -> DominionState ()
@@ -160,7 +163,7 @@ instance Game DominionConfig (DL.DList DominionMove) DominionGame where
     tell $ DL.singleton $ Turn p (thePlayer ^. #turns) thePlayer
     evaluateHand p
     aig <- mkDominionAIGame p
-    let buys = (thePlayer ^. #strategy . #buyStrategy $ aig) 
+    let buys = thePlayer ^. #strategy . #buyStrategy $ aig 
     executeBuys buys aig
     resetTurn p
     _ <- deal 5 p

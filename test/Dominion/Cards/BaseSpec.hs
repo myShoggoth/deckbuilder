@@ -5,23 +5,58 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE OverloadedLabels          #-}
 
 module Dominion.Cards.BaseSpec
     ( spec
     ) where
 
-import           Control.Lens
-import           Control.Monad.RWS
-import           Data.Generics.Product
-import qualified Data.Map                               as Map
-import           DeckBuilding.Dominion
-import           DeckBuilding.Dominion.Cards
-import           DeckBuilding.Dominion.Strategies.Basic
-import           DeckBuilding.Dominion.Types
-import           DeckBuilding.Dominion.Utils
-import           DeckBuilding.Types
-import           System.Random
-import           Test.Hspec
+import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
+import Control.Monad.RWS ( execRWS )
+import Data.Generics.Product ( HasField(field) )
+import qualified Data.Map as Map
+import DeckBuilding.Dominion
+    ( basicDecks, configToGame, evaluateHand )
+import DeckBuilding.Dominion.Cards
+    ( artisanCard,
+      banditCard,
+      bureaucratCard,
+      cellarCard,
+      chapelCard,
+      copperCard,
+      councilRoomCard,
+      curseCard,
+      duchyCard,
+      estateCard,
+      firstGameKingdomCards,
+      gardensCard,
+      goldCard,
+      harbingerCard,
+      libraryCard,
+      merchantCard,
+      militiaCard,
+      mineCard,
+      moneylenderCard,
+      poacherCard,
+      provinceCard,
+      remodelCard,
+      sentryCard,
+      silverCard,
+      smithyCard,
+      throneRoomCard,
+      vassalCard,
+      witchCard )
+import DeckBuilding.Dominion.Strategies.Basic
+    ( bigMoneyStrategy, bigSmithyStrategy )
+import DeckBuilding.Dominion.Types
+    ( DominionConfig(DominionConfig),
+      DominionGame(DominionGame),
+      DominionPlayer(DominionPlayer),
+      DominionState )
+import DeckBuilding.Dominion.Utils ( deal, cardPlayed )
+import DeckBuilding.Types ( PlayerNumber(PlayerNumber) )
+import System.Random ( mkStdGen )
+import Test.Hspec ( Spec, describe, it, shouldBe )
 
 spec :: Spec
 spec = do
@@ -45,17 +80,16 @@ spec = do
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
       length (p1AfterCard ^. field @"hand") `shouldBe` 5
       length (p1AfterCard ^. field @"discard") `shouldBe` 5
-      length (p1AfterCard ^. field @"played") `shouldBe` 1
-      (p1AfterCard ^. field @"actions") `shouldBe` 0
+      (p1AfterCard ^. field @"actions") `shouldBe` 1
 
   describe "chapelCardAction" $
     it "trashes 4 of the starting cards" $ do
       let afterCard = fst $ execRWS ((chapelCard ^. field @"action") chapelCard p0) c afterDeal
+      let (Just p1AfterDeal) = afterDeal ^? field @"players" . ix 0
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
       length (p1AfterCard ^. field @"hand") `shouldBe` 1
       length (p1AfterCard ^. field @"discard") `shouldBe` 0
-      length (p1AfterCard ^. field @"played") `shouldBe` 1
-      length (p1AfterCard ^. field @"played" ++ p1AfterCard ^. field @"discard" ++ p1AfterCard ^. field @"hand" ++ p1AfterCard ^. field @"deck") `shouldBe` 7
+      length (p1AfterCard ^. field @"played" ++ p1AfterCard ^. field @"discard" ++ p1AfterCard ^. field @"hand" ++ p1AfterCard ^. field @"deck") `shouldBe` 6
       (p1AfterCard ^. field @"actions") `shouldBe` 0
       length (afterCard ^. field @"trash") `shouldBe` 4
 
@@ -76,13 +110,15 @@ spec = do
       (p1AfterCard ^. field @"actions") `shouldBe` 1
     it "adds one money if there has been a silver played" $ do
       let afterSilver = fst $ execRWS ((silverCard ^. field @"action") silverCard p0) c afterDeal
-      let afterCard   = fst $ execRWS ((merchantCard ^. field @"action") merchantCard p0) c afterSilver
+          afterSilverPlayed = fst $ execRWS (cardPlayed silverCard p0) c afterSilver
+      let afterCard   = fst $ execRWS ((merchantCard ^. field @"action") merchantCard p0) c afterSilverPlayed
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
       (p1AfterCard ^. field @"money") `shouldBe` 3 -- 2 for silver, 1 for merchant
       (p1AfterCard ^. field @"actions") `shouldBe` 1
     it "adds one money if a silver is played after" $ do
       let afterCard   = fst $ execRWS ((merchantCard ^. field @"action") merchantCard p0) c afterDeal
-      let afterSilver = fst $ execRWS ((silverCard ^. field @"action") silverCard p0) c afterCard
+          afterMerchantPlayed = fst $ execRWS (cardPlayed merchantCard p0) c afterCard
+      let afterSilver = fst $ execRWS ((silverCard ^. field @"action") silverCard p0) c afterMerchantPlayed
       let (Just p1AfterCard) = afterSilver ^? field @"players" . ix 0
       (p1AfterCard ^. field @"money") `shouldBe` 3
       (p1AfterCard ^. field @"actions") `shouldBe` 1
@@ -92,9 +128,9 @@ spec = do
       let forcedDeal = DominionPlayer "Vassal Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 bigMoneyStrategy
       let afterCard = fst $ execRWS (evaluateHand p0) c $ DominionGame [forcedDeal] (basicDecks 2) [] g
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      (p1AfterCard ^. field @"money") `shouldBe` 4
+      (p1AfterCard ^. field @"money") `shouldBe` 5
       length (p1AfterCard ^. field @"hand") `shouldBe` 0
-      length (p1AfterCard ^. field @"played") `shouldBe` 5
+      length (p1AfterCard ^. field @"played") `shouldBe` 6
       length (p1AfterCard ^. field @"deck") `shouldBe` 4
       length (p1AfterCard ^. field @"discard") `shouldBe` 1
       (p1AfterCard ^. field @"actions") `shouldBe` 0
@@ -115,7 +151,6 @@ spec = do
     it "gives 1 point for the starting deck" $ do
       let afterCard = fst $ execRWS ((gardensCard ^. field @"action") gardensCard p0) c afterDeal
       let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
---      (p1AfterCard ^. field @"victory") `shouldBe` 1   -- We don't calc victory as we go anymore
       (p1AfterCard ^. field @"actions") `shouldBe` 1
 
   describe "militiaCardAction" $ do
@@ -135,7 +170,7 @@ spec = do
       (p1AfterCard ^. field @"money") `shouldBe` 3
       (p1AfterCard ^. field @"actions") `shouldBe` 0
     it "trashes a copper" $ do
-      length ((p1AfterCard ^. field @"hand") ++ (p1AfterCard ^. field @"discard") ++ (p1AfterCard ^. field @"played") ++ (p1AfterCard ^. field @"deck")) `shouldBe` 10 -- includes the moneylender card itself
+      length ((p1AfterCard ^. field @"hand") ++ (p1AfterCard ^. field @"discard") ++ (p1AfterCard ^. field @"played") ++ (p1AfterCard ^. field @"deck")) `shouldBe` 9 -- the moneylender was not played
       length (afterCard ^. field @"trash") `shouldBe` 1
 
   describe "poacherCardAction" $ do
@@ -169,9 +204,6 @@ spec = do
       length (p1AfterCard ^. field @"deck") `shouldBe` 0
       length (p1AfterCard ^. field @"played") `shouldBe` 10
       (p1AfterCard ^. field @"money") `shouldBe` 7
-        {- Don't calculate victory points like this anymore
-      (p1AfterCard ^. field @"victory") `shouldBe` 1
-      -}
 
   describe "banditCardAction" $ do
     it "gives a gold onto the discard pile" $ do
@@ -206,7 +238,9 @@ spec = do
     it "draws two cards" $ do
       length (p1AfterCard ^. field @"hand") `shouldBe` 7
       (p1AfterCard ^. field @"actions") `shouldBe` 0
-    it "causes other players to get curses" $
+    it "causes other players to get curses" $ do
+      p1AfterCard ^. #discard `shouldBe` []
+      p2' ^. #discard `shouldBe` [curseCard]
       head (p2' ^. field @"discard") `shouldBe` curseCard
 
   describe "mineCardAction" $ do
@@ -241,7 +275,7 @@ spec = do
     let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
     it "trashes a copper and gains a silver into the hand" $ do
       length (afterCard ^. field @"trash") `shouldBe` 1
-      length (p1AfterCard ^. field @"hand") `shouldBe` 4
-      length (p1AfterCard ^. field @"deck") `shouldBe` 6
+      length (p1AfterCard ^. field @"hand") `shouldBe` 5
+      length (p1AfterCard ^. field @"deck") `shouldBe` 5
       -- TODO: look up remodel card and make sure we're doing the right thing
 --      silverCard `elem` (p1AfterCard ^. field @"hand") `shouldBe` True

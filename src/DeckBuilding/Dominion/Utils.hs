@@ -17,9 +17,10 @@ module DeckBuilding.Dominion.Utils
     , discardCard
     , executeBuys
     , mkDominionAIGame
+    , cardPlayed
     ) where
 
-import Control.Lens ( preuse, (^.), use, (%=), (.=), Ixed(ix), (-=), (+=) )
+import Control.Lens ( preuse, (^.), use, (%=), (.=), Ixed(ix), (-=), (+=), (<>=))
 import Control.Monad ( filterM, void, when )
 import Control.Monad.RWS
     ( MonadWriter(tell), MonadState(get) )
@@ -38,6 +39,8 @@ import DeckBuilding.Dominion.Types
         Vassal, MoneyLender, Poacher, ThroneRoom) )
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
+
+import Debug.Trace
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> PlayerNumber -> DominionState [Card]
@@ -62,6 +65,13 @@ numEmptyDecks :: DominionState Int
 numEmptyDecks = do
   decks' <- use $ field @"decks"
   return $ length $ Map.filter (== 0) decks'
+
+-- | Move a card from the player's hand to their played pile.
+cardPlayed :: Card -> PlayerNumber -> DominionState ()
+cardPlayed c p = do
+  thePlayer <- findPlayer p
+  (field @"players" . ix (unPlayerNumber p) . #played) <>= [c]
+  (field @"players" . ix (unPlayerNumber p) . #hand) .= removeFromCards (thePlayer ^. #hand) [c]
 
 -- | If the cards are the same, return number of cards - 1.
 decreaseCards :: Card -> Card -> Int -> Int
@@ -107,7 +117,7 @@ discardCard card p = do
 -- | Run the moves the AI has requested, this is where the bulk of the
 -- game state changes actually take place.
 executeBuys :: [DominionMove] -> DominionAIGame -> DominionState ()
--- executeMoves g xs | trace ("executeMoves: " <> show g <> ", moves: " <> show xs) False=undefined
+-- executeBuys xs g | trace ("executeBuys: " <> show g <> ", buys: " <> show xs) False=undefined
 executeBuys [] _ = return ()
 executeBuys (x:xs) g = do
   case x of

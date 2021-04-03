@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Dominion.DominionTreeSpec
-    ( -- spec
+    ( spec
     ) where
 
 import           DeckBuilding.Dominion.Cards
@@ -11,6 +11,11 @@ import           DeckBuilding.Dominion.Strategies.Basic
 import           DeckBuilding.Dominion.Types
 import           DeckBuilding.Types
 import           Test.Hspec
+
+spec :: Spec
+spec = describe "TODO: fix me" $
+        it "is a tauntology" $
+          1 `shouldBe` 1
 {- 
 spec :: Spec
 spec = do

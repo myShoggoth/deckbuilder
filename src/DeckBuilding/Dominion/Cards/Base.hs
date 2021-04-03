@@ -53,7 +53,7 @@ module DeckBuilding.Dominion.Cards.Base
     ) where
 
 import Control.Lens ( (^.), use, (%=), (+=), (.=), Ixed(ix) )
-import Control.Monad ( void, when )
+import Control.Monad ( void, unless )
 import Control.Monad.RWS ( MonadWriter(tell) )
 import qualified Data.DList as DL
 import Data.Foldable (foldrM)
@@ -62,7 +62,7 @@ import Data.Generics.Labels ()
 import Data.List (delete, find, intersect, (\\), partition)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Utils
-    ( simpleVictory, valueCardAction, basicCardAction, trashCards, discardCards )
+    ( simpleVictory, valueCardAction, basicCardAction, trashCards, discardCards, handToDeck, discardToDeck )
 import DeckBuilding.Types ( PlayerNumber(..) )
 import DeckBuilding.Dominion.Types
     ( DominionPlayer,
@@ -75,11 +75,12 @@ import DeckBuilding.Dominion.Types
         Library, Sentry, Artisan, Workshop),
       BanditDecision(BanditDecision) )
 import DeckBuilding.Dominion.Utils
-    ( deal, numEmptyDecks, decreaseCards, firstCardInPlay, findPlayer, mkDominionAIGame, removeFromCards)
+    ( deal, numEmptyDecks, decreaseCards, firstCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, cardPlayed )
 import System.Random.Shuffle ( shuffle' )
 import Safe (headMay)
 import Data.Either (isRight, fromRight)
 
+import Debug.Trace
 -- Cards and their actions
 
 -- | $3
@@ -94,7 +95,7 @@ silverCard      = Card "Silver"     3 silverCardAction Value (simpleVictory 0)
     silverCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
     silverCardAction c p    = do
         thePlayer <- findPlayer p
-        let monies = if (merchantCard `elem` (thePlayer ^. field @"played")) && (silverCard `notElem` (thePlayer ^. field @"played"))
+        let monies = if (merchantCard `elem` (thePlayer ^. #played)) && (silverCard `notElem` (thePlayer ^. #played))
                         then 3
                         else 2
         valueCardAction monies c p
@@ -181,7 +182,7 @@ cellarCard      = Card "Cellar"     2 cellarCardAction Action (simpleVictory 0)
       -- TODO: Verify the cards are valid to discard
       --  1. Are the number of cards being discarded within the bounds?
       --  2. Are all of the cards being discarded actually in that player's hand?
-      discardCards p thePlayer discards
+      discardCards p discards
       void $ deal (length discards) p
       pure $ Just $ Cellar p discards
 
@@ -193,8 +194,13 @@ chapelCard     = Card "Chapel"      2 chapelCardAction Action (simpleVictory 0)
     chapelCardAction c p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
+      -- Remove the chapel from the hand so the AI doesn't decide it can trash it as one of the four
+      (field @"players" . ix (unPlayerNumber p) . #hand) .= removeFromCards (thePlayer ^. #hand) [c]
       let toTrash = (thePlayer ^. #strategy . #trashStrategy) aig (0, 4) []
-      trashCards p thePlayer toTrash
+      -- then restore, `thePlayer` in this case has the old values anyway
+      (field @"players" . ix (unPlayerNumber p) . #hand) .= thePlayer ^. #hand
+      trashCards p toTrash
+      basicCardAction 0 (-1) 0 0 c p
       pure $ Just $ Chapel p toTrash
 
 -- | +1 Card
@@ -211,7 +217,7 @@ harbingerCard   = Card "Harbinger"  4 harbingerCardAction Action (simpleVictory 
       aig <- mkDominionAIGame p
       _ <- deal 1 p
       let cards = (thePlayer ^. #strategy . #retrieveStrategy) aig (0, 1) (thePlayer ^. #discard)
-      discardCards p thePlayer cards
+      discardToDeck p cards
       pure $ Just $ Harbinger p $ headMay cards
 
 -- | +1 Card
@@ -246,12 +252,12 @@ vassalCard      = Card "Vassal"     3 vassalCardAction Action (simpleVictory 0)
             | otherwise                       = ( (thePlayer ^. #deck) ++ shuffle' (thePlayer ^. #discard) (length (thePlayer ^. #discard)) r, [])
       let topOfDeck Nothing                 = return Nothing
           topOfDeck (Just c')               = do
-            mmoves <- (c' ^. #action) c' p
+            deal 1 p
             if (c' ^. #cardType) == Action
               then do
                 aig <- mkDominionAIGame p
-                (field @"players" . ix (unPlayerNumber p) . #played) %= (c':)
                 mdm <- (c' ^. #action) c' p
+                cardPlayed c' p
                 pure $ Just $ Vassal p mdm
               else do
                 (field @"players" . ix (unPlayerNumber p) . #discard) %= (c':)
@@ -287,7 +293,7 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
       case find (`elem` victoryCards) (thePlayer ^. #hand) of
         Nothing -> return Nothing
         Just c  -> do
-          discardCards p thePlayer [c]
+          discardCards p [c]
           return $ Just c
 
 -- | Worth 1VP per 10 cards you have (round down).
@@ -321,7 +327,7 @@ militiaCard     = Card "Militia"    4 militiaCardAction Action (simpleVictory 0)
         Nothing       -> do
           aig <- mkDominionAIGame p
           let discards = (thePlayer ^. #strategy . #discardStrategy) aig ( length (thePlayer ^. #hand) - 3, length (thePlayer ^. #hand) - 3 )
-          discardCards p thePlayer discards
+          discardCards p discards
           return $ (e, Right discards)
 
 -- | You may trash a Copper from your hand for +$3.	
@@ -333,7 +339,8 @@ moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action (simpleVict
       thePlayer <- findPlayer p
       if copperCard `elem` (thePlayer ^. #hand)
         then do
-          discardCards p thePlayer [copperCard]
+          trashCards p [copperCard]
+          basicCardAction 0 (-1) 0 3 c p
           return $ Just $ MoneyLender p copperCard
         else return Nothing
 
@@ -354,6 +361,7 @@ poacherCard     = Card "Poacher"      4 poacherCardAction Action (simpleVictory 
       _ <- basicCardAction 1 0 0 1 c p
       emptyDecks <- numEmptyDecks
       let discards = (thePlayer ^. #strategy . #discardStrategy) aig (emptyDecks, emptyDecks)
+      discardCards p discards
       return $ Just $ Poacher p discards
 
 -- | Trash a card from your hand. Gain a card costing up to $2 more than it.
@@ -367,12 +375,13 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
       let moves = (thePlayer ^. #strategy . #trashStrategy) aig (0, 1) []
       if length moves == 1
         then do
-          trashCards p thePlayer moves
+          trashCards p moves
           let newCard = (thePlayer ^. #strategy . #gainCardStrategy) aig (head moves ^. #cost + 2)
           case newCard of
             Nothing -> pure Nothing
             Just card -> do
               _ <- basicCardAction 0 (-1) 0 0 c p
+              (field @"players" . ix (unPlayerNumber p) . #hand) %= (c:)
               pure $ Just $ Remodel p (head moves) card
         else
           return Nothing
@@ -393,10 +402,13 @@ throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action (simpleVicto
           case mm1 of
             Nothing -> return Nothing
             Just m1 -> do
+              cardPlayed card p -- If we're able to do this once, it has been played.
+              basicCardAction 0 1 0 0 card p
               mm2 <- (card ^. #action) card p
               case mm2 of
                 Nothing -> return Nothing
-                Just m2 -> return $ Just $ ThroneRoom p card m1 m2
+                Just m2 -> do
+                  return $ Just $ ThroneRoom p card m1 m2
 
 -- | Gain a Gold. Each other player reveals the top 2 cards of their deck,
 -- trashes a revealed Treasure other than Copper, and discards the rest.
@@ -425,8 +437,8 @@ banditCard      = Card "Bandit"       5 banditCardAction Action (simpleVictory 0
           toptwo <- deal 2 p
           let totrash   = take 1 $ intersect toptwo (delete copperCard (reverse treasureCards))
           let todiscard = toptwo \\ totrash
-          trashCards p thePlayer totrash
-          discardCards p thePlayer todiscard
+          trashCards p totrash
+          discardCards p todiscard
           pure $ (e, Right $ Right $ BanditDecision (headMay totrash) todiscard)
 
 -- | +4 Cards
@@ -472,7 +484,7 @@ witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
         Just defender -> return (p, Left defender)
         Nothing -> do
           decks <- use #decks
-          if decks Map.! curseCard <= 0
+          if curseCard `Map.notMember` decks || decks Map.! curseCard <= 0
             then return (p, Right Nothing)
             else do
               (field @"players" . ix (unPlayerNumber p) . #discard) %= (curseCard:)
@@ -497,7 +509,7 @@ mineCard          = Card "Mine"       5 mineCardAction Action (simpleVictory 0)
     exch :: Card -> Card -> Card -> PlayerNumber -> DominionState (Maybe DominionMove)
     exch c c1 c2 p = do
       thePlayer <- findPlayer p
-      trashCards p thePlayer [c1]
+      trashCards p [c1]
       field @"decks" %= Map.mapWithKey (decreaseCards c2)
       (field @"players" . ix (unPlayerNumber p) . #hand) %= (c2:)
       basicCardAction 0 (-1) 0 0 c p
@@ -516,23 +528,28 @@ libraryCard     = Card "Library"      5 libraryCardAction Action (simpleVictory 
     drawTo :: Int -> PlayerNumber -> ([Card], [Card]) -> DominionState ([Card], [Card])
     drawTo num p dds@(draws, discards)= do
       thePlayer <- findPlayer p
-      let todraw = num - length (thePlayer ^. #hand)
+      let todraw = num - (length draws + length (thePlayer ^. #hand))
       if todraw <= 0
         then return (draws, discards)
         else do
           newcards <- deal todraw p
-          decisions <- mapM (discardOrPlay p) newcards
-          let (map fst -> keeps, map fst -> dontkeeps) = partition (\(x, b) -> b) decisions
-          (newDraws, newDiscards) <- drawTo num p dds
-          return (newDraws ++ keeps ++ draws, newDiscards ++ dontkeeps ++ discards)
+          thePlayer' <- findPlayer p
+          let newcards' = trace ("newcards: " <> show newcards <> " hand: " <> show (thePlayer' ^. #hand)) newcards
+          if null newcards'
+            then return (draws, discards)
+            else do
+              decisions <- mapM (discardOrPlay p) newcards
+              let (map fst -> keeps, map fst -> dontkeeps) = partition snd decisions
+              (newDraws, newDiscards) <- drawTo num p (draws ++ keeps, discards ++ dontkeeps)
+              return (newDraws, newDiscards)
     discardOrPlay :: PlayerNumber -> Card -> DominionState (Card, Bool)
     discardOrPlay p c = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let keep = (thePlayer ^. #strategy . #libraryStrategy) aig c
-      when ((c ^. #cardType) == Value || keep) $
-        discardCards p thePlayer [c]
-      return (c, ((c ^. #cardType) == Value || keep) )
+      unless ((c ^. #cardType) == Value || keep) $
+        discardCards p [c]
+      return (c, (c ^. #cardType) == Value || keep )
 
 -- | +1 Card
 --
@@ -575,6 +592,11 @@ artisanCard   = Card "Artisan"      6 artisanCardAction Action (simpleVictory 0)
           (field @"players" . ix (unPlayerNumber p) . #hand) %= (card:)
           aig' <- mkDominionAIGame p
           let putOnDeck = (thePlayer ^. #strategy . #handToDeckStrategy) aig' 1
+          if length putOnDeck == 1
+            then do
+              thePlayer' <- findPlayer p
+              handToDeck p putOnDeck
+            else pure ()
           return $ Just $ Artisan p card (head putOnDeck)
 
 -- | Gain a card costing up to $4.

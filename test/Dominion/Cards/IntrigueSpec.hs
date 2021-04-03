@@ -6,7 +6,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 
 module Dominion.Cards.IntrigueSpec
-    ( --spec
+    ( spec
     ) where
 
 import           Control.Lens
@@ -23,6 +23,11 @@ import           DeckBuilding.Dominion.Utils
 import           DeckBuilding.Types
 import           System.Random
 import           Test.Hspec
+
+spec :: Spec
+spec = describe "TODO: fix me" $
+          it "is a tautology" $
+            1 `shouldBe` 1
 {- 
 
 gainAction :: Int -> PlayerNumber -> DominionState (Maybe Card)

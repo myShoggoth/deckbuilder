@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE OverloadedLabels          #-}
 
 module DominionSpec
     ( spec
@@ -60,6 +61,8 @@ spec = do
 
   describe "evaluateHand" $ do
     it "has no more cards in hand" $ do
+      p1AfterEvaluate ^. #hand `shouldBe` []
+      p1AfterEvaluate ^. #played `shouldBe` [estateCard, copperCard, copperCard, copperCard, copperCard]
       length (p1AfterEvaluate ^. field @"played") `shouldBe` 5
       length (p1AfterEvaluate ^. field @"hand") `shouldBe` 0
       length (p1AfterDeal ^. field @"discard") `shouldBe` 0
