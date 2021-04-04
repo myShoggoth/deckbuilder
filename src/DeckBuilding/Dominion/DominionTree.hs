@@ -55,8 +55,8 @@ isGameOver _            = False
 -- | Is the move a 'Turn' marker?
 isTurn :: DominionMove -> Bool
 --isTurn move | trace ("isTurn " <> show move) False=undefined
-isTurn (Turn _ _ _ ) = True
-isTurn _           = False
+isTurn Turn {} = True
+isTurn _       = False
 
 -- | Is this move a 'Buy'?
 isBuy :: DominionMove -> Bool
@@ -85,18 +85,18 @@ buildPlayerTurn (x:_) = error $ "buildPlayerTurn: Found non-Turn move where Turn
 buildPlayerTurn _ = error $ "buildPlayerTurn: I can't even."
 
 -- | Convert 'DominionMove's into 'CardPlay's.
-buildPlays :: [DominionMove] -> [CardPlay]
+buildPlays :: [DominionMove] -> [DominionMove]
 --buildPlays moves | trace ("buildPlays " <> show moves) False=undefined
 buildPlays [] = []
 -- TODO: Rewrite this given new structure for DominionMoves
-buildPlays (Deal _ _ _:moves) = buildPlays moves -- TODO: skipping these for now
-buildPlays (x:xs) = error $ "Non-play move found: " <> show x <> "\nOthers: " <> show xs
+buildPlays (Deal {}:moves) = buildPlays moves -- TODO: skipping these for now
+buildPlays dm = dm
 
 -- | Convert 'DominionMove's into 'BoughtCard's.
 buildBuy :: DominionMove -> Maybe BoughtCard
 --buildBuy move | trace ("buildBuy " <> show move) False=undefined
 buildBuy (Buy _ c)    = Just $ BoughtCard c
-buildBuy (Deal _ _ _) = Nothing -- TODO: skipping these for now
+buildBuy Deal {}      = Nothing -- TODO: skipping these for now
 buildBuy (GameOver _) = Nothing
 buildBuy move = error $ "Non-buy move found: " <> show move
 

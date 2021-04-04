@@ -126,12 +126,6 @@ instance Pretty GameTurn where
 instance Pretty PlayerTurn where
     pretty (PlayerTurn pnum played' bought) = align $ vsep [ "Player" <+> pretty (unPlayerNumber pnum), pretty played', pretty bought ]
 
-instance Pretty CardPlay where
-    pretty (Standard c) = sep [ "Played", pretty $ cardName c ]
-    pretty (PlayThroneRoom c) = sep [ "ThroneRoomed a ", pretty $ cardName c]
-    pretty (PlayRemodel c c') = sep [ "Remodelled a", pretty $ cardName c, "into a", pretty $ cardName c' ]
-    pretty (PlayCellar c) = sep [ "Cellared", list $ pretty . cardName <$> c ]
-
 instance Pretty BoughtCard where
     pretty (BoughtCard c) = sep [ "Bought", pretty $ cardName c ]
 

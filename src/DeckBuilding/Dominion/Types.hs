@@ -47,6 +47,7 @@ data DominionMove = Turn PlayerNumber Int DominionPlayer |
                     Artisan PlayerNumber Card Card |
                     Workshop PlayerNumber Card |
                     GameOver [(Text, Int)]
+  deriving stock (Eq)
 
 instance Show DominionMove where
   show (Turn _ n p )    = "Turn " <> show n <> " for player " <> show (playerName p)
@@ -268,7 +269,7 @@ instance Ord DominionPlayer where
 data CardPlay = Standard Card | PlayThroneRoom Card | PlayRemodel Card Card | PlayCellar [Card]
   deriving (Show, Eq)
 
-data BoughtCard = BoughtCard Card
+newtype BoughtCard = BoughtCard Card
   deriving (Show, Eq)
 
 -- | A representation of a 'Player''s turn.
@@ -276,7 +277,7 @@ data BoughtCard = BoughtCard Card
 -- * Which cards were bought.
 data PlayerTurn = PlayerTurn
   { playerNum   :: PlayerNumber
-  , cardsPlayed :: [CardPlay]
+  , cardsPlayed :: [DominionMove]
   , cardsBought :: [BoughtCard]
   } deriving (Show, Eq)
 
