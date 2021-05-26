@@ -28,10 +28,8 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyCardWeight
     ) where
 
-import Control.Lens ( (^.), use, (%=), (.=), Ixed(ix) )
-import Data.Generics.Product ( HasField(field) )
-import Data.List (delete, intersect, (\\))
-import qualified Data.Map                               as Map
+import Control.Lens ( (^.) )
+import Data.List ( intersect, (\\) )
 import Safe (headMay)
 import DeckBuilding.Dominion.Cards
     ( goldCard,
@@ -58,17 +56,15 @@ import DeckBuilding.Dominion.Strategies.Utils
       buyIfNumberOfCardIsBelow,
       buyN,
       sortByWeight )
-import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
     ( Card(Card)
-    , CardType(Action)
     , DominionState
     , Strategy(Strategy)
     , DominionAIGame(..)
-    , DominionMove)
-import DeckBuilding.Dominion.Utils ( findPlayer, removeFromCards )
+    , DominionBuy )
+import DeckBuilding.Dominion.Utils ( findPlayer )
+import DeckBuilding.Types (PlayerNumber)
 
-import Debug.Trace
 -- Strategies
 
 -- Big money
@@ -90,7 +86,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyLurker
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
-bigMoneyBuy :: DominionAIGame -> [DominionMove]
+bigMoneyBuy :: DominionAIGame -> [DominionBuy]
 bigMoneyBuy g = doBuys g bigMoneyCards
   where bigMoneyCards = [ (provinceCard, alwaysBuy)
                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
@@ -133,7 +129,7 @@ bigMoneyRetrieve aig rng discardPile = doRetrieveDiscard aig rng retrieveCards d
 -- | When you're given the opportunity to gain a card, the is the list in
 --  descending cost order. Would be good to make this better ala buy.
 bigMoneyGain :: DominionAIGame -> Int -> Maybe Card
-bigMoneyGain _ n = gainCard gainCards n
+bigMoneyGain _ = gainCard gainCards
   where gainCards = [ provinceCard
                     , goldCard
                     , duchyCard
@@ -168,12 +164,9 @@ bigMoneyHandToDeck g n = take n $ (g ^. #hand) `intersect` handToDeckCards
                           , smithyCard
                           ]
 
-findInPlayAction :: Map.Map Card Int -> Card
-findInPlayAction decks' = fst $ Map.elemAt 0 $ Map.filterWithKey (\k v -> (k ^. #cardType == Action) && v > 0) decks'
-
 -- | Just need something
-bigMoneyLurker :: DominionAIGame -> Card -> Either Card Card
-bigMoneyLurker _ c = Left c
+bigMoneyLurker :: DominionAIGame -> Either Card Card
+bigMoneyLurker _ = Left cellarCard
 
 -- Big smithy
 
@@ -194,7 +187,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyLurker
 
 -- | Just like big money buy also buy up to two smithy cards.
-bigSmithyBuy :: DominionAIGame -> [DominionMove]
+bigSmithyBuy :: DominionAIGame -> [DominionBuy]
 bigSmithyBuy g = doBuys g bigSmithyCards
   where bigSmithyCards = [ (provinceCard, alwaysBuy)
                         , (duchyCard, buyIfNumberOfCardIsBelow provinceCard 4)
@@ -218,7 +211,7 @@ bigSmithyCardWeight _                            = 1
 
 -- | Just like big money buy we also gain smithy cards.
 bigSmithyGain :: DominionAIGame -> Int -> Maybe Card
-bigSmithyGain g n = gainCard gainCards n
+bigSmithyGain _ = gainCard gainCards
   where gainCards = [ provinceCard
                     , goldCard
                     , smithyCard
@@ -249,7 +242,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyLurker
 
 -- | The buy strategy
-villageSmithyEngine4Buy :: DominionAIGame -> [DominionMove]
+villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
 villageSmithyEngine4Buy g = doBuys g bigVillageSmithyEngine4Cards
   where bigVillageSmithyEngine4Cards =  [
                                           (provinceCard, alwaysBuy)
@@ -299,12 +292,12 @@ doDiscard g minmax cs = prefPlusCards minmax cs (g ^. #hand)
 -- | Core for a simple trashing logic. (min, max) and the list of
 --  preferred cards to trash.
 doTrash :: DominionAIGame -> (Int, Int) -> [Card] -> [Card] -> [Card]
-doTrash g minmax cs possibles = prefPlusCards minmax cs possibles
+doTrash _ = prefPlusCards
 
 -- | Core for a simple card retrieving from the discard pile logic. (min, max)
 --  and the list of preferred cards to retrieve.
 doRetrieveDiscard :: DominionAIGame -> (Int, Int) -> [Card] -> [Card] -> [Card]
-doRetrieveDiscard pnum (min', max') cs discardPile = do
+doRetrieveDiscard _ (min', max') cs discardPile = do
   let pref = take max' $ intersect discardPile cs
       toRetrieve
         | length pref > min' = pref
@@ -320,8 +313,7 @@ findFirstCard g cs = case (g ^. #hand) `intersect` cs of
 -- | Given a player, a number of buys, and a list of preferred cards to buy
 --  and a buy function, buy as many as possible given the number of buys and
 --  the amount of money the player has.
-doBuys :: DominionAIGame -> [(Card, DominionAIGame -> Card -> Maybe DominionMove)] -> [DominionMove]
--- doBuys g _ | trace ("doBuys: " ++ show g) False = undefined
+doBuys :: DominionAIGame -> [(Card, DominionAIGame -> Card -> Maybe DominionBuy)] -> [DominionBuy]
 doBuys _ [] = []
 doBuys g ((x, f):xs) =
   if (g ^. #buys) > 0
@@ -334,10 +326,10 @@ doBuys g ((x, f):xs) =
                                 , actions = g ^. #actions
                                 , buys = (g ^. #buys) - 1
                                 , money = (g ^. #money) - (x ^. #cost)
-                                , turns = (g ^. #turns)
-                                , cards = (g ^. #cards) -- TODO include the new card in this
-                                , trash = (g ^. #trash)
-                                , decks = (g ^. #decks) -- TODO should remove bought card
+                                , turns = g ^. #turns
+                                , cards = g ^. #cards -- TODO include the new card in this
+                                , trash = g ^. #trash
+                                , decks = g ^. #decks -- TODO should remove bought card
                                 }
                       in dm : doBuys g' xs
     else []

@@ -20,11 +20,10 @@ module DeckBuilding.Dominion.Utils
     , cardPlayed
     ) where
 
-import Control.Lens ( preuse, (^.), use, (%=), (.=), Ixed(ix), (-=), (+=), (<>=))
-import Control.Monad ( filterM, void, when )
+import Control.Lens ( preuse, (^.), use, (%=), (.=), Ixed(ix), (-=), (<>=))
+import Control.Monad ( filterM, when )
 import Control.Monad.RWS
-    ( MonadWriter(tell), MonadState(get) )
-import qualified Data.DList as DL
+    ( MonadState(get) )
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
 import Data.List ( delete, find, group, sort )
@@ -35,12 +34,9 @@ import DeckBuilding.Dominion.Types
       Card(cardName),
       DominionAIGame(..),
       DominionState,
-      DominionMove(Buy, Deal, Cellar, PlayValue, PlayBasic,
-        Vassal, MoneyLender, Poacher, ThroneRoom) )
+      DominionBuy(DominionBuy) )
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
-
-import Debug.Trace
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> PlayerNumber -> DominionState [Card]
@@ -57,7 +53,6 @@ deal num pnum = do
   (field @"players" . ix (unPlayerNumber pnum) . field @"deck") .= newDeck
   (field @"players" . ix (unPlayerNumber pnum) . field @"discard") .= newDiscard
   (field @"players" . ix (unPlayerNumber pnum) . field @"hand") %= (++ newCards)
-  tell $ DL.singleton $ Deal pnum num newCards
   return newCards
 
 -- | How many of the game's decks have been emptied?
@@ -116,65 +111,34 @@ discardCard card p = do
 
 -- | Run the moves the AI has requested, this is where the bulk of the
 -- game state changes actually take place.
-executeBuys :: [DominionMove] -> DominionAIGame -> DominionState ()
--- executeBuys xs g | trace ("executeBuys: " <> show g <> ", buys: " <> show xs) False=undefined
+executeBuys :: [DominionBuy] -> DominionAIGame -> DominionState ()
 executeBuys [] _ = return ()
-executeBuys (x:xs) g = do
-  case x of
-    (Buy p c) -> buyCard p c
-    _ -> error "Running non-buy DominionMove in executeBuys."
+executeBuys ((DominionBuy _ c):xs) g = do
+  buyCard (playerNum g)
   mkDominionAIGame (g ^. #playerNum) >>= executeBuys xs
   where
     -- | Decrease the amount of the cards in the game deck, subtract the money
     --  from the player, and add the card to the player's discard pile.
-    buyCard :: PlayerNumber -> Card -> DominionState ()
-    buyCard p c = do
+    buyCard :: PlayerNumber -> DominionState ()
+    buyCard p = do
       thePlayer <- findPlayer p
-      tell $ DL.singleton $ Buy p c
       when (thePlayer ^. #buys <= 0) $
         error $ "Buy move requested by " <> show p <> " without buys.\n" <> show thePlayer
       when ((c ^. #cost) > (thePlayer ^. #money)) $
         error $ "Buy move requested by " <> show p <> " without enough money.\n" <> show thePlayer
-      decks <- use #decks
-      when (decks Map.! c <= 0) $ -- TODO: Couldn't make the lens version see the type instance, why not?
+      ds <- use #decks
+      when (ds Map.! c <= 0) $ -- TODO: Couldn't make the lens version see the type instance, why not?
         error $ "Buy move requested by " <> show p <> " with empty deck of " <> show (cardName c) <> ".\n"
       field @"decks" %= Map.mapWithKey (decreaseCards c)
       (field @"players" . ix (unPlayerNumber p) . #discard) %= (c:)
       (field @"players" . ix (unPlayerNumber p) . #buys) -= 1
       (field @"players" . ix (unPlayerNumber p) . #money) -= (c ^. #cost)
-    -- | For value cards, pass the money value.
-    --
-    -- Money Value
-    --
-    -- Card
-    --
-    -- Player Number
-    valueCard :: Int -> Card -> PlayerNumber -> DominionState ()
-    valueCard m c p = do
-      (field @"players" . ix (unPlayerNumber p) . #hand) %= delete c
-      (field @"players" . ix (unPlayerNumber p) . #played) %= (c:)
-      (field @"players" . ix (unPlayerNumber p) . #money) += m
-    -- | For basic card values:
-    --
-    -- Draw cards
-    --
-    -- +actions
-    --
-    -- +buys
-    --
-    -- +money
-    basicCard :: Int -> Int -> Int -> Int -> Card -> PlayerNumber -> DominionState ()
-    basicCard draw a b m c p = do
-      (field @"players" . ix (unPlayerNumber p) . #actions) += a
-      (field @"players" . ix (unPlayerNumber p) . #buys) += b
-      void $ deal draw p
-      valueCard m c p
 
 mkDominionAIGame :: PlayerNumber -> DominionState DominionAIGame
 mkDominionAIGame pnum = do
   thePlayer <- findPlayer pnum
-  decks' <- use $ #decks
-  trash' <- use $ #trash
+  decks' <- use #decks
+  trash' <- use #trash
   pure DominionAIGame
     { playerNum = pnum
     , hand = thePlayer ^. #hand

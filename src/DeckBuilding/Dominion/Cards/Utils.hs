@@ -22,36 +22,34 @@ import Control.Lens ( (^.), (%=), (+=), Ixed(ix), (.=) )
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
 import Data.List ( find )
-import qualified Data.Map as Map
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
-    ( Card, CardType(Action), DominionState, DominionMove(PlayValue, PlayBasic),
-      DominionPlayer, DominionAIGame )
+    ( Card, CardType(Action), DominionState, DominionAction,
+      DominionDraw(DominionDraw) )
 import DeckBuilding.Dominion.Utils
     ( deal, findPlayer, removeFromCards )
 
 -- | A simple points-only Victory card
 -- | Victory Points
--- | Card
 -- | Player Number
-simpleVictory :: Int -> Card -> PlayerNumber -> DominionState Int
-simpleVictory v _ p = do
+simpleVictory :: Int -> PlayerNumber -> DominionState Int
+simpleVictory v p = do
   (field @"players" . ix (unPlayerNumber p) . #victory) += v
   thePlayer <- findPlayer p
   return $ thePlayer ^. field @"victory"
 
-valueCardAction :: Int -> Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-valueCardAction m c p = do
+valueCardAction :: Int -> DominionAction -> PlayerNumber -> DominionState (Maybe DominionAction)
+valueCardAction m a p = do
   (field @"players" . ix (unPlayerNumber p) . #money) += m
-  pure $ Just $ PlayValue p c m
+  pure $ Just a
 
-basicCardAction :: Int -> Int -> Int -> Int -> Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-basicCardAction d a b m c p = do
+basicCardAction :: Int -> Int -> Int -> Int  -> PlayerNumber -> DominionState DominionDraw
+basicCardAction d a b m p = do
   (field @"players" . ix (unPlayerNumber p) . #actions) += a
   (field @"players" . ix (unPlayerNumber p) . #buys) += b
   (field @"players" . ix (unPlayerNumber p) . #money) += m
-  deal d p
-  pure $ Just $ PlayBasic p c d a b m
+  theDraw <- deal d p
+  pure $ DominionDraw theDraw
 
 -- | Given a list of cards in descending priorty order to gain and a max price,
 --  gain the first card in the list that's available that is under the max

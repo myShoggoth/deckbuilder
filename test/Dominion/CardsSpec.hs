@@ -4,22 +4,35 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE OverloadedLabels          #-}
 
 module Dominion.CardsSpec
     ( spec
     ) where
 
-import           Control.Lens
-import           Control.Monad.RWS
-import           Data.Generics.Product
-import           DeckBuilding.Dominion
-import           DeckBuilding.Dominion.Cards
-import           DeckBuilding.Dominion.Strategies.Basic
-import           DeckBuilding.Dominion.Types
-import           DeckBuilding.Dominion.Utils
-import           DeckBuilding.Types
-import           System.Random
-import           Test.Hspec
+import Control.Lens ( (^.), (^?), Ixed(ix) )
+import Control.Monad.State ( execState )
+import Data.Generics.Product ()
+import DeckBuilding.Dominion ( configToGame )
+import DeckBuilding.Dominion.Cards
+    ( copperCard,
+      firstGameKingdomCards,
+      goldCard,
+      silverCard,
+      festivalCard,
+      laboratoryCard,
+      marketCard,
+      moatCard,
+      smithyCard,
+      villageCard )
+import DeckBuilding.Dominion.Strategies.Basic
+    ( bigSmithyStrategy, bigMoneyStrategy )
+import DeckBuilding.Dominion.Types
+    ( DominionConfig(DominionConfig) )
+import DeckBuilding.Dominion.Utils ( deal )
+import DeckBuilding.Types ( PlayerNumber(PlayerNumber) )
+import System.Random ( mkStdGen )
+import Test.Hspec ( shouldBe, it, describe, Spec )
 
 spec :: Spec
 spec = do
@@ -29,88 +42,86 @@ spec = do
               , ("Player 2", bigSmithyStrategy)
               ]
               firstGameKingdomCards
-              1
-              [g]
   let p0 = PlayerNumber 0
   let dg = configToGame c g
-  let afterDeal     = fst $ execRWS (deal 5 p0) c dg
+  let afterDeal     = execState (deal 5 p0) dg
   describe "Utils.valueCard" $ do
     it "gives money for a copper" $ do
-      let afterCard = fst $ execRWS ((copperCard ^. field @"action") copperCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      (p1AfterCard ^. field @"money") `shouldBe` 1
+      let afterCard = execState ((copperCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      (p1AfterCard ^. #money) `shouldBe` 1
 
     it "gives money for a silver" $ do
-      let afterCard = fst $ execRWS ((silverCard ^. field @"action") silverCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      (p1AfterCard ^. field @"money") `shouldBe` 2
+      let afterCard = execState ((silverCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      (p1AfterCard ^. #money) `shouldBe` 2
 
     it "gives money for a gold" $ do
-      let afterCard = fst $ execRWS ((goldCard ^. field @"action") goldCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      (p1AfterCard ^. field @"money") `shouldBe` 3
+      let afterCard = execState ((goldCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      (p1AfterCard ^. #money) `shouldBe` 3
 
   -- Changed how scoring works, only happens at the end of the game now, and only for
   -- cards in hand.  More correct, harder to test, need to rethink this section.
   {-
     it "gives victory for an estate" $ do
-      let afterCard = fst $ execRWS ((estateCard ^. field @"action") estateCard 0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
+      let afterCard = execState ((estateCard ^. #action) 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
       (p1AfterCard ^. field @"victory") `shouldBe` 1
 
     it "gives victory for a duchy" $ do
-      let afterCard = fst $ execRWS ((duchyCard ^. field @"action") duchyCard 0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
+      let afterCard = execState ((duchyCard ^. #action) 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
       (p1AfterCard ^. field @"victory") `shouldBe` 3
 
     it "gives victory for a province" $ do
-      let afterCard = fst $ execRWS ((provinceCard ^. field @"action") provinceCard 0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
+      let afterCard = execState ((provinceCard ^. #action) 0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
       (p1AfterCard  ^. field @"victory") `shouldBe` 6
 
     it "takes victory for a curse" $ do
-      let afterCard = fst $ execRWS ((curseCard ^. field @"action") curseCard 0) c afterDeal
-      let afterCardDone = fst $ execRWS ((tallyPoints 0) :: DominionState ()) c afterCard
-      let (Just p1AfterCard) = afterCardDone ^? field @"players" . ix 0
+      let afterCard = execState ((curseCard ^. #action) 0) afterDeal
+      let afterCardDone = execState ((tallyPoints 0) :: DominionState ()) afterCard
+      let (Just p1AfterCard) = afterCardDone ^? #players . ix 0
       (p1AfterCard ^. field @"victory") `shouldBe` (-1)
       -}
 
   describe "Utils.basicCardAction" $ do
     it "it works with market" $ do
-      let afterCard = fst $ execRWS ((marketCard ^. field @"action") marketCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      length (p1AfterCard ^. field @"hand") `shouldBe` 6
-      (p1AfterCard ^. field @"actions") `shouldBe` 1
-      (p1AfterCard ^. field @"buys") `shouldBe` 2
-      (p1AfterCard ^. field @"money") `shouldBe` 1
+      let afterCard = execState ((marketCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      length (p1AfterCard ^. #hand) `shouldBe` 6
+      (p1AfterCard ^. #actions) `shouldBe` 1
+      (p1AfterCard ^. #buys) `shouldBe` 2
+      (p1AfterCard ^. #money) `shouldBe` 1
 
     it "it works with moat" $ do
-      let afterCard = fst $ execRWS ((moatCard ^. field @"action") moatCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      length (p1AfterCard ^. field @"hand") `shouldBe` 7
-      (p1AfterCard ^. field @"actions") `shouldBe` 0
+      let afterCard = execState ((moatCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      length (p1AfterCard ^. #hand) `shouldBe` 7
+      (p1AfterCard ^. #actions) `shouldBe` 0
 
     it "it works with smithy" $ do
-      let afterCard = fst $ execRWS ((smithyCard ^. field @"action") smithyCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      length (p1AfterCard ^. field @"hand") `shouldBe` 8
-      (p1AfterCard ^. field @"actions") `shouldBe` 0
+      let afterCard = execState ((smithyCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      length (p1AfterCard ^. #hand) `shouldBe` 8
+      (p1AfterCard ^. #actions) `shouldBe` 0
 
     it "it works with village" $ do
-      let afterCard = fst $ execRWS ((villageCard ^. field @"action") villageCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      length (p1AfterCard ^. field @"hand") `shouldBe` 6
-      (p1AfterCard ^. field @"actions") `shouldBe` 2
+      let afterCard = execState ((villageCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      length (p1AfterCard ^. #hand) `shouldBe` 6
+      (p1AfterCard ^. #actions) `shouldBe` 2
 
     it "it works with festival" $ do
-      let afterCard = fst $ execRWS ((festivalCard ^. field @"action") festivalCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      (p1AfterCard ^. field @"actions") `shouldBe` 2
-      (p1AfterCard ^. field @"buys") `shouldBe` 2
-      (p1AfterCard ^. field @"money") `shouldBe` 2
+      let afterCard = execState ((festivalCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      (p1AfterCard ^. #actions) `shouldBe` 2
+      (p1AfterCard ^. #buys) `shouldBe` 2
+      (p1AfterCard ^. #money) `shouldBe` 2
 
     it "it works with laboratory" $ do
-      let afterCard = fst $ execRWS ((laboratoryCard ^. field @"action") laboratoryCard p0) c afterDeal
-      let (Just p1AfterCard) = afterCard ^? field @"players" . ix 0
-      length (p1AfterCard ^. field @"hand") `shouldBe` 7
-      (p1AfterCard ^. field @"actions") `shouldBe` 1
+      let afterCard = execState ((laboratoryCard ^. #action) p0) afterDeal
+      let (Just p1AfterCard) = afterCard ^? #players . ix 0
+      length (p1AfterCard ^. #hand) `shouldBe` 7
+      (p1AfterCard ^. #actions) `shouldBe` 1

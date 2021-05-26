@@ -13,7 +13,7 @@ module DeckBuilding.Legendary.Utils where
 import Control.Lens
     ( preuse, (^.), use, (%=), (.=), (<>=), Ixed(ix) )
 import Data.Generics.Product ( HasField(field) )
-import Control.Monad.RWS ( void, MonadWriter(tell) )
+import Control.Monad.RWS ( void )
 import qualified Data.DList as DL
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Legendary.Types
@@ -42,7 +42,6 @@ deal num pnum = do
   (field @"players" . ix (unPlayerNumber pnum) . #deck) .= newDeck
   (field @"players" . ix (unPlayerNumber pnum) . #discard) .= newDiscard
   (field @"players" . ix (unPlayerNumber pnum) . #hand) %= (++ newCards)
-  tell $ DL.singleton $ Deal num newCards
   return newCards
 
 -- | Find player # n, error if not found

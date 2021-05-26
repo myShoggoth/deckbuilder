@@ -1,51 +1,75 @@
-{-# OPTIONS_GHC -fno-warn-orphans      #-}
+{-- = DeckBuilder
+ -- DeckBuilder is a deck building game simulator that allows you,
+ -- the __Haskell programmer__, to defined new games and AI
+ -- schemes.
+ --
+ -- You then run the simulator by defining number of games to
+ -- play, how many players, and which AIs to pit against each other.
+ --
+ -- == Goals
+ -- I am writing the documentation for this program to help
+ -- Haskell beginners.
+ --}
+
+{-- * Language Extensions
+ -- Language extensions that are used throughout the entire
+ -- project can be configured in Stack or Cabal's configuration
+ -- file, so this list isn't necessarily all the active extensions
+ -- being used for the file).
+ --}
+{-- ** [DeriveDataTypeable](https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/deriving_extra.html)
+ -- We use the deriving functionality for command line argument parsing
+ -- using @System.Console.CmdArgs@.
+ --}
 {-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE FlexibleInstances         #-}
+{-- ** [OverloadedStrings](https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/overloaded_strings.html)
+ -- There are multiple representations of strings of characters in
+ -- Haskell (I know, I know, we're working on it, but some of it
+ -- is just the nature of how software works). When you use a
+ -- string literal like @"ahoy ahoy"@, by default it is of type
+ -- @String@, but this is not a type that will work for anything
+ -- non-trivial.
+ --
+ -- The extension changes it to be an instance of @IsString@,
+ -- so the compiler can figure out the right choice based on
+ -- context and you, the __Haskell Programmer_, don't have to
+ -- constantly write conversion code.
+ --}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
 
-module Main where
+{-- * Module declaration
+ -- The @Main@ module exists to export the @main@ function,
+ -- which is the entry point to the Haskell program by the
+ -- Haskell Runtime System.
+ --}
+module Main ( main ) where
 
-import DeckBuilding.Dominion ( configToGame, randomKingdomDecks )
+{-- * Imports
+ -- After the @Module@ declaration, but before the
+ -- functions that make it up, we have the list of
+ -- modules (and, optionally, specific functions) we're
+ -- using in this module from another one.
+ --}
+import DeckBuilding.Dominion
+    ( randomKingdomDecks, runGames )
 import DeckBuilding.Dominion.Cards ( kingdomCards2ndEdition )
-import DeckBuilding.Dominion.DominionTree ( buildDominionTree )
 import DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyStrategy, bigSmithyStrategy, villageSmithyEngine4 )
 import DeckBuilding.Dominion.Types
-    ( DominionConfig(DominionConfig, seeds),
-      DominionMove(..),
-      DominionPlayer(playerName, hand),
-      Card(cardName),
-      DominionState,
-      PlayerTurn(PlayerTurn),
-      CardPlay(..),
-      BoughtCard(..),
-      DominionTree(DominionTree),
-      GameTurn(GameTurn),
-      BanditDecision(discarded, trashed))
-import DeckBuilding.Types ( Result, PlayerNumber(unPlayerNumber) )
-import DeckBuilding ( runGame )
+    ( DominionConfig(DominionConfig) )
 import Data.Text.Prettyprint.Doc
-    ( (<+>),
-      align,
-      layoutPretty,
-      list,
-      sep,
+    ( layoutPretty,
       vsep,
-      LayoutOptions(..),
-      PageWidth(AvailablePerLine),
-      Pretty(pretty) )
-import Data.Text.Prettyprint.Doc.Render.Text ( renderStrict )
-import qualified Data.DList                             as DL
-import qualified Data.List                              as List
-import qualified Data.Text.IO                           as Text
+      defaultLayoutOptions )
+import Prettyprinter.Render.Text ( renderStrict )
+{-- ** Qualified Imports
+ -- Here we're importing @Data.Text@ with a prefix, in
+ -- this case @Text@, so any function within that module
+ -- can be addressed with @Text.funcName@, such as
+ -- @Text.length@.
+ --}
 import qualified Data.Text as Text
-import qualified Data.Map as Map
-import Data.Map (mapWithKey)
-import System.Random ( newStdGen, RandomGen(split), StdGen )
-import Control.Arrow ((&&&))
-import Control.Monad.RWS ( evalRWS )
-import Control.Monad.Extra ( forM, ifM )
+import System.Random ( newStdGen )
 import System.Console.CmdArgs
     ( Data,
       Typeable,
@@ -55,152 +79,100 @@ import System.Console.CmdArgs
       help,
       summary,
       verbosity,
-      isLoud,
-      Default(def) )
+      typFile )
+{-- ** Instance importing
+ -- This style of importing is for telling the
+ -- commpiler where to find some typeclass instances
+ -- that are used here. In this case we need to
+ -- have access to the @Pretty@ instances for the
+ -- data structures that represent what happened
+ -- in a game.
+ --}
+import DeckBuilding.Dominion.Pretty ()
 
+{-- * Command line parsing
+ -- Using the [@cmdargs@ package](https://hackage.haskell.org/package/cmdargs) for command line
+ -- parsing.
+ --
+ -- First we have the data structure that holds the
+ -- parsed values.
+ -- times - number of games to run
+ -- out - file name to put the results in
+ --}
 data DeckBuilder = DeckBuilder
   { times :: Int
+  , out :: FilePath
   }
   deriving (Data, Typeable, Show, Eq)
 
+{-- ** Parsing function
+ -- This is the function that gives the data structure
+ -- for the @cmdArgs@ parser.
+ --}
 deckBuilder :: DeckBuilder
 deckBuilder = DeckBuilder
-  { times = def &= help "Number of games to run."
-  } &=
+  { times = 1 &= help "Number of games to run."
+  , out = "deckgames.txt" &= typFile &= help "File name to write the game logs to, default is 'deckgames.txt'"
+  } &= 
   verbosity &=
-  help "stack run -- deckbuilder-exe --times 1" &=
+  help "stack run -- deckbuilder-exe --times 1 --out myfile.txt" &=
   summary "DeckBuilder version 0.1.0.2, (C) Andrew Boardman" &=
   details [ "DeckBuilder runs a simulation of deck building games."
           , "You can create new strategies and run them against each other."
           , "See the README.md for instructions!"
           ]
 
-genGens :: Int -> StdGen -> [StdGen]
-genGens 0 _ = []
-genGens n g = do
-  let (g1, g2) = split g
-  g1 : genGens (n - 1) g2
-
--- | Run n games with a set of players and kingdom cards.
-runDominionGames :: LayoutOptions -> DominionConfig -> IO [(Result, Int)]
-runDominionGames layoutOptions c = do
-  results' :: [Result] <- forM gses $ \g -> do
-    let (res, output) = evalRWS (runGame False :: DominionState Result) c g
-        dt = buildDominionTree (DL.toList output, res)
-    ifM isLoud ( Text.putStrLn $ (renderStrict . layoutPretty layoutOptions . pretty) dt ) (pure ())
-    ifM isLoud (putStrLn $ show res <> " ") (pure ())
-    pure res
-  pure $ map (head &&& length) $ List.group $ List.sort results'
-  where gses = map (configToGame c) (seeds c)
-
--- | Basic usage of the library, pick some kingdom cards and run a few
---  thousand games to test the strategies against each other.
+{-- * @main@
+ -- Here is where the Haskell program starts. The return type
+ -- is @IO ()@, which means this portion of the program is able
+ -- to do essentially unrestricted Input and Output, and when
+ -- it exits there is no value returned.
+ --}
 main :: IO ()
+{-- ** Do notation
+ -- Think of @do@ notation as an easier way to string a series
+ -- of function calls together that should go in more or less
+ -- a particular order. You can do this with operators instead,
+ -- but that often makes the code harder to read.
+ --}
 main = do
+  {-- | Use a pseudo-random number generator to create an
+   -- initial random seed. We could also take the seed as an
+   -- optional command line argument (or configuration file value),
+   -- but that hasn't been needed yet.
+   --}
   g <- newStdGen
+  {-- | Parse the command line --}
   args' <- cmdArgs deckBuilder
 
+  {-- | Get the number of runs from the command line --}
   let n = times args'
-      (g1, g2) = split g
-      gens = genGens n g2
+  {-- | Create a configuration for the Dominion game.
+   -- I'd like this to all be specified on the command line
+   -- or in a config file at some point (probably a combo of
+   -- the two).
+   --
+   -- @DominionConfig@ is the constructor for the data
+   -- structure of the same name, and it contains the list
+   -- of players (name, strategy), and the Kingdom cards
+   -- for this game.
+   --}
       conf = DominionConfig
               [ ("Big Money", bigMoneyStrategy)
               , ("Big Smithy", bigSmithyStrategy)
               , ("Village/Smithy Engine 4", villageSmithyEngine4)
               ]
 --              firstGameKingdomCards
-              (randomKingdomDecks kingdomCards2ndEdition g1)
-              n
-              gens
-  res <- runDominionGames layoutOptions conf
-  (Text.putStrLn . renderStrict . layoutPretty layoutOptions . pretty) res
-  where
-    layoutOptions = LayoutOptions { layoutPageWidth = AvailablePerLine 80 1 }
-
-instance Pretty DominionTree where
-    pretty (DominionTree turns' results') = vsep [ "Turns", align $ pretty turns', "Results", align $ pretty results' ]
-
-instance Pretty GameTurn where
-    pretty (GameTurn n turns') = align $ vsep [ "Turn" <+> pretty n, pretty turns' ]
-
-instance Pretty PlayerTurn where
-    pretty (PlayerTurn pnum played' bought) = align $ vsep [ "Player" <+> pretty (unPlayerNumber pnum), pretty played', pretty bought ]
-
-instance Pretty BoughtCard where
-    pretty (BoughtCard c) = sep [ "Bought", pretty $ cardName c ]
-
-instance Pretty Result where
-    pretty (Left (s, _))   = pretty $ s
-    pretty (Right n)  = pretty $ show n <> " players tied"
-
-instance Pretty DominionMove where
-    pretty (Turn _ n p) = pretty $ "Turn " <> show n <> " for player " <> show (playerName p) <> ": "
-                                <> "Hand = " <> show (hand p)
-    pretty (Deal _ n xs) = pretty $ "Dealing " <> show n <> " card(s): " <> show xs
-    pretty (Buy _ c) = pretty $ "Buying " <> show c
-    pretty (Cellar _ xs) = pretty $ "Cellaring card(s): " <> show xs
-    pretty (PlayBasic _ c _ _ _ _) = pretty $ "Playing " <> show c
-    pretty (PlayValue _ c _) = pretty $ "Playing " <> show c
-    pretty (ThroneRoom _ c m1 m2) = pretty $ "Throne Rooming " <> show c <> "\n"
-                                                              <> "  " <> show m1 <> "\n"
-                                                              <> "  " <> show m2
-    pretty (Remodel _ c1 c2) = pretty $ "Remodeling " <> show c1 <> " into " <> show c2
-    pretty (Vassal _ c) = pretty $ "Vassals, playing " <> show c
-    pretty (Militia _ responses) = pretty $ "Militia!\n"
-                                         <> responses2String responses
-      where
-        responses2String :: Map.Map PlayerNumber (Either Card [Card]) -> String
-        responses2String responses = unlines $ map response2String $ Map.toList responses
-        response2String :: (PlayerNumber, Either Card [Card]) -> String
-        response2String (p, ec) = "  Player " <> show p <>
-                                  (case ec of
-                                    Left c -> " showed " <> show c
-                                    Right mc -> " discarded " <> show mc)
-                                  <> "\n"
-    pretty (MoneyLender _ _) = pretty $ ("Moneylendered a copperCard" :: Text.Text)
-    pretty (Poacher _ xs) = pretty $ "Poacher, discarded " <> show xs
-    pretty (Chapel _ xs) = pretty $ "Chapelled " <> show xs
-    pretty (Harbinger _ mc) = pretty $ "Harbingered " <> show mc
-    pretty (Bureaucrat _ shown) = pretty $ "Bureaucrat:\n"
-                                        <> shown2String shown
-      where
-        shown2String :: Map.Map PlayerNumber (Maybe Card) -> String
-        shown2String shown = unlines $ map show2String $ Map.toList shown
-        show2String :: (PlayerNumber, Maybe Card) -> String
-        show2String (p, mc) = " Player " <> show p <> " shows " <> show mc <> "\n"
-    pretty (Bandit _ responses) = pretty $ "Bandit:\n"
-                                        <> responses2String responses
-      where
-        responses2String :: Map.Map PlayerNumber (Either Card BanditDecision) -> String
-        responses2String responses = unlines $ map response2String $ Map.toList responses
-        response2String :: (PlayerNumber, Either Card BanditDecision) -> String
-        response2String (p, bd) = "  Player " <> show p <>
-                                  (case bd of
-                                    Left c -> " showed " <> show c
-                                    Right decision -> " discarded " <> show (discarded decision) <> " and trashed " <> show (trashed decision))
-                                  <> "\n"
-    pretty (CouncilRoom _ xs draws) = pretty $ "CouncilRoom for " <> show xs <> "\n"
-                                            <> draws2String draws
-      where
-        draws2String :: Map.Map PlayerNumber (Maybe Card) -> String
-        draws2String draws = unlines $ map draw2String $ Map.toList draws
-        draw2String :: (PlayerNumber, Maybe Card) -> String
-        draw2String (p, mc) = " Player " <> show p <> " draws " <> show mc <> "\n"
-
-    pretty (Witch _ xs responses) = pretty $ "Witch drew " <> show xs <> "\n"
-                                          <> responses2String responses
-      where
-        responses2String :: Map.Map PlayerNumber (Either Card (Maybe Card)) -> String
-        responses2String responses = unlines $ map response2String $ Map.toList responses
-        response2String :: (PlayerNumber, Either Card (Maybe Card)) -> String
-        response2String (p, ec) = "  Player " <> show p <>
-                                  (case ec of
-                                    Left c -> " showed " <> show c
-                                    Right mc -> " gained " <> show mc)
-
-    pretty (Mine _ c1 c2) = pretty $ "Mined " <> show c1 <> " into " <> show c2
-    pretty (Library _ keeps discards) = pretty $ "Libraried and kept " <> show keeps <> ", discarded " <> show discards
-    pretty (Sentry _ trashed discarded keeps) = pretty $ "Sentried to trash " <> show trashed <> ", discarded " <> show discarded <> ", and kept " <> show keeps
-    pretty (Artisan _ c1 c2) = pretty $ "Artisan to gain " <> show c1 <> " and put " <> show c2 <> " back on the deck"
-    pretty (Workshop _ c) = pretty $ "Workshopped a " <> show c
-    pretty (GameOver xs) = pretty $ "Game Over!\n" <> "Results: " <> show xs
+              (randomKingdomDecks kingdomCards2ndEdition g)
+  {-- | @runGames@ does the actual work of simulating all
+   -- of the games, given the number requested, the configuration,
+   -- and the random number seed.
+   --
+   -- It returns a list of @Doc ann@, which is the pretty
+   -- printed results. It then vertically separates them.
+   --}
+  let res = vsep $ runGames n conf g
+  {-- | Take that @Doc ann@ and lay it out, then write it
+   -- to the output file.
+   --}
+  (writeFile (out args') . Text.unpack . renderStrict . layoutPretty defaultLayoutOptions) res

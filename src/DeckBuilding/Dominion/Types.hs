@@ -14,81 +14,95 @@ module DeckBuilding.Dominion.Types
     ) where
 
 import Control.Lens.At (Index)
-import Control.Monad.RWS ( RWS )
-import qualified Data.DList as DL
+import Control.Monad.State.Lazy (State)
 import qualified Data.Map as Map
 import qualified Data.Semigroup as Semi
 import Data.Text ( unpack, Text )
 import GHC.Generics ( Generic )
 import System.Random ( StdGen )
-import DeckBuilding.Types ( Result, PlayerNumber )
+import DeckBuilding.Types ( PlayerNumber )
 
-data DominionMove = Turn PlayerNumber Int DominionPlayer |
-                    Deal PlayerNumber Int [Card] |
-                    Buy PlayerNumber Card |
-                    Cellar PlayerNumber [Card] |
-                    PlayBasic PlayerNumber Card Int Int Int Int |
-                    PlayValue PlayerNumber Card Int |
-                    ThroneRoom PlayerNumber Card DominionMove DominionMove |
-                    Remodel PlayerNumber Card Card |
-                    Vassal PlayerNumber (Maybe DominionMove) |
-                    Militia PlayerNumber (Map.Map PlayerNumber (Either Card [Card])) |
-                    MoneyLender PlayerNumber Card |
-                    Poacher PlayerNumber [Card] |
-                    Chapel PlayerNumber [Card] |
-                    Harbinger PlayerNumber (Maybe Card) |
-                    Bureaucrat PlayerNumber (Map.Map PlayerNumber (Maybe Card)) |
-                    Bandit PlayerNumber (Map.Map PlayerNumber (Either Card BanditDecision)) |
-                    CouncilRoom PlayerNumber [Card] (Map.Map PlayerNumber (Maybe Card)) |
-                    Witch PlayerNumber [Card] (Map.Map PlayerNumber (Either Card (Maybe Card))) |
-                    Mine PlayerNumber Card Card |
-                    Library PlayerNumber [Card] [Card] |
-                    Sentry PlayerNumber [Card] [Card] [Card] |
-                    Artisan PlayerNumber Card Card |
-                    Workshop PlayerNumber Card |
-                    GameOver [(Text, Int)]
-  deriving stock (Eq)
+data DominionGame = DominionGame
+  { players :: [(Text, Strategy)]
+  , kingdoms :: [Card]
+  , seed :: StdGen
+  , turns :: [DominionTurn]
+  }
+  deriving stock (Generic, Show)
 
-instance Show DominionMove where
-  show (Turn _ n p )    = "Turn " <> show n <> " for player " <> show (playerName p)
-  show (Deal _ n xs)    = "    Dealing " <> show n <> " card(s):\n"
-                        <> show xs
-  show (Buy _ c)        = "  Buying " <> show c
-  show (Cellar _ xs)    = "  Cellared " <> show xs
-  show (PlayValue _ c m)= "  Playing value card " <> show (cardName c) <> " to gain $" <> show m
-  show (PlayBasic _ c d a b m) = "  Playing basic action card " <> show (cardName c) <> ": draw " <> show d <> ", actions " <> show a <> ", buys " <> show b <> ", $" <> show m
-  show (ThroneRoom _ c _ _) = "  Using Thrown Room on " <> show c
-  show (Remodel _ c c') = "  Remodelling " <> show c <> " into " <> show c'
-  show (Harbinger _ mc)   = "    Harbinger, discarding " <> show mc
-  show (GameOver xs)  = "Game Over!\n"
-                        <> "Results: " <> show xs
+newtype DominionTurn = DominionTurn [DominionPlayerTurn]
+  deriving stock (Show)
 
-type DominionState a = RWS DominionConfig (DL.DList DominionMove) DominionGame a
+data DominionPlayerTurn = DominionPlayerTurn
+  { playerNumber :: PlayerNumber
+  , turnNumber :: Int
+  , buys :: [DominionBuy]
+  , actions :: [DominionAction]
+  , draws :: DominionDraw
+  }
+  deriving stock (Show)
+
+data DominionBuy = DominionBuy Int Card
+  deriving stock (Show)
+
+data DominionAction =
+      Copper | Silver | Gold | Harem |
+      Curse | Estate | Duchy | Province | Gardens | Duke |
+      Artisan Card Card |
+      Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
+      Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
+      Chapel [Card] |
+      Cellar [Card] DominionDraw |
+      Conspirator DominionDraw |
+      CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |
+      Courtyard DominionDraw |
+      Festival |
+      Harbinger DominionDraw (Maybe Card) |
+      Ironworks DominionDraw DominionDraw |
+      Remodel Card Card |
+      Laboratory DominionDraw |
+      Library [Card] [Card] |
+      Lurker (Either Card Card) |
+      Market DominionDraw |
+      Merchant DominionDraw |
+      Militia (Map.Map PlayerNumber (Either Card [Card])) |
+      Mine Card Card |
+      Moat DominionDraw |
+      MoneyLender |
+      Poacher DominionDraw [Card] |
+      Sentry DominionDraw [Card] [Card] [Card] |
+      ShantyTown DominionDraw [Card] |
+      Smithy DominionDraw |
+      ThroneRoom Card DominionAction DominionAction |
+      Vassal (Maybe DominionAction) |
+      Village DominionDraw |
+      Witch DominionDraw (Map.Map PlayerNumber (Either Card (Maybe Card))) |
+      Workshop Card
+  deriving stock (Show)
+
+newtype DominionDraw = DominionDraw [Card]
+  deriving stock (Show)
+
+type DominionState a = State DominionBoard a
 
 data DominionConfig = DominionConfig {
   -- | Names and strategies for each player
   playerDefs   :: [(Text, Strategy)],
   -- | Which kingdom cards to use
-  kingdomCards :: [Card],
-  -- | How many games to run
-  games        :: Int,
-  -- | One random number generator per game
-  seeds        :: [StdGen]
+  kingdomCards :: [Card]
 } deriving stock (Show, Generic)
 
 instance Semi.Semigroup DominionConfig where
   c1 <> c2 = DominionConfig
               (playerDefs c1 ++ playerDefs c2)
               (kingdomCards c1 ++ kingdomCards c2)
-              (games c1 + games c2)
-              (seeds c1 ++ seeds c2)
 
 instance Monoid DominionConfig where
-  mempty = DominionConfig [] [] 0 []
+  mempty = DominionConfig [] []
   mappend = (Semi.<>)
 
 -- | Represents the state of a single game of Dominion.
-data DominionGame = DominionGame {
+data DominionBoard = DominionBoard {
   -- | The players of the game.
   players :: [DominionPlayer],
   -- | All the decks, basic and Kingdom: (Card, Number Left)
@@ -148,12 +162,12 @@ data Card = Card {
     Updates the game state based on what the card does, then returns the
     player number.
   -}
-  action   :: Card -> PlayerNumber -> DominionState (Maybe DominionMove),
+  action   :: PlayerNumber -> DominionState (Maybe DominionAction),
   -- | Value or Action
   cardType :: CardType,
   -- | The function that determines the score for the card
   -- at the end of the game
-  score    :: Card -> PlayerNumber -> DominionState Int
+  score    :: PlayerNumber -> DominionState Int
 } deriving stock (Generic)
 
 type instance Index Card = Card
@@ -187,7 +201,7 @@ data Strategy = Strategy {
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
-  buyStrategy        :: DominionAIGame -> [DominionMove],
+  buyStrategy        :: DominionAIGame -> [DominionBuy],
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
@@ -223,7 +237,7 @@ data Strategy = Strategy {
   handToDeckStrategy :: DominionAIGame -> Int -> [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  lurkerStrategy     :: DominionAIGame -> Card -> Either Card Card
+  lurkerStrategy     :: DominionAIGame -> Either Card Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -271,29 +285,6 @@ data CardPlay = Standard Card | PlayThroneRoom Card | PlayRemodel Card Card | Pl
 
 newtype BoughtCard = BoughtCard Card
   deriving (Show, Eq)
-
--- | A representation of a 'Player''s turn.
--- * Which cards were played.
--- * Which cards were bought.
-data PlayerTurn = PlayerTurn
-  { playerNum   :: PlayerNumber
-  , cardsPlayed :: [DominionMove]
-  , cardsBought :: [BoughtCard]
-  } deriving (Show, Eq)
-
--- | A single turn in a game, what turn number it is and each 'Player''s
--- 'PlayerTurn'.
-data GameTurn = GameTurn
-  { number :: Int
-  , playerTurns :: [PlayerTurn]
-  } deriving (Show, Eq)
-
--- | A single game of Dominion, including all of the 'GameTurn's,
--- and the end 'Result'.
-data DominionTree = DominionTree
-  { turns :: [GameTurn]
-  , results :: Result
-  } deriving (Show, Eq)
 
 -- | A decision for the victim of the Bandit card:
 -- Did you have to trash a treasure card, and if so which one?

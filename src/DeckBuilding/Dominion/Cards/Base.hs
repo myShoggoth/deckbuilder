@@ -52,11 +52,8 @@ module DeckBuilding.Dominion.Cards.Base
     , baseSetActionTerminators
     ) where
 
-import Control.Lens ( (^.), use, (%=), (+=), (.=), Ixed(ix) )
-import Control.Monad ( void, unless )
-import Control.Monad.RWS ( MonadWriter(tell) )
-import qualified Data.DList as DL
-import Data.Foldable (foldrM)
+import Control.Lens ( (^.), use, (%=), (.=), Ixed(ix) )
+import Control.Monad ( unless )
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
 import Data.List (delete, find, intersect, (\\), partition)
@@ -69,40 +66,43 @@ import DeckBuilding.Dominion.Types
       Card(Card),
       CardType(Action, Value),
       DominionState,
-      DominionMove(ThroneRoom, Remodel, Vassal, Bandit,
+      DominionAction(ThroneRoom, Remodel, Vassal, Bandit,
         Cellar, Militia, MoneyLender, Poacher, Chapel,
         Harbinger, Bureaucrat, CouncilRoom, Witch, Mine,
-        Library, Sentry, Artisan, Workshop),
-      BanditDecision(BanditDecision) )
+        Library, Sentry, Artisan, Workshop, Gold, Silver,
+        Copper, Province, Duchy, Estate, Gardens, Curse,
+        Market, Laboratory, Moat, Village, Smithy, Festival,
+        Merchant),
+      BanditDecision(BanditDecision),
+      DominionDraw(DominionDraw) )
 import DeckBuilding.Dominion.Utils
     ( deal, numEmptyDecks, decreaseCards, firstCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, cardPlayed )
 import System.Random.Shuffle ( shuffle' )
 import Safe (headMay)
 import Data.Either (isRight, fromRight)
 
-import Debug.Trace
 -- Cards and their actions
 
 -- | $3
 goldCard :: Card
-goldCard        = Card "Gold"       6 (valueCardAction 3) Value (simpleVictory 0)
+goldCard        = Card "Gold"       6 (valueCardAction 3 Gold) Value (simpleVictory 0)
 
 -- | $2
 silverCard :: Card
 silverCard      = Card "Silver"     3 silverCardAction Value (simpleVictory 0)
   where
     -- Silver cards need extra logic to make Merchant work in all cases.
-    silverCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    silverCardAction c p    = do
+    silverCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    silverCardAction p    = do
         thePlayer <- findPlayer p
-        let monies = if (merchantCard `elem` (thePlayer ^. #played)) && (silverCard `notElem` (thePlayer ^. #played))
+        let monies = if merchantCard `elem` (thePlayer ^. #played) && silverCard `notElem` (thePlayer ^. #played)
                         then 3
                         else 2
-        valueCardAction monies c p
+        valueCardAction monies Silver p
 
 -- | $1
 copperCard :: Card
-copperCard      = Card "Copper"     0 (valueCardAction 1) Value (simpleVictory 0)
+copperCard      = Card "Copper"     0 (valueCardAction 1 Copper) Value (simpleVictory 0)
 
 -- | Convience 'List' of treasure 'Card's.
 treasureCards :: [Card]
@@ -110,19 +110,19 @@ treasureCards   = [goldCard, silverCard, copperCard]
 
 -- | 6VP
 provinceCard :: Card
-provinceCard    = Card "Province"   8 (valueCardAction 0) Value (simpleVictory 6)
+provinceCard    = Card "Province"   8 (valueCardAction 0 Province) Value (simpleVictory 6)
 
 -- | 3VP
 duchyCard :: Card
-duchyCard       = Card "Duchy"      5 (valueCardAction 0) Value (simpleVictory 3)
+duchyCard       = Card "Duchy"      5 (valueCardAction 0 Duchy) Value (simpleVictory 3)
 
 -- | 1VP
 estateCard :: Card
-estateCard      = Card "Estate"     2 (valueCardAction 0) Value (simpleVictory 1)
+estateCard      = Card "Estate"     2 (valueCardAction 0 Estate) Value (simpleVictory 1)
 
 -- | -1VP
 curseCard :: Card
-curseCard       = Card "Curse"      0 (valueCardAction 0) Value (simpleVictory (-1))
+curseCard       = Card "Curse"      0 (valueCardAction 0 Curse) Value (simpleVictory (-1))
 
 -- | Convience 'List' of 'Card's that affect victory values.
 victoryCards :: [Card]
@@ -136,23 +136,43 @@ victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
 --
 -- +$1
 marketCard :: Card
-marketCard      = Card "Market"     5 (basicCardAction 1 0 1 1) Action (simpleVictory 0)
+marketCard      = Card "Market"     5 marketCardAction Action (simpleVictory 0)
+  where
+    marketCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    marketCardAction p = do
+      theDraw <- basicCardAction 1 0 1 1 p
+      pure $ Just $ Market theDraw
 
 -- | +2 Cards
 --
 -- When another player plays an Attack card, you may first reveal this from your hand, to be unaffected by it.
 moatCard :: Card
-moatCard        = Card "Moat"       2 (basicCardAction 2 (-1) 0 0) Action (simpleVictory 0)
+moatCard        = Card "Moat"       2 moatCardAction Action (simpleVictory 0)
+  where
+    moatCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    moatCardAction p = do
+      theDraw <- basicCardAction 2 (-1) 0 0 p
+      pure $ Just $ Moat theDraw
 
 -- | +3 Cards
 smithyCard :: Card
-smithyCard      = Card "Smithy"     4 (basicCardAction 3 (-1) 0 0) Action (simpleVictory 0)
+smithyCard      = Card "Smithy"     4 smithyCardAction Action (simpleVictory 0)
+  where
+    smithyCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    smithyCardAction p = do
+      theDraw <- basicCardAction 3 (-1) 0 0 p
+      pure $ Just $ Smithy theDraw
 
 -- | +1 Card
 --
 -- +2 Actions
 villageCard :: Card
-villageCard     = Card "Village"    3 (basicCardAction 1 1 0 0) Action (simpleVictory 0)
+villageCard     = Card "Village"    3 villageCardAction Action (simpleVictory 0)
+  where
+    villageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    villageCardAction p = do
+      theDraw <- basicCardAction 1 1 0 0 p
+      pure $ Just $ Village theDraw
 
 -- | +2 Actions
 --
@@ -160,13 +180,23 @@ villageCard     = Card "Village"    3 (basicCardAction 1 1 0 0) Action (simpleVi
 --
 -- +$2
 festivalCard :: Card
-festivalCard    = Card "Festival"   5 (basicCardAction 0 1 1 2) Action (simpleVictory 0)
+festivalCard    = Card "Festival"   5 festivalCardAction Action (simpleVictory 0)
+  where
+    festivalCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    festivalCardAction p = do
+      _ <- basicCardAction 0 1 1 2 p
+      pure $ Just $ Festival
 
 -- | +2 Cards
 --
 -- +1 Action
 laboratoryCard :: Card
-laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0) Action (simpleVictory 0)
+laboratoryCard  = Card "Laboratory" 5 marketCardAction Action (simpleVictory 0)
+  where
+    marketCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    marketCardAction p = do
+      theDraw <- basicCardAction 2 0 0 0 p
+      pure $ Just $ Laboratory theDraw
 
 -- | +1 Action
 --
@@ -174,8 +204,8 @@ laboratoryCard  = Card "Laboratory" 5 (basicCardAction 2 0 0 0) Action (simpleVi
 cellarCard :: Card
 cellarCard      = Card "Cellar"     2 cellarCardAction Action (simpleVictory 0)
   where
-    cellarCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    cellarCardAction c p = do
+    cellarCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    cellarCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let discards = (thePlayer ^. #strategy . #discardStrategy) aig (0, length (thePlayer ^. #hand))
@@ -183,25 +213,25 @@ cellarCard      = Card "Cellar"     2 cellarCardAction Action (simpleVictory 0)
       --  1. Are the number of cards being discarded within the bounds?
       --  2. Are all of the cards being discarded actually in that player's hand?
       discardCards p discards
-      void $ deal (length discards) p
-      pure $ Just $ Cellar p discards
+      theDraw <- deal (length discards) p
+      pure $ Just $ Cellar discards $ DominionDraw theDraw
 
 -- | Trash up to 4 cards from your hand.
 chapelCard :: Card
 chapelCard     = Card "Chapel"      2 chapelCardAction Action (simpleVictory 0)
   where
-    chapelCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    chapelCardAction c p = do
+    chapelCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    chapelCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       -- Remove the chapel from the hand so the AI doesn't decide it can trash it as one of the four
-      (field @"players" . ix (unPlayerNumber p) . #hand) .= removeFromCards (thePlayer ^. #hand) [c]
+      field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [chapelCard]
       let toTrash = (thePlayer ^. #strategy . #trashStrategy) aig (0, 4) []
       -- then restore, `thePlayer` in this case has the old values anyway
-      (field @"players" . ix (unPlayerNumber p) . #hand) .= thePlayer ^. #hand
+      field @"players" . ix (unPlayerNumber p) . #hand .= thePlayer ^. #hand
       trashCards p toTrash
-      basicCardAction 0 (-1) 0 0 c p
-      pure $ Just $ Chapel p toTrash
+      _ <- basicCardAction 0 (-1) 0 0 p
+      pure $ Just $ Chapel toTrash
 
 -- | +1 Card
 --
@@ -211,14 +241,14 @@ chapelCard     = Card "Chapel"      2 chapelCardAction Action (simpleVictory 0)
 harbingerCard :: Card
 harbingerCard   = Card "Harbinger"  4 harbingerCardAction Action (simpleVictory 0)
   where
-    harbingerCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    harbingerCardAction c p = do
+    harbingerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    harbingerCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
-      _ <- deal 1 p
+      theDraw <- deal 1 p
       let cards = (thePlayer ^. #strategy . #retrieveStrategy) aig (0, 1) (thePlayer ^. #discard)
       discardToDeck p cards
-      pure $ Just $ Harbinger p $ headMay cards
+      pure $ Just $ Harbinger (DominionDraw theDraw) $ headMay cards
 
 -- | +1 Card
 --
@@ -228,11 +258,12 @@ harbingerCard   = Card "Harbinger"  4 harbingerCardAction Action (simpleVictory 
 merchantCard :: Card
 merchantCard    = Card "Merchant"   3 merchantCardAction Action (simpleVictory 0)
   where
-    merchantCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    merchantCardAction c p = do
+    merchantCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    merchantCardAction p = do
       thePlayer <- findPlayer p
-      let silverPlayed = silverCard `elem` (thePlayer ^. #played)
-      basicCardAction 1 0 0 (monies silverPlayed) c p
+      let silverPlayed = silverCard `elem` thePlayer ^. #played
+      theDraw <- basicCardAction 1 0 0 (monies silverPlayed) p
+      pure $ Just $ Merchant theDraw
       where monies True  = 1
             monies False = 0
 
@@ -242,32 +273,31 @@ merchantCard    = Card "Merchant"   3 merchantCardAction Action (simpleVictory 0
 vassalCard :: Card
 vassalCard      = Card "Vassal"     3 vassalCardAction Action (simpleVictory 0)
   where
-    vassalCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    vassalCardAction c p = do
+    vassalCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    vassalCardAction p = do
       thePlayer <- findPlayer p
       r <- use #random
-      _ <- basicCardAction 0 (-1) 0 2 c p
-      let (enoughDeck, newDiscard)
+      _ <- basicCardAction 0 (-1) 0 2 p
+      let (enoughDeck, _newDiscard)
             | not (null (thePlayer ^. #deck)) = (thePlayer ^. #deck, thePlayer ^. #discard)
-            | otherwise                       = ( (thePlayer ^. #deck) ++ shuffle' (thePlayer ^. #discard) (length (thePlayer ^. #discard)) r, [])
+            | otherwise                       = ( thePlayer ^. #deck ++ shuffle' (thePlayer ^. #discard) (length (thePlayer ^. #discard)) r, [])
       let topOfDeck Nothing                 = return Nothing
           topOfDeck (Just c')               = do
-            deal 1 p
-            if (c' ^. #cardType) == Action
+            _ <- deal 1 p
+            if c' ^. #cardType == Action
               then do
-                aig <- mkDominionAIGame p
-                mdm <- (c' ^. #action) c' p
+                mdm <- (c' ^. #action) p
                 cardPlayed c' p
-                pure $ Just $ Vassal p mdm
+                pure $ Just $ Vassal mdm
               else do
-                (field @"players" . ix (unPlayerNumber p) . #discard) %= (c':)
-                pure $ Just $ Vassal p Nothing
+                field @"players" . ix (unPlayerNumber p) . #discard %= (c':)
+                pure $ Just $ Vassal Nothing
       topOfDeck $ find (const True) enoughDeck
 
 -- TODO: This needs to move to Utils and handle cards beyond Moat.
 defendsAgainstAttack :: Card -> DominionPlayer -> Maybe Card
-defendsAgainstAttack _ p = 
-  if moatCard `elem` (p ^. #hand)
+defendsAgainstAttack _ p =
+  if moatCard `elem` p ^. #hand
     then Just moatCard
     else Nothing
 
@@ -278,14 +308,14 @@ defendsAgainstAttack _ p =
 bureaucratCard :: Card
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory 0)
   where
-    bureaucratCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    bureaucratCardAction c p = do
-      (field @"players" . ix (unPlayerNumber p) . #deck) %= (silverCard:)
+    bureaucratCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    bureaucratCardAction p = do
+      field @"players" . ix (unPlayerNumber p) . #deck %= (silverCard:)
       players' <- use #players
       discards :: [Maybe Card] <- mapM (discardVictory p) $ PlayerNumber <$> [0.. length players' - 1]
       field @"decks" %= Map.mapWithKey (decreaseCards silverCard)
-      basicCardAction 0 (-1) 0 0 c p
-      pure $ Just $ Bureaucrat p $ Map.fromList $ zip (PlayerNumber <$> [0.. length players' - 1]) discards
+      _ <- basicCardAction 0 (-1) 0 0 p
+      pure $ Just $ Bureaucrat $ Map.fromList $ zip (PlayerNumber <$> [0.. length players' - 1]) discards
     discardVictory :: PlayerNumber -> PlayerNumber -> DominionState (Maybe Card)
     discardVictory e p | p == e = return Nothing
     discardVictory _ p = do
@@ -298,12 +328,12 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
 
 -- | Worth 1VP per 10 cards you have (round down).
 gardensCard :: Card
-gardensCard     = Card "Gardens"    4 (valueCardAction 0) Value gardensCardAction
+gardensCard     = Card "Gardens"    4 (valueCardAction 0 Gardens) Value gardensCardAction
   where
-    gardensCardAction :: Card -> PlayerNumber -> DominionState Int
-    gardensCardAction _ p = do
+    gardensCardAction :: PlayerNumber -> DominionState Int
+    gardensCardAction p = do
       thePlayer <- findPlayer p
-      let points = length ( (thePlayer ^. #hand) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #played) ++ (thePlayer ^. #deck) ) `div` 10
+      let points = length ( thePlayer ^. #hand ++ thePlayer ^. #discard ++ thePlayer ^. #played ++ thePlayer ^. #deck ) `div` 10
       pure points
 
 -- | +$2
@@ -312,36 +342,36 @@ gardensCard     = Card "Gardens"    4 (valueCardAction 0) Value gardensCardActio
 militiaCard :: Card
 militiaCard     = Card "Militia"    4 militiaCardAction Action (simpleVictory 0)
   where
-    militiaCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    militiaCardAction c p = do
-      players' <- use $ #players
-      basicCardAction 0 (-1) 0 2 c p
+    militiaCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    militiaCardAction p = do
+      players' <- use #players
+      _ <- basicCardAction 0 (-1) 0 2 p
       playerResponses <- mapM (militiaDiscard p) $ PlayerNumber <$> [0.. length players' - 1]
-      return $ Just $ Militia p $ Map.fromList playerResponses
+      return $ Just $ Militia $ Map.fromList playerResponses
     militiaDiscard :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card [Card])
-    militiaDiscard e p | p == e = return $ (e, Right [])
+    militiaDiscard e p | p == e = return (e, Right [])
     militiaDiscard e p = do
       thePlayer <- findPlayer p
       case defendsAgainstAttack militiaCard thePlayer of
-        Just defender -> return $ (e, Left defender)
+        Just defender -> return (e, Left defender)
         Nothing       -> do
           aig <- mkDominionAIGame p
           let discards = (thePlayer ^. #strategy . #discardStrategy) aig ( length (thePlayer ^. #hand) - 3, length (thePlayer ^. #hand) - 3 )
           discardCards p discards
-          return $ (e, Right discards)
+          return (e, Right discards)
 
 -- | You may trash a Copper from your hand for +$3.	
 moneylenderCard :: Card
 moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action (simpleVictory 0)
   where
-    moneylenderCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    moneylenderCardAction c p = do
+    moneylenderCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    moneylenderCardAction p = do
       thePlayer <- findPlayer p
-      if copperCard `elem` (thePlayer ^. #hand)
+      if copperCard `elem` thePlayer ^. #hand
         then do
           trashCards p [copperCard]
-          basicCardAction 0 (-1) 0 3 c p
-          return $ Just $ MoneyLender p copperCard
+          _ <- basicCardAction 0 (-1) 0 3 p
+          return $ Just $ MoneyLender
         else return Nothing
 
 -- | +1 Card
@@ -354,22 +384,23 @@ moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action (simpleVict
 poacherCard :: Card
 poacherCard     = Card "Poacher"      4 poacherCardAction Action (simpleVictory 0)
   where
-    poacherCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    poacherCardAction c p = do
+    poacherCardAction ::  PlayerNumber -> DominionState (Maybe DominionAction)
+    poacherCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
-      _ <- basicCardAction 1 0 0 1 c p
+      theDraw <- deal 1 p
+      _ <- basicCardAction 0 0 0 1 p
       emptyDecks <- numEmptyDecks
       let discards = (thePlayer ^. #strategy . #discardStrategy) aig (emptyDecks, emptyDecks)
       discardCards p discards
-      return $ Just $ Poacher p discards
+      return $ Just $ Poacher (DominionDraw theDraw) discards
 
 -- | Trash a card from your hand. Gain a card costing up to $2 more than it.
 remodelCard :: Card
 remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 0)
   where
-    remodelCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    remodelCardAction c p = do
+    remodelCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    remodelCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let moves = (thePlayer ^. #strategy . #trashStrategy) aig (0, 1) []
@@ -380,9 +411,9 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
           case newCard of
             Nothing -> pure Nothing
             Just card -> do
-              _ <- basicCardAction 0 (-1) 0 0 c p
-              (field @"players" . ix (unPlayerNumber p) . #hand) %= (c:)
-              pure $ Just $ Remodel p (head moves) card
+              _ <- basicCardAction 0 (-1) 0 0 p
+              field @"players" . ix (unPlayerNumber p) . #hand %= (card:)
+              pure $ Just $ Remodel (head moves) card
         else
           return Nothing
 
@@ -390,56 +421,56 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
 throneRoomCard :: Card
 throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action (simpleVictory 0)
   where
-    throneRoomCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    throneRoomCardAction c p = do
+    throneRoomCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    throneRoomCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let mc = (thePlayer ^. #strategy . #throneRoomStrategy) aig
       case mc of
         Nothing     -> return Nothing
         (Just card) -> do
-          mm1 <- (card ^. #action) card p
+          mm1 <- (card ^. #action) p
           case mm1 of
             Nothing -> return Nothing
             Just m1 -> do
               cardPlayed card p -- If we're able to do this once, it has been played.
-              basicCardAction 0 1 0 0 card p
-              mm2 <- (card ^. #action) card p
+              _ <- basicCardAction 0 1 0 0 p
+              mm2 <- (card ^. #action) p
               case mm2 of
                 Nothing -> return Nothing
-                Just m2 -> do
-                  return $ Just $ ThroneRoom p card m1 m2
+                Just m2 ->
+                  return $ Just $ ThroneRoom card m1 m2
 
 -- | Gain a Gold. Each other player reveals the top 2 cards of their deck,
 -- trashes a revealed Treasure other than Copper, and discards the rest.
 banditCard :: Card
 banditCard      = Card "Bandit"       5 banditCardAction Action (simpleVictory 0)
   where
-    banditCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    banditCardAction c p = do
+    banditCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    banditCardAction p = do
       ps <- use #players
       decisions <- mapM (banditDiscard p) $ PlayerNumber <$> [0.. length ps - 1]
-      (field @"players" . ix (unPlayerNumber p) . #discard) %= (goldCard:)
+      field @"players" . ix (unPlayerNumber p) . #discard %= (goldCard:)
       field @"decks" %= Map.mapWithKey (decreaseCards goldCard)
-      basicCardAction 0 (-1) 0 0 c p
+      _ <- basicCardAction 0 (-1) 0 0 p
       let oppDecisions = filter (\(_, x) -> isRight x) decisions
-          fixedOppDecisions :: [(PlayerNumber, Either Card BanditDecision)] = fixup <$> decisions
+          fixedOppDecisions :: [(PlayerNumber, Either Card BanditDecision)] = fixup <$> oppDecisions
           fixup :: (PlayerNumber, Either () (Either Card BanditDecision)) -> (PlayerNumber, Either Card BanditDecision)
-          fixup (p, x) = (p, fromRight (Left moatCard) x)
-      pure $ Just $ Bandit p $ Map.fromList fixedOppDecisions
+          fixup (p', x) = (p', fromRight (Left moatCard) x)
+      pure $ Just $ Bandit $ Map.fromList fixedOppDecisions
     banditDiscard :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either () (Either Card BanditDecision))
-    banditDiscard e p | p == e = pure $ (e, Left ())
+    banditDiscard e p | p == e = pure (e, Left ())
     banditDiscard e p = do
       thePlayer <- findPlayer p
       case defendsAgainstAttack militiaCard thePlayer of
-        Just defender -> return $ (e, Right $ Left defender)
+        Just defender -> return (e, Right $ Left defender)
         Nothing       -> do
           toptwo <- deal 2 p
           let totrash   = take 1 $ intersect toptwo (delete copperCard (reverse treasureCards))
           let todiscard = toptwo \\ totrash
           trashCards p totrash
           discardCards p todiscard
-          pure $ (e, Right $ Right $ BanditDecision (headMay totrash) todiscard)
+          pure (e, Right $ Right $ BanditDecision (headMay totrash) todiscard)
 
 -- | +4 Cards
 --
@@ -449,13 +480,12 @@ banditCard      = Card "Bandit"       5 banditCardAction Action (simpleVictory 0
 councilRoomCard :: Card
 councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action (simpleVictory 0)
   where
-    councilRoomCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    councilRoomCardAction c p = do
-      ps <- use $ #players
+    councilRoomCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    councilRoomCardAction p = do
+      ps <- use #players
       draws <- mapM (councilRoomDraw p) $ PlayerNumber <$> [0.. length ps - 1]
-      dealt <- deal 4 p
-      basicCardAction 0 (-1) 0 0 c p
-      pure $ Just $ CouncilRoom p dealt $ Map.fromList draws
+      theDeal <- basicCardAction 4 (-1) 0 0 p
+      pure $ Just $ CouncilRoom theDeal $ Map.fromList draws
     councilRoomDraw :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Maybe Card)
     councilRoomDraw e p | p == e = return (p, Nothing)
     councilRoomDraw _ p = do
@@ -468,13 +498,12 @@ councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action (simpleVict
 witchCard :: Card
 witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
   where
-    witchCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    witchCardAction c p = do
+    witchCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    witchCardAction p = do
       ps <- use #players
       curses <- mapM (gainCurse p) $ PlayerNumber <$> [0.. length ps - 1]
-      drawn <- deal 2 p
-      basicCardAction 0 (-1) 0 0 c p
-      pure $ Just $ Witch p drawn $ Map.fromList curses
+      drawn <- basicCardAction 2 (-1) 0 0 p
+      pure $ Just $ Witch drawn $ Map.fromList curses
     gainCurse :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
     -- TODO: Model the player playing the witch ala Bandit
     gainCurse e p | p == e = return (p, Right Nothing)
@@ -487,7 +516,7 @@ witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
           if curseCard `Map.notMember` decks || decks Map.! curseCard <= 0
             then return (p, Right Nothing)
             else do
-              (field @"players" . ix (unPlayerNumber p) . #discard) %= (curseCard:)
+              field @"players" . ix (unPlayerNumber p) . #discard %= (curseCard:)
               field @"decks" %= Map.mapWithKey (decreaseCards curseCard)
               return (p, Right $ Just curseCard)
 
@@ -496,46 +525,43 @@ witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
 mineCard :: Card
 mineCard          = Card "Mine"       5 mineCardAction Action (simpleVictory 0)
   where
-    mineCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    mineCardAction c p = do
+    mineCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    mineCardAction p = do
       thePlayer <- findPlayer p
       mc <- firstCardInPlay $ intersect (thePlayer ^. #hand) $ tail treasureCards
       case mc of
         Nothing -> return Nothing
         (Just card)
-            | card == copperCard  -> exch c copperCard silverCard p
-            | card == silverCard  -> exch c silverCard goldCard p
+            | card == copperCard  -> exch copperCard silverCard p
+            | card == silverCard  -> exch silverCard goldCard p
             | otherwise           -> return Nothing
-    exch :: Card -> Card -> Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    exch c c1 c2 p = do
-      thePlayer <- findPlayer p
+    exch :: Card -> Card -> PlayerNumber -> DominionState (Maybe DominionAction)
+    exch c1 c2 p = do
       trashCards p [c1]
       field @"decks" %= Map.mapWithKey (decreaseCards c2)
-      (field @"players" . ix (unPlayerNumber p) . #hand) %= (c2:)
-      basicCardAction 0 (-1) 0 0 c p
-      return $ Just $ Mine p c1 c2
+      field @"players" . ix (unPlayerNumber p) . #hand %= (c2:)
+      _ <- basicCardAction 0 (-1) 0 0 p
+      return $ Just $ Mine c1 c2
 
 -- | Draw until you have 7 cards in hand, skipping any Action
 -- cards you choose to; set those aside, discarding them afterwards.
 libraryCard :: Card
 libraryCard     = Card "Library"      5 libraryCardAction Action (simpleVictory 0)
   where
-    libraryCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    libraryCardAction c p = do
+    libraryCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    libraryCardAction p = do
       (keeps, discards) <- drawTo 7 p ([], [])
-      basicCardAction 0 (-1) 0 0 c p
-      return $ Just $ Library p keeps discards
+      _ <- basicCardAction 0 (-1) 0 0 p
+      return $ Just $ Library keeps discards
     drawTo :: Int -> PlayerNumber -> ([Card], [Card]) -> DominionState ([Card], [Card])
-    drawTo num p dds@(draws, discards)= do
+    drawTo num p (draws, discards)= do
       thePlayer <- findPlayer p
       let todraw = num - (length draws + length (thePlayer ^. #hand))
       if todraw <= 0
         then return (draws, discards)
         else do
           newcards <- deal todraw p
-          thePlayer' <- findPlayer p
-          let newcards' = trace ("newcards: " <> show newcards <> " hand: " <> show (thePlayer' ^. #hand)) newcards
-          if null newcards'
+          if null newcards
             then return (draws, discards)
             else do
               decisions <- mapM (discardOrPlay p) newcards
@@ -547,9 +573,9 @@ libraryCard     = Card "Library"      5 libraryCardAction Action (simpleVictory 
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let keep = (thePlayer ^. #strategy . #libraryStrategy) aig c
-      unless ((c ^. #cardType) == Value || keep) $
+      unless (c ^. #cardType == Value || keep) $
         discardCards p [c]
-      return (c, (c ^. #cardType) == Value || keep )
+      return (c, c ^. #cardType == Value || keep )
 
 -- | +1 Card
 --
@@ -560,52 +586,50 @@ libraryCard     = Card "Library"      5 libraryCardAction Action (simpleVictory 
 sentryCard :: Card
 sentryCard    = Card "Sentry"       5 sentryCardAction Action (simpleVictory 0)
   where
-    sentryCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    sentryCardAction c p = do
-      _ <- basicCardAction 1 0 0 0 c p
+    sentryCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    sentryCardAction p = do
+      _ <- basicCardAction 1 0 0 0 p
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let oldhand = thePlayer ^. #hand
       newcards <- deal 2 p
       let (trashem, disc, keep) = (thePlayer ^. #strategy . #sentryStrategy) aig newcards
       field @"trash" %= (trashem ++)
-      (field @"players" . ix (unPlayerNumber p) . #discard) %= (disc ++)
-      (field @"players" . ix (unPlayerNumber p) . #deck) %= (keep ++)
-      (field @"players" . ix (unPlayerNumber p) . #hand) .= oldhand
-      return $ Just $ Sentry p trashem disc keep
+      field @"players" . ix (unPlayerNumber p) . #discard %= (disc ++)
+      field @"players" . ix (unPlayerNumber p) . #deck %= (keep ++)
+      field @"players" . ix (unPlayerNumber p) . #hand .= oldhand
+      return $ Just $ Sentry (DominionDraw newcards) trashem disc keep
 
 -- | Gain a card to your hand costing up to $5.
 -- Put a card from your hand onto your deck.
 artisanCard :: Card
 artisanCard   = Card "Artisan"      6 artisanCardAction Action (simpleVictory 0)
   where
-    artisanCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    artisanCardAction c p = do
+    artisanCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    artisanCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let mc = (thePlayer ^. #strategy . #gainCardStrategy) aig 5
       case mc of
         Nothing   -> return Nothing
         Just card -> do
-          _ <- basicCardAction 0 (-1) 0 0 c p
+          _ <- basicCardAction 0 (-1) 0 0 p
           field @"decks" %= Map.mapWithKey (decreaseCards card)
-          (field @"players" . ix (unPlayerNumber p) . #hand) %= (card:)
+          field @"players" . ix (unPlayerNumber p) . #hand %= (card:)
           aig' <- mkDominionAIGame p
           let putOnDeck = (thePlayer ^. #strategy . #handToDeckStrategy) aig' 1
           if length putOnDeck == 1
-            then do
-              thePlayer' <- findPlayer p
-              handToDeck p putOnDeck
+            then handToDeck p putOnDeck
             else pure ()
-          return $ Just $ Artisan p card (head putOnDeck)
+          return $ Just $ Artisan card (head putOnDeck)
 
 -- | Gain a card costing up to $4.
 workshopCard :: Card
 workshopCard  = Card "Workshop"     3 workshopCardAction Action (simpleVictory 0)
   where
-    workshopCardAction :: Card -> PlayerNumber -> DominionState (Maybe DominionMove)
-    workshopCardAction c p = do
-      _ <- basicCardAction 0 (-1) 0 0 c p
+    workshopCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    workshopCardAction p = do
+      _ <- basicCardAction 0 (-1) 0 0 p
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let mc = (thePlayer ^. #strategy . #gainCardStrategy) aig 4
@@ -613,8 +637,8 @@ workshopCard  = Card "Workshop"     3 workshopCardAction Action (simpleVictory 0
         Nothing -> return Nothing
         Just card -> do
           field @"decks" %= Map.mapWithKey (decreaseCards card)
-          (field @"players" . ix (unPlayerNumber p) . #hand) %= (card:)
-          return $ Just $ Workshop p card
+          field @"players" . ix (unPlayerNumber p) . #hand %= (card:)
+          return $ Just $ Workshop card
 
 -- | The kingdom cards from Dominion 2nd edition.
 kingdomCards2ndEdition :: [Card]

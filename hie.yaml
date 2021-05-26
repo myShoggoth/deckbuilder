@@ -3,7 +3,7 @@ cradle:
     - path: "./src"
       component: "deckbuilder:lib"
 
-    - path: "./app/Main.hs"
+    - path: "./app"
       component: "deckbuilder:exe:deckbuilder-exe"
 
     - path: "./test"

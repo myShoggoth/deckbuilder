@@ -30,7 +30,7 @@ module DeckBuilding.Legendary
 import Control.Lens
     ( (^..), (^.), use, (%=), (+=), (.=), Ixed(ix) )
 import Control.Monad.RWS
-    ( void, MonadWriter(tell), MonadState(get) )
+    ( void, MonadState(get) )
 import qualified Data.DList as DL
 import qualified Data.List as L
 import qualified Data.Text as Text
@@ -84,7 +84,6 @@ evaluateHand pnum = do
   case mc of
     Nothing -> return pnum
     Just c -> do
-      tell $ DL.singleton $ Play c
       _ <- (c ^. #action) c pnum
       evaluateHand pnum
 
@@ -164,7 +163,6 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
     thePlayer <- findPlayer p
     drawVillain 1 p
     fillHq p
-    tell $ DL.singleton $ Turn (thePlayer ^. #turns) thePlayer
     _ <- evaluateHand p
       >>= (thePlayer ^. #strategy . #buyStrategy)
       >>= (thePlayer ^. #strategy . #attackStrategy)

@@ -1,5 +1,5 @@
 name:                deckbuilder
-version:             0.1.0.2
+version:             0.1.0.3
 -- synopsis:
 -- description:
 homepage:            https://github.com/myshoggoth/deckbuilder#readme
@@ -7,7 +7,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Andrew F. Boardman
 maintainer:          andrew@myshoggoth.com
-copyright:           2017 Andrew F. Boardman
+copyright:           2017-2021 Andrew F. Boardman
 category:            Game
 build-type:          Simple
 extra-source-files:  README.md
@@ -22,18 +22,19 @@ library
                      , DeckBuilding.Dominion.Utils
                      , DeckBuilding.Dominion.Cards
                      , DeckBuilding.Dominion.Cards.Base
---                    , DeckBuilding.Dominion.Cards.Intrigue
+                     , DeckBuilding.Dominion.Cards.Intrigue
                      , DeckBuilding.Dominion.Cards.Utils
-                     , DeckBuilding.Dominion.DominionTree
                      , DeckBuilding.Dominion.Strategies.Basic
                      , DeckBuilding.Dominion.Strategies.Utils
-                     , DeckBuilding.Legendary
-                     , DeckBuilding.Legendary.Types
-                     , DeckBuilding.Legendary.Utils
-                     , DeckBuilding.Legendary.Cards.Utils
-                     , DeckBuilding.Legendary.Cards.Base
-                     , DeckBuilding.Legendary.Strategies.Basic
+                     , DeckBuilding.Dominion.Pretty
+--                     , DeckBuilding.Legendary
+--                     , DeckBuilding.Legendary.Types
+--                     , DeckBuilding.Legendary.Utils
+--                     , DeckBuilding.Legendary.Cards.Utils
+--                     , DeckBuilding.Legendary.Cards.Base
+--                     , DeckBuilding.Legendary.Strategies.Basic
   build-depends:       base >= 4.7 && < 5
+                     , cond
                      , containers
                      , random-shuffle
                      , MonadRandom
@@ -43,6 +44,8 @@ library
                      , mtl
                      , dlist
                      , generic-lens
+                     , prettyprinter
+                     , parallel
                      , safe
                      , text
   default-language:    Haskell2010
@@ -54,13 +57,14 @@ executable deckbuilder-exe
   build-depends:       base
                      , containers
                      , deckbuilder
+                     , filepath
                      , random
                      , lens
                      , dlist
                      , cmdargs
-                     , prettyprinter
                      , text
                      , generic-lens
+                     , prettyprinter
                      , mtl
                      , extra
   default-language:    Haskell2010
@@ -82,9 +86,8 @@ test-suite deckbuilder-test
   other-modules:       DominionSpec
                      , Dominion.CardsSpec
                      , Dominion.Cards.BaseSpec
---                     , Dominion.Cards.IntrigueSpec
-                     , Dominion.DominionTreeSpec
-                     , LegendarySpec
+                     , Dominion.Cards.IntrigueSpec
+--                     , LegendarySpec
   default-language:    Haskell2010
 
 source-repository head

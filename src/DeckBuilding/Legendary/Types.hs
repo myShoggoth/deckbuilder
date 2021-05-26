@@ -30,6 +30,31 @@ data LegendaryMove = Turn Int LegendaryPlayer |
 
 type LegendaryState a = RWS LegendaryConfig (DL.DList LegendaryMove) LegendaryGame a
 
+data LegendaryGame = LegendaryGame {
+  players :: [(Text, Strategy)],
+  heroDeck    :: [[HeroCard]],
+  villainDeck :: [[VillainCard]],
+  bystanders  :: [VillainCard],
+  entrance    :: CityLocation,
+  scheme      :: Scheme,
+  theMastermind  :: Mastermind,
+  turns :: [LegendaryTurn]
+}
+
+newtype LegendaryTurn = LegendaryTurn [LegendaryPlayerTurn]
+
+data LegendaryPlayerTurn = LegendaryPlayerTurn {
+  playerNumber :: PlayerNumber,
+  turnNumber :: Int,
+  buys :: [LegendaryBuy],
+  actions :: [LegendaryAction],
+  draws :: LegendaryDraw
+}
+
+data LegendaryBuy = LegendaryBuy Int HeroCard
+
+newtype LegendaryDraw = LegendaryDraw [HeroCard]
+
 data LegendaryConfig = LegendaryConfig {
   -- | Names and strategies for each playerz
   playerDefs  :: [(Text, Strategy)],
@@ -115,7 +140,7 @@ defaultCity =
 instance Eq CityLocation where
   cl1 == cl2 = (location cl1) == (location cl2)
 
-data LegendaryGame = LegendaryGame {
+data LegendaryBoard = LegendaryBoard {
   -- | The players of the game.
   players           :: [LegendaryPlayer],
   scheme            :: Scheme,
@@ -174,7 +199,7 @@ data VillainCard = VillainCard {
   attack        :: Int,
   bribable      :: Bool,
   isBystander   :: Bool,
-  victoryPoints :: (VillainCard -> PlayerNumber -> LegendaryState Int),
+  victoryPoints :: VillainCard -> PlayerNumber -> LegendaryState Int,
   ambushAction  :: Maybe (VillainCard -> PlayerNumber -> LegendaryState ()),
   fightAction   :: Maybe (VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber),
   escapeAction  :: Maybe (VillainCard -> PlayerNumber -> LegendaryState ())
@@ -234,7 +259,7 @@ data Strategy = Strategy {
   attackStrategy   :: PlayerNumber -> LegendaryState PlayerNumber,
   koNOfStrategy  :: (Int, Int) -> [HeroCard] -> PlayerNumber -> LegendaryState ([HeroCard], [HeroCard]),
   -- | Possible cards -> Number to recruit -> max cost
-  recruitNStrategy :: [HeroCard] -> Int -> Int -> PlayerNumber -> LegendaryState ([HeroCard]),
+  recruitNStrategy :: [HeroCard] -> Int -> Int -> PlayerNumber -> LegendaryState [HeroCard],
   -- | Others must draw or discard N cards -> because of player P
   othersDrawOrDiscardStrategy :: Int -> PlayerNumber -> LegendaryState DrawDiscardChoice
 } deriving stock (Generic)
