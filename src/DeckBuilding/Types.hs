@@ -32,3 +32,5 @@ class Game g where
   finished :: State g Bool
   -- | Returns a list of the 'Player' numbers in order for this 'Game' turn.
   turnOrder :: State g [PlayerNumber]
+  -- | Returns a list of each player's name and the number of points they scored
+  tallyPoints :: State g [(Text, Int)]

@@ -27,6 +27,8 @@ data DominionGame = DominionGame
   , kingdoms :: [Card]
   , seed :: StdGen
   , turns :: [DominionTurn]
+  -- | [(Player Name, Score)]
+  , result :: Maybe [(Text, Int)]
   }
   deriving stock (Generic, Show)
 

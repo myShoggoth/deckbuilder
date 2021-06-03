@@ -38,7 +38,7 @@ module DeckBuilding.Dominion
     , runPlayerTurn
     ) where
 
-import Control.Monad.State (evalState)
+import Control.Monad.State (evalState, runState)
 import Control.Lens ( (^.), use, (%=), (+=), (.=), Ixed(ix) )
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
@@ -54,7 +54,7 @@ import DeckBuilding.Dominion.Cards
       curseCard )
 import DeckBuilding.Types ( Game(..), PlayerNumber(PlayerNumber, unPlayerNumber) )
 import DeckBuilding.Dominion.Types
-    ( DominionPlayer(DominionPlayer),
+    ( DominionPlayer(DominionPlayer, turns),
       Strategy,
       Card(Card),
       CardType(Value),
@@ -170,7 +170,11 @@ runGame conf g =
       (playerDefs conf)
       (kingdomCards conf)
       g
-      (evalState runTurns $ configToGame conf g)
+      turns
+      (Just results)
+  where
+    (turns, endGameState) = runState runTurns $ configToGame conf g
+    results = evalState tallyPoints endGameState
 
 runTurns :: DominionState [DominionTurn]
 runTurns = do
@@ -225,7 +229,28 @@ instance Game DominionBoard where
   finished    = do
     decks' <- use #decks
     emptyDecks <- numEmptyDecks
-    return $ (decks' Map.! provinceCard == 0) || emptyDecks >= 3
+    pure $ (decks' Map.! provinceCard == 0) || emptyDecks >= 3
+
+  tallyPoints = do
+      turnOrder' <- turnOrder
+      points <- mapM tallyPlayerPoints turnOrder'
+      names <- mapM getPlayerName turnOrder'
+      pure $ zip names points
+    where
+      tallyPlayerPoints p = do
+        (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
+        thePlayer <- findPlayer p
+        (field @"players" . ix (unPlayerNumber p) . #hand) .= ((thePlayer ^. #deck) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #hand) ++ (thePlayer ^. #played))
+        player' <- findPlayer p
+        mapM_ (victoryPts p) (player' ^. #hand)
+        finalPlayer <- findPlayer p
+        pure $ finalPlayer ^. #victory
+      victoryPts :: PlayerNumber -> Card -> DominionState Int
+      victoryPts p (Card _ _ _ _ s) = s p
+      getPlayerName :: PlayerNumber -> DominionState Text.Text
+      getPlayerName p = do
+        thePlayer <- findPlayer p
+        return $ thePlayer ^. #playerName
 
   turnOrder  = do
     players' <- use #players
