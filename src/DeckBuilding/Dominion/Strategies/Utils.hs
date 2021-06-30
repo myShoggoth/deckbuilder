@@ -37,10 +37,7 @@ canAfford :: DominionAIGame -> Card -> Bool
 canAfford g c = (c ^. #cost) <= (g ^. #money)
 
 cardsLeft :: DominionAIGame -> Card -> Int
-cardsLeft g c =
-  if Map.member c (g ^. #decks)
-    then (g ^. #decks) Map.! c
-    else 0
+cardsLeft g c = (g ^. #decks) Map.! c
 
 -- | Are there any of this card left in the game?
 areCardsLeft :: DominionAIGame -> Card -> Bool

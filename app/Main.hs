@@ -36,6 +36,7 @@
  -- constantly write conversion code.
  --}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 {-- * Module declaration
  -- The @Main@ module exists to export the @main@ function,
@@ -69,7 +70,7 @@ import Prettyprinter.Render.Text ( renderStrict )
  -- @Text.length@.
  --}
 import qualified Data.Text as Text
-import System.Random ( newStdGen )
+import System.Random ( newStdGen, StdGen, mkStdGen )
 import System.Console.CmdArgs
     ( Data,
       Typeable,
@@ -102,6 +103,7 @@ import DeckBuilding.Dominion.Pretty ()
 data DeckBuilder = DeckBuilder
   { times :: Int
   , out :: FilePath
+  , seed :: Maybe Int
   }
   deriving (Data, Typeable, Show, Eq)
 
@@ -113,6 +115,7 @@ deckBuilder :: DeckBuilder
 deckBuilder = DeckBuilder
   { times = 1 &= help "Number of games to run."
   , out = "deckgames.txt" &= typFile &= help "File name to write the game logs to, default is 'deckgames.txt'"
+  , seed = Nothing &= help "Base seed for the entire run, default is RNG."
   } &= 
   verbosity &=
   help "stack run -- deckbuilder-exe --times 1 --out myfile.txt" &=
@@ -136,14 +139,16 @@ main :: IO ()
  -- but that often makes the code harder to read.
  --}
 main = do
-  {-- | Use a pseudo-random number generator to create an
-   -- initial random seed. We could also take the seed as an
-   -- optional command line argument (or configuration file value),
-   -- but that hasn't been needed yet.
-   --}
-  g <- newStdGen
   {-- | Parse the command line --}
   args' <- cmdArgs deckBuilder
+
+  {-- | If the user has specified a seed on the command line,
+   -- use it. Otherwise, use a pseudo-random number generator to create an
+   -- initial random seed.
+   --}
+  g <- case seed args' of
+          Nothing -> newStdGen
+          Just n -> return $ mkStdGen n
 
   {-- | Get the number of runs from the command line --}
   let n = times args'
