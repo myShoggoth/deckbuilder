@@ -72,7 +72,7 @@ import System.Random (StdGen, RandomGen(split))
 import System.Random.Shuffle (shuffle')
 import Control.Monad.List ( forM_ )
 import Control.Parallel.Strategies ( rseq, rpar, runEval )
-import Data.Text.Prettyprint.Doc ( Doc, pretty )
+import Prettyprinter ( Doc, pretty )
 import DeckBuilding.Dominion.Pretty ()
 
 -- Dominion

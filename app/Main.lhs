@@ -63,7 +63,7 @@ using in this module from another one.
 >    ( bigMoneyStrategy, bigSmithyStrategy, villageSmithyEngine4 )
 > import DeckBuilding.Dominion.Types
 >    ( DominionConfig(DominionConfig) )
-> import Data.Text.Prettyprint.Doc
+> import Prettyprinter
 >    ( layoutPretty,
 >      vsep,
 >      defaultLayoutOptions )

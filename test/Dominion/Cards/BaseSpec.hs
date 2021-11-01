@@ -273,7 +273,6 @@ spec = do
     let (Just p1AfterCard) = afterCard ^? #players . ix 0
     it "trashes a copper and gains a silver into the hand" $ do
       length (afterCard ^. #trash) `shouldBe` 1
-      length (p1AfterCard ^. #hand) `shouldBe` 5
+      length (p1AfterCard ^. #hand) `shouldBe` 4
+      length (p1AfterCard ^. #discard) `shouldBe` 1
       length (p1AfterCard ^. #deck) `shouldBe` 5
-      -- TODO: look up remodel card and make sure we're doing the right thing
---      silverCard `elem` (p1AfterCard ^. #hand) `shouldBe` True

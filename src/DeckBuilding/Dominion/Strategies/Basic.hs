@@ -29,7 +29,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     ) where
 
 import Control.Lens ( (^.) )
-import Data.List ( intersect, (\\) )
+import Data.List ( intersect, (\\), elemIndex, sortBy )
 import Safe (headMay)
 import DeckBuilding.Dominion.Cards
     ( goldCard,
@@ -115,7 +115,7 @@ trashCards = [curseCard, estateCard, copperCard]
 -- | If you can retrieve a card from your discard into your hand, get something
 --  worth it.
 bigMoneyRetrieve :: DominionAIGame -> (Int, Int) -> [Card] -> [Card]
-bigMoneyRetrieve aig rng discardPile = doRetrieveDiscard aig rng retrieveCards discardPile
+bigMoneyRetrieve aig rng = doRetrieveDiscard aig rng retrieveCards
   where retrieveCards = [ goldCard
                         , marketCard
                         , festivalCard
@@ -280,10 +280,17 @@ prefCards max' cs h = take max' $ intersect h cs
 --  with whatever is left. Order those cards appropriately.
 prefPlusCards :: (Int, Int) -> [Card] -> [Card] -> [Card]
 prefPlusCards (min', max') cs h
-    | length pref > min' = pref
+    | length pref >= min' = pref
     | otherwise         = take min' $ pref ++ cs
-  where pref = prefCards max' cs h
+  where pref = prefCards max' cs h'
+        h' = sortBy (definedOrderSort cs) h
 
+-- | Ordering based on the ordering of the same values in an input list.
+definedOrderSort :: Eq a => [a] -> a -> a -> Ordering 
+definedOrderSort order x y | x == y = EQ
+                           | x `elemIndex` order < y `elemIndex` order = LT
+                           | otherwise = GT
+ 
 -- | Core for a simple discarding logic. (min, max) and the list of
 --  preferred cards to discard.
 doDiscard :: DominionAIGame -> (Int, Int) -> [Card] -> [Card]

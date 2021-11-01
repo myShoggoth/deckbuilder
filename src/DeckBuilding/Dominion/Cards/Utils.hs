@@ -56,7 +56,7 @@ basicCardAction d a b m p = do
 --  price.
 --  TODO: same structure as buying cards (Card,Card->Player->State Game Bool)
 gainCard :: [Card] -> Int -> Maybe Card
-gainCard cards highestPrice = find (\c -> (c ^. #cost) < highestPrice) cards
+gainCard cards highestPrice = find (\c -> (c ^. #cost) <= highestPrice) cards
 
 hasActionCards :: Int -> [Card] -> Bool
 hasActionCards num cs = num <= length (filter (\c -> (c ^. #cardType) == Action) cs)

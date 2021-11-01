@@ -4,7 +4,7 @@
 
 module DeckBuilding.Dominion.Pretty where
 
-import Data.Text.Prettyprint.Doc
+import Prettyprinter
     ( (<+>),
       align,
       hsep,

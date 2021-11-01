@@ -412,7 +412,7 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
             Nothing -> pure Nothing
             Just card -> do
               _ <- basicCardAction 0 (-1) 0 0 p
-              field @"players" . ix (unPlayerNumber p) . #hand %= (card:)
+              field @"players" . ix (unPlayerNumber p) . #discard %= (card:)
               pure $ Just $ Remodel (head moves) card
         else
           return Nothing

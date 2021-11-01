@@ -64,7 +64,7 @@ spec = do
   describe "evaluateHand" $ do
     it "has no more cards in hand" $ do
       p1AfterEvaluate ^. #hand `shouldBe` []
-      p1AfterEvaluate ^. #played `shouldBe` [estateCard, copperCard, copperCard, copperCard, copperCard]
+      p1AfterEvaluate ^. #played `shouldBe` [copperCard, estateCard, copperCard, copperCard, copperCard]
       length (p1AfterEvaluate ^. #played) `shouldBe` 5
       length (p1AfterEvaluate ^. #hand) `shouldBe` 0
       length (p1AfterDeal ^. #discard) `shouldBe` 0
