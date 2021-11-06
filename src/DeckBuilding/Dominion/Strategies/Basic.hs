@@ -26,6 +26,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , villageSmithyEngine4
     , nextCardByWeight
     , bigMoneyCardWeight
+    , bigMoneyIsland
     ) where
 
 import Control.Lens ( (^.) )
@@ -84,6 +85,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneySentry
                             bigMoneyHandToDeck
                             bigMoneyLurker
+                            bigMoneyIsland
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -168,6 +170,15 @@ bigMoneyHandToDeck g n = take n $ (g ^. #hand) `intersect` handToDeckCards
 bigMoneyLurker :: DominionAIGame -> Either Card Card
 bigMoneyLurker _ = Left cellarCard
 
+-- | Pick the biggest VP by preferences, otherwise whatevs
+bigMoneyIsland :: DominionAIGame -> Maybe Card
+bigMoneyIsland g =
+  case take 1 $ (g ^. #hand) `intersect` islandCards of
+    [] -> headMay $ g ^. #hand
+    [c] -> Just c
+  where
+    islandCards = reverse victoryCards -- Ideally we would not island curses
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -185,6 +196,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneySentry
                              bigMoneyHandToDeck
                              bigMoneyLurker
+                             bigMoneyIsland
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -240,6 +252,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneySentry
                                 bigMoneyHandToDeck
                                 bigMoneyLurker
+                                bigMoneyIsland
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]

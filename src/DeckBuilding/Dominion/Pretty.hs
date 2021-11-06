@@ -17,7 +17,7 @@ import DeckBuilding.Dominion.Types
       DominionDraw(..),
       DominionAction(Workshop, Copper, Silver, Gold, Curse, Estate,
                      Duchy, Province, Gardens, Artisan, Bandit, Chapel, Cellar,
-                     Festival, Harbinger, Remodel, Laboratory, Library, Market,
+                     Festival, Harbinger, Island, Remodel, Laboratory, Library, Market,
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
                      ThroneRoom, Vassal, Village),
       DominionBuy(..),
@@ -85,6 +85,7 @@ instance Pretty DominionAction where
     pretty (Cellar xs (DominionDraw dds)) = "Cellar discards" <+> hsep (map pretty xs) <+> "and draws" <+> hsep (map pretty dds)
     pretty Festival = pretty ("Festival" :: Text.Text)
     pretty (Harbinger (DominionDraw xs) _) = "Harbinger draws" <+> hsep (map pretty xs) <+> "and pulls" <> viaShow xs <> " from the discards and puts it on their deck"
+    pretty (Island mc) = "Islands " <+> viaShow mc
     pretty (Remodel c1 c2) = "Remodels " <> viaShow c1 <> " into " <> viaShow c2
     pretty (Laboratory (DominionDraw xs)) = "Laboratory draws" <+> hsep (map pretty xs)
     pretty (Library xs ys) = "Library draws " <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
@@ -100,7 +101,7 @@ instance Pretty DominionAction where
     pretty (Vassal mda) = "Vassal " <> viaShow mda
     pretty (Village (DominionDraw xs)) = "Village draws" <+> hsep (map pretty xs)
     pretty (Workshop c) = "Workshop gains " <> viaShow c
-    pretty _ = pretty ("Unknown action" :: Text.Text)
+    pretty _ = pretty ("Unknown action" :: Text.Text) -- TODO: This needs to go away as soon as the tricky ones are implemented
 {-    
       Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
       CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |

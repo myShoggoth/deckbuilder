@@ -60,6 +60,7 @@ data DominionAction =
       Courtyard DominionDraw |
       Festival |
       Harbinger DominionDraw (Maybe Card) |
+      Island (Maybe Card) |
       Ironworks DominionDraw DominionDraw |
       Remodel Card Card |
       Laboratory DominionDraw |
@@ -239,7 +240,9 @@ data Strategy = Strategy {
   handToDeckStrategy :: DominionAIGame -> Int -> [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  lurkerStrategy     :: DominionAIGame -> Either Card Card
+  lurkerStrategy     :: DominionAIGame -> Either Card Card,
+  -- | When playing the Island card, what card is put on the Island with it?
+  islandStrategy     :: DominionAIGame -> Maybe Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -270,6 +273,9 @@ data DominionPlayer = DominionPlayer {
   victory    :: Int,
   -- | How many turns has this player completed?
   turns      :: Int,
+  -- | The Island mat contents (Seaside Expansion)
+  island     :: [Card],
+  -- NOTE: Add new items above the strategy
   -- | The Strategy used by this player.
   strategy   :: Strategy
 } deriving stock (Show, Generic)
