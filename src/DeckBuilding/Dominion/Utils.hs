@@ -11,6 +11,7 @@ module DeckBuilding.Dominion.Utils
     , numEmptyDecks
     , firstCardInPlay
     , decreaseCards
+    , increaseCards
     , isCardInPlay
     , findPlayer
     , removeFromCards
@@ -74,6 +75,12 @@ decreaseCards  _  _ 0 = 0
 decreaseCards c1 c2 n = if c1 == c2
     then n - 1
     else n
+
+-- | If the cards are the same, return the number of cards + the value passed in
+increaseCards :: Card -> Int -> Card -> Int -> Int
+increaseCards c1 n c2 x = if c1 == c2
+    then x + n
+    else x
 
 -- | Is this card part of this game, and if so are there any left?
 isCardInPlay :: Card -> DominionState Bool

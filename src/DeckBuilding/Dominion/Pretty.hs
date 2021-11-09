@@ -103,6 +103,7 @@ instance Pretty DominionAction where
     pretty (Workshop c) = "Workshop gains " <> viaShow c
     pretty _ = pretty ("Unknown action" :: Text.Text) -- TODO: This needs to go away as soon as the tricky ones are implemented
 {-    
+      Ambassador [Card] (Map.Map PlayerNumber (Either Card (Maybe Card)))
       Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
       CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |
       Militia (Map.Map PlayerNumber (Either Card [Card])) |

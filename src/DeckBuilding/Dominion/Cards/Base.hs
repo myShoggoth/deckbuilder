@@ -50,6 +50,7 @@ module DeckBuilding.Dominion.Cards.Base
     , kingdomCards2ndEdition
     , firstGameKingdomCards
     , baseSetActionTerminators
+    , defendsAgainstAttack
     ) where
 
 import Control.Lens ( (^.), use, (%=), (.=), Ixed(ix) )
@@ -350,15 +351,15 @@ militiaCard     = Card "Militia"    4 militiaCardAction Action (simpleVictory 0)
       return $ Just $ Militia $ Map.fromList playerResponses
     militiaDiscard :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card [Card])
     militiaDiscard e p | p == e = return (e, Right [])
-    militiaDiscard e p = do
+    militiaDiscard _ p = do
       thePlayer <- findPlayer p
       case defendsAgainstAttack militiaCard thePlayer of
-        Just defender -> return (e, Left defender)
+        Just defender -> return (p, Left defender)
         Nothing       -> do
           aig <- mkDominionAIGame p
           let discards = (thePlayer ^. #strategy . #discardStrategy) aig ( length (thePlayer ^. #hand) - 3, length (thePlayer ^. #hand) - 3 )
           discardCards p discards
-          return (e, Right discards)
+          return (p, Right discards)
 
 -- | You may trash a Copper from your hand for +$3.	
 moneylenderCard :: Card

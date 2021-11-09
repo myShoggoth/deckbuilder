@@ -27,10 +27,11 @@ module DeckBuilding.Dominion.Strategies.Basic
     , nextCardByWeight
     , bigMoneyCardWeight
     , bigMoneyIsland
+    , bigMoneyAmbassador
     ) where
 
 import Control.Lens ( (^.) )
-import Data.List ( intersect, (\\), elemIndex, sortBy )
+import Data.List ( intersect, (\\), elemIndex, sortBy, findIndices, elemIndices )
 import Safe (headMay)
 import DeckBuilding.Dominion.Cards
     ( goldCard,
@@ -86,6 +87,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyHandToDeck
                             bigMoneyLurker
                             bigMoneyIsland
+                            bigMoneyAmbassador
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -179,6 +181,17 @@ bigMoneyIsland g =
   where
     islandCards = reverse victoryCards -- Ideally we would not island curses
 
+-- | If there are trash cards in the hand, give up the trashiest card
+-- first, two if we got 'em.
+bigMoneyAmbassador :: DominionAIGame -> [Card]
+bigMoneyAmbassador g =
+  let matches = take 1 $ (g ^. #hand) `intersect` trashCards
+  in case matches of
+        [] -> []
+        (x:_) -> if length (elemIndices x matches) > 1
+                    then [x, x]
+                    else [x]
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -197,6 +210,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyHandToDeck
                              bigMoneyLurker
                              bigMoneyIsland
+                             bigMoneyAmbassador
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -253,6 +267,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyHandToDeck
                                 bigMoneyLurker
                                 bigMoneyIsland
+                                bigMoneyAmbassador
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
@@ -299,11 +314,11 @@ prefPlusCards (min', max') cs h
         h' = sortBy (definedOrderSort cs) h
 
 -- | Ordering based on the ordering of the same values in an input list.
-definedOrderSort :: Eq a => [a] -> a -> a -> Ordering 
+definedOrderSort :: Eq a => [a] -> a -> a -> Ordering
 definedOrderSort order x y | x == y = EQ
                            | x `elemIndex` order < y `elemIndex` order = LT
                            | otherwise = GT
- 
+
 -- | Core for a simple discarding logic. (min, max) and the list of
 --  preferred cards to discard.
 doDiscard :: DominionAIGame -> (Int, Int) -> [Card] -> [Card]

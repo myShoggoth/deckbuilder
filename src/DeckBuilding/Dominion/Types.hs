@@ -50,6 +50,7 @@ data DominionBuy = DominionBuy Int Card
 data DominionAction =
       Copper | Silver | Gold | Harem |
       Curse | Estate | Duchy | Province | Gardens | Duke |
+      Ambassador [Card] (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Artisan Card Card |
       Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
       Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
@@ -242,7 +243,10 @@ data Strategy = Strategy {
   --  gain a card from the trash (Right)
   lurkerStrategy     :: DominionAIGame -> Either Card Card,
   -- | When playing the Island card, what card is put on the Island with it?
-  islandStrategy     :: DominionAIGame -> Maybe Card
+  islandStrategy     :: DominionAIGame -> Maybe Card,
+  -- | Pick one or two (identical) cards to put back in the supply
+  -- and make other players gain.
+  ambassadorStrategy :: DominionAIGame -> [Card]
 } deriving stock (Generic)
 
 instance Show Strategy where
