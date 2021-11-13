@@ -51,7 +51,9 @@ import DeckBuilding.Dominion.Cards
       provinceCard,
       duchyCard,
       estateCard,
-      curseCard )
+      curseCard,
+      moatCard
+    )
 import DeckBuilding.Types ( Game(..), PlayerNumber(PlayerNumber, unPlayerNumber) )
 import DeckBuilding.Dominion.Types
     ( DominionPlayer(DominionPlayer, turns),
@@ -152,8 +154,14 @@ resetTurn p = do
 configToGame :: DominionConfig -> StdGen -> DominionBoard
 configToGame c = DominionBoard
     (map (uncurry newPlayer) (c ^. #playerDefs))
-    (basicDecks (length (c ^. #playerDefs)) `Map.union` makeDecks (c ^. #kingdomCards))
+    allDecks
     []
+    zeroedDecks
+    [moatCard]
+    curseCard
+  where
+    allDecks = basicDecks (length (c ^. #playerDefs)) `Map.union` makeDecks (c ^. #kingdomCards)
+    zeroedDecks = fmap (const 0) allDecks
 
 runGames :: Int -> DominionConfig -> StdGen -> [Doc ann]
 runGames 0 _ _ = []

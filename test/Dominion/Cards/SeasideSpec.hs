@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, islandCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, islandCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -61,6 +61,15 @@ spec = do
             length (p1AfterCard ^. #hand) `shouldBe` 4
         it "gives the other player a copy" $ do
             length (p2AfterCard ^. #discard) `shouldBe` 11
+
+    describe "Embargo action" $  do
+        let afterCard = execState ((embargoCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        let (Just p2AfterCard) = afterCard ^? #players . ix 1
+        it "adds an embargo token to the first Supply deck" $ do
+            (snd . head $ Map.toList $ afterCard ^. #embargoes) `shouldBe` 1
+        it "gives two money" $ do
+            (p1AfterCard ^. #money) `shouldBe` 2
 
     describe "Island action" $ do
         let afterCard = execState ((islandCard ^. #action) p0) afterDeal

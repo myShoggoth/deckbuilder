@@ -35,7 +35,7 @@ import DeckBuilding.Dominion.Types
       Card(cardName),
       DominionAIGame(..),
       DominionState,
-      DominionBuy(DominionBuy) )
+      DominionBuy(DominionBuy), DominionBoard (embargoes) )
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
 
@@ -116,8 +116,21 @@ discardCard card p = do
   (field @"players" . ix (unPlayerNumber p) . field @"discard") %= (++ [card])
   (field @"players" . ix (unPlayerNumber p) . field @"hand") .= newHand
 
--- | Run the moves the AI has requested, this is where the bulk of the
--- game state changes actually take place.
+-- | Take n cards from a Supply deck and put them in the
+-- player's discard pile. Return how many were successfully
+-- taken.
+supplyToDiscard :: Card -> PlayerNumber -> Int -> DominionState ()
+supplyToDiscard _ _ 0 = return ()
+supplyToDiscard c p n = do
+  decks <- use #decks
+  if c `Map.notMember` decks || decks Map.! c <= 0
+    then return ()
+    else do
+      field @"players" . ix (unPlayerNumber p) . #discard %= (c:)
+      field @"decks" %= Map.mapWithKey (decreaseCards c)
+      supplyToDiscard c p (n - 1)
+
+-- | Run the buys the AI requested.
 executeBuys :: [DominionBuy] -> DominionAIGame -> DominionState ()
 executeBuys [] _ = return ()
 executeBuys ((DominionBuy _ c):xs) g = do
@@ -136,16 +149,19 @@ executeBuys ((DominionBuy _ c):xs) g = do
       ds <- use #decks
       when (ds Map.! c <= 0) $ -- TODO: Couldn't make the lens version see the type instance, why not?
         error $ "Buy move requested by " <> show p <> " with empty deck of " <> show (cardName c) <> ".\n"
-      field @"decks" %= Map.mapWithKey (decreaseCards c)
-      (field @"players" . ix (unPlayerNumber p) . #discard) %= (c:)
+      supplyToDiscard c p 1
       (field @"players" . ix (unPlayerNumber p) . #buys) -= 1
       (field @"players" . ix (unPlayerNumber p) . #money) -= (c ^. #cost)
+      ems <- use #embargoes
+      ep <- use #embargoPenalty
+      supplyToDiscard ep p (ems Map.! c)
 
 mkDominionAIGame :: PlayerNumber -> DominionState DominionAIGame
 mkDominionAIGame pnum = do
   thePlayer <- findPlayer pnum
   decks' <- use #decks
   trash' <- use #trash
+  embargoes' <- use #embargoes
   pure DominionAIGame
     { playerNum = pnum
     , hand = thePlayer ^. #hand
@@ -157,6 +173,7 @@ mkDominionAIGame pnum = do
     , cards = buildCardMap thePlayer
     , trash = trash'
     , decks = decks'
+    , embargoes = embargoes'
     }
   where
     buildCardMap :: DominionPlayer -> Map.Map Card Int

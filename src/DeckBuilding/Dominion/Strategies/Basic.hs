@@ -28,6 +28,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyCardWeight
     , bigMoneyIsland
     , bigMoneyAmbassador
+    , bigMoneyEmbargo
     ) where
 
 import Control.Lens ( (^.) )
@@ -66,6 +67,7 @@ import DeckBuilding.Dominion.Types
     , DominionBuy )
 import DeckBuilding.Dominion.Utils ( findPlayer )
 import DeckBuilding.Types (PlayerNumber)
+import qualified Data.Map as Map
 
 -- Strategies
 
@@ -88,6 +90,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyLurker
                             bigMoneyIsland
                             bigMoneyAmbassador
+                            bigMoneyEmbargo
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -192,6 +195,10 @@ bigMoneyAmbassador g =
                     then [x, x]
                     else [x]
 
+-- | Just pile the embargo tokens on the first card
+bigMoneyEmbargo :: DominionAIGame -> Card
+bigMoneyEmbargo g = fst . head $ Map.toList (g ^. #embargoes)
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -211,6 +218,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyLurker
                              bigMoneyIsland
                              bigMoneyAmbassador
+                             bigMoneyEmbargo
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -268,6 +276,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyLurker
                                 bigMoneyIsland
                                 bigMoneyAmbassador
+                                bigMoneyEmbargo
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
@@ -365,6 +374,7 @@ doBuys g ((x, f):xs) =
                                 , cards = g ^. #cards -- TODO include the new card in this
                                 , trash = g ^. #trash
                                 , decks = g ^. #decks -- TODO should remove bought card
+                                , embargoes = g ^. #embargoes
                                 }
                       in dm : doBuys g' xs
     else []

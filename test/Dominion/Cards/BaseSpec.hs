@@ -45,14 +45,14 @@ import DeckBuilding.Dominion.Cards
       smithyCard,
       throneRoomCard,
       vassalCard,
-      witchCard )
+      witchCard, moatCard )
 import DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyStrategy, bigSmithyStrategy )
 import DeckBuilding.Dominion.Types
     ( DominionConfig(DominionConfig),
       DominionBoard(DominionBoard),
       DominionPlayer(DominionPlayer),
-      DominionState )
+      DominionState, Card (Card) )
 import DeckBuilding.Dominion.Utils ( deal, cardPlayed )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber) )
 import System.Random ( mkStdGen )
@@ -124,7 +124,7 @@ spec = do
   describe "vassalCardAction" $
     it "draws a value card" $ do
       let forcedDeal = DominionPlayer "Vassal Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] bigMoneyStrategy
-      let afterCard = execState (evaluateHand p0) $ DominionBoard [forcedDeal] (basicDecks 2) [] g
+      let afterCard = execState (evaluateHand p0) $ DominionBoard [forcedDeal] (basicDecks 2) [] (Map.fromList [] :: Map.Map Card Int) [moatCard] curseCard g
       let (Just p1AfterCard) = afterCard ^? #players . ix 0
       (p1AfterCard ^. #money) `shouldBe` 5
       length (p1AfterCard ^. #hand) `shouldBe` 0
@@ -136,7 +136,7 @@ spec = do
   describe "bureaucratCardAction" $ do
     let forcedDeal  = DominionPlayer "Bureaurat Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] bigMoneyStrategy
     let (Just p1AfterDeal) = afterDeal ^? #players . ix 0
-    let afterCard   = execState ((bureaucratCard ^. #action) p0) $ DominionBoard [p1AfterDeal, forcedDeal] (basicDecks 2) [] g
+    let afterCard   = execState ((bureaucratCard ^. #action) p0) $ DominionBoard [p1AfterDeal, forcedDeal] (basicDecks 2) [] (Map.fromList [] :: Map.Map Card Int) [moatCard] curseCard g
     let (Just p1AfterCard) = afterCard ^? #players . ix 0
     it "puts a silver on the deck" $ do
       head (p1AfterCard ^. #deck) `shouldBe` silverCard
@@ -194,7 +194,7 @@ spec = do
       length (p1AfterCard ^. #hand) `shouldBe` 5
     it "will play Smithy twice in the bigSmithyStrategy" $ do
       let forcedDeal = DominionPlayer "Throne Room Deal" (replicate 5 copperCard) [] [throneRoomCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] bigSmithyStrategy
-      let afterCard = execState (evaluateHand p0) $ DominionBoard [forcedDeal] (basicDecks 2) [] g
+      let afterCard = execState (evaluateHand p0) $ DominionBoard [forcedDeal] (basicDecks 2) [] (Map.fromList [] :: Map.Map Card Int) [moatCard] curseCard g
       let (Just p1AfterCard) = afterCard ^? #players . ix 0
       (p1AfterCard ^. #actions) `shouldBe` 0
       length (p1AfterCard ^. #hand) `shouldBe` 0
@@ -213,7 +213,7 @@ spec = do
     it "trashes an opponent's silver" $ do
       let forcedDeal = DominionPlayer "Bandit Deal" (silverCard: replicate 5 copperCard) [] [estateCard, smithyCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] bigSmithyStrategy
       let (Just p1AfterDeal)  = afterDeal ^? #players . ix 0
-      let afterCard = execState ((banditCard ^. #action) p0) $ DominionBoard [p1AfterDeal, forcedDeal] (basicDecks 2) [] g
+      let afterCard = execState ((banditCard ^. #action) p0) $ DominionBoard [p1AfterDeal, forcedDeal] (basicDecks 2) [] (Map.fromList [] :: Map.Map Card Int) [moatCard] curseCard g
       let (Just fd) = afterCard ^? #players . ix 1
       length (fd ^. #discard) `shouldBe` 1
       length (fd ^. #deck) `shouldBe` 4

@@ -5,13 +5,14 @@
 
 module DeckBuilding.Dominion.Cards.Seaside
 (
-    islandCard,
-    ambassadorCard
+    ambassadorCard,
+    embargoCard,
+    islandCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island), CardType (Action))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo), CardType (Action))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
-import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=) )
+import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards )
@@ -59,6 +60,26 @@ ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 
                             field @"decks" %= Map.mapWithKey (decreaseCards c)
                             field @"players" . ix (unPlayerNumber p) . #discard %= (c:)
                             return (p, Right $ Just c)
+
+
+-- | +$2
+--
+-- Trash this card. Put an Embargo token on top of a Supply pile.
+-- -----
+-- When a player buys a card, he gains a Curse card per Embargo token on that pile.
+embargoCard :: Card
+embargoCard = Card "Embargo" 2 embargoCardAction Action (simpleVictory 0)
+    where
+        embargoCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        embargoCardAction p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let supplyCard = (thePlayer ^. #strategy . #embargoStrategy) aig
+            field @"embargoes" %= Map.mapWithKey (increaseCards supplyCard 1)
+            field @"players" . ix (unPlayerNumber p) . #money += 2
+            field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [embargoCard]
+            field @"trash" %= (embargoCard:)
+            return $ Just $ Embargo supplyCard
 
 
 -- | 2VP

@@ -59,6 +59,7 @@ data DominionAction =
       Conspirator DominionDraw |
       CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |
       Courtyard DominionDraw |
+      Embargo Card |
       Festival |
       Harbinger DominionDraw (Maybe Card) |
       Island (Maybe Card) |
@@ -113,6 +114,13 @@ data DominionBoard = DominionBoard {
   decks   :: Map.Map Card Int,
   -- | The trash pile.
   trash   :: [Card],
+  -- | Embargo tiles (Seaside expansion)
+  embargoes  :: Map.Map Card Int,
+
+  -- I'm putting these here to avoid cyclic dependencies, I would like a better solution.
+  defenders :: [Card],
+  embargoPenalty :: Card,
+
   -- | The current random number generator, needs to be updated when used.
   random  :: StdGen
 } deriving stock (Show, Generic)
@@ -138,7 +146,9 @@ data DominionAIGame = DominionAIGame {
   -- | The trash pile.
   trash      :: [Card],
   -- | All the decks, basic and Kingdom: (Card, Number Left)
-  decks      :: Map.Map Card Int
+  decks      :: Map.Map Card Int,
+  -- | Embargo tiles (Seaside expansion)
+  embargoes  :: Map.Map Card Int
 } deriving stock (Show, Generic)
 
 -- | The two 'CardType's are
@@ -246,7 +256,9 @@ data Strategy = Strategy {
   islandStrategy     :: DominionAIGame -> Maybe Card,
   -- | Pick one or two (identical) cards to put back in the supply
   -- and make other players gain.
-  ambassadorStrategy :: DominionAIGame -> [Card]
+  ambassadorStrategy :: DominionAIGame -> [Card],
+  -- | Pick a Supply pile to put an Embargo token on
+  embargoStrategy :: DominionAIGame -> Card
 } deriving stock (Generic)
 
 instance Show Strategy where
