@@ -62,6 +62,8 @@ data DominionAction =
       Embargo Card |
       Festival |
       Harbinger DominionDraw (Maybe Card) |
+      Haven DominionDraw Card |
+      HavenDuration Card |
       Island (Maybe Card) |
       Ironworks DominionDraw DominionDraw |
       Remodel Card Card |
@@ -123,7 +125,7 @@ data DominionBoard = DominionBoard {
 
   -- | The current random number generator, needs to be updated when used.
   random  :: StdGen
-} deriving stock (Show, Generic)
+} deriving stock (Generic)
 
 -- | The redacted state of the game for use by 'Strategy' functions.
 data DominionAIGame = DominionAIGame {
@@ -151,13 +153,16 @@ data DominionAIGame = DominionAIGame {
   embargoes  :: Map.Map Card Int
 } deriving stock (Show, Generic)
 
--- | The two 'CardType's are
+-- | The three 'CardType's are
 -- * 'Value' - The 'Card' does not require an action to play,
 -- and normally givens money or victory points (not useful
 -- until scoring).
 -- * 'Action' - Does require an action to play, each type of action
 -- 'Card' has its own logic.
-data CardType = Value | Action
+-- * 'Duration' - For Action - Duration cards, the Action function
+-- is called when initially played, and the Duration function is
+-- called at the beginning of the next turn.
+data CardType = Value | Action | Duration
   deriving (Show, Eq)
 
 -- | A Dominion card, basic supply, kingdom, or expansion.
@@ -258,7 +263,9 @@ data Strategy = Strategy {
   -- and make other players gain.
   ambassadorStrategy :: DominionAIGame -> [Card],
   -- | Pick a Supply pile to put an Embargo token on
-  embargoStrategy :: DominionAIGame -> Card
+  embargoStrategy :: DominionAIGame -> Card,
+  -- | Pick a Card to set aside for the next turn
+  havenStrategy :: DominionAIGame -> Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -291,10 +298,13 @@ data DominionPlayer = DominionPlayer {
   turns      :: Int,
   -- | The Island mat contents (Seaside Expansion)
   island     :: [Card],
+  -- | Duration cards' duration actions to be run at the
+  -- start of the following turn.
+  duration   :: [PlayerNumber -> DominionState (Maybe DominionAction)],
   -- NOTE: Add new items above the strategy
   -- | The Strategy used by this player.
   strategy   :: Strategy
-} deriving stock (Show, Generic)
+} deriving stock (Generic)
 
 instance Eq DominionPlayer where
   a == b = playerName a == playerName b

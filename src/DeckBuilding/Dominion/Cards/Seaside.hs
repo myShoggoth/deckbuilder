@@ -7,13 +7,14 @@ module DeckBuilding.Dominion.Cards.Seaside
 (
     ambassadorCard,
     embargoCard,
+    havenCard,
     islandCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo), CardType (Action))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration), CardType (Action, Duration))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=) )
-import DeckBuilding.Dominion.Cards.Utils (simpleVictory)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards )
 import Data.Generics.Product (HasField(field))
@@ -81,6 +82,27 @@ embargoCard = Card "Embargo" 2 embargoCardAction Action (simpleVictory 0)
             field @"trash" %= (embargoCard:)
             return $ Just $ Embargo supplyCard
 
+-- | +1 Card
+-- + 1 Action
+--
+-- Set aside a card from your hand face down (under this). At the start
+-- of your next turn, put it into your hand.
+havenCard :: Card
+havenCard = Card "Haven" 2 havenCardAction Duration (simpleVictory 0)
+    where
+        havenCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        havenCardAction p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            drawn <- basicCardAction 1 0 0 0 p
+            let havened = (thePlayer ^. #strategy . #havenStrategy) aig
+            field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [havenCard, havened]
+            field @"players" . ix (unPlayerNumber p) . #duration %= (havenCardDuration havened:)
+            pure $ Just $ Haven drawn havened
+        havenCardDuration :: Card -> PlayerNumber -> DominionState (Maybe DominionAction)
+        havenCardDuration c p = do
+            field @"players" . ix (unPlayerNumber p) . #hand %= (c:)
+            pure $ Just $ HavenDuration c
 
 -- | 2VP
 --

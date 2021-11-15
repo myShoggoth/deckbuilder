@@ -29,6 +29,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyIsland
     , bigMoneyAmbassador
     , bigMoneyEmbargo
+    , bigMoneyHaven
     ) where
 
 import Control.Lens ( (^.) )
@@ -51,7 +52,7 @@ import DeckBuilding.Dominion.Cards
       laboratoryCard,
       cellarCard,
       militiaCard,
-      remodelCard )
+      remodelCard, throneRoomCard )
 import DeckBuilding.Dominion.Cards.Utils ( gainCard )
 import DeckBuilding.Dominion.Strategies.Utils
     ( alwaysBuy,
@@ -68,6 +69,7 @@ import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Utils ( findPlayer )
 import DeckBuilding.Types (PlayerNumber)
 import qualified Data.Map as Map
+import DeckBuilding.Dominion.Cards.Base (estateCard)
 
 -- Strategies
 
@@ -91,6 +93,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyIsland
                             bigMoneyAmbassador
                             bigMoneyEmbargo
+                            bigMoneyHaven
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -199,6 +202,19 @@ bigMoneyAmbassador g =
 bigMoneyEmbargo :: DominionAIGame -> Card
 bigMoneyEmbargo g = fst . head $ Map.toList (g ^. #embargoes)
 
+-- | I dunno, I guess have an ordered list and do that?
+-- This is not great, since it is possible to not find
+-- one of these cards in the hand, which would bottom out.
+bigMoneyHaven :: DominionAIGame -> Card
+bigMoneyHaven g = head $ take 1 $ (g ^. #hand) `intersect` havenCards
+  where havenCards = [ goldCard
+                     , silverCard
+                     , smithyCard
+                     , throneRoomCard
+                     , copperCard
+                     , estateCard
+                     ]
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -219,6 +235,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyIsland
                              bigMoneyAmbassador
                              bigMoneyEmbargo
+                             bigMoneyHaven
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -277,6 +294,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyIsland
                                 bigMoneyAmbassador
                                 bigMoneyEmbargo
+                                bigMoneyHaven
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]

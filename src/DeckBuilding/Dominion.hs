@@ -76,6 +76,7 @@ import Control.Monad.List ( forM_ )
 import Control.Parallel.Strategies ( rseq, rpar, runEval )
 import Prettyprinter ( Doc, pretty )
 import DeckBuilding.Dominion.Pretty ()
+import Data.Maybe (catMaybes)
 
 -- Dominion
 
@@ -83,7 +84,7 @@ import DeckBuilding.Dominion.Pretty ()
 
 -- | Creates a new player with a name and strategy and the default started deck.
 newPlayer :: Text.Text -> Strategy -> DominionPlayer
-newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 1 []
+newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 1 [] []
 
 {- |
   Evaluates the cards in the deck. Since cards can cause more to be drawn,
@@ -112,7 +113,7 @@ evaluateHand pnum = do
 -- remaining action points.
 evaluateCard :: Card -> PlayerNumber -> DominionPlayer -> DominionState (Maybe DominionAction)
 evaluateCard c@(Card _ _ _ Value _) pnum _ = evaluateCard' c pnum
-evaluateCard c pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _ _) = do
+evaluateCard c pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _ _ _) = do
   discardCard c pnum
   pure Nothing
 evaluateCard c pnum _ = evaluateCard' c pnum
@@ -215,9 +216,11 @@ runPlayerTurns (x:xs) = do
 
 runPlayerTurn :: PlayerNumber -> DominionState DominionPlayerTurn
 runPlayerTurn p = do
+  thePlayer <- findPlayer p
+  durations <- mapM (\f -> f p) (thePlayer ^. #duration)
+  field @"players" . ix (unPlayerNumber p) . #duration .= []
   actns <- evaluateHand p
   aig <- mkDominionAIGame p
-  thePlayer <- findPlayer p
   let bys = thePlayer ^. #strategy . #buyStrategy $ aig
   executeBuys bys aig
   resetTurn p
@@ -226,7 +229,7 @@ runPlayerTurn p = do
           p
           (thePlayer ^. #turns)
           bys
-          actns
+          (catMaybes durations ++ actns)
           (DominionDraw dealt)
 
 instance Game DominionBoard where

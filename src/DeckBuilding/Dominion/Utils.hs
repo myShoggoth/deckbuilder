@@ -31,7 +31,7 @@ import Data.List ( delete, find, group, sort )
 import qualified Data.Map as Map
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
-    ( DominionPlayer,
+    ( DominionPlayer (playerName),
       Card(cardName),
       DominionAIGame(..),
       DominionState,
@@ -143,9 +143,9 @@ executeBuys ((DominionBuy _ c):xs) g = do
     buyCard p = do
       thePlayer <- findPlayer p
       when (thePlayer ^. #buys <= 0) $
-        error $ "Buy move requested by " <> show p <> " without buys.\n" <> show thePlayer
+        error $ "Buy move requested by " <> show p <> " without buys.\n"
       when ((c ^. #cost) > (thePlayer ^. #money)) $
-        error $ "Buy move requested by " <> show p <> " without enough money.\n" <> show thePlayer
+        error $ "Buy move requested by " <> show p <> " without enough money.\n"
       ds <- use #decks
       when (ds Map.! c <= 0) $ -- TODO: Couldn't make the lens version see the type instance, why not?
         error $ "Buy move requested by " <> show p <> " with empty deck of " <> show (cardName c) <> ".\n"

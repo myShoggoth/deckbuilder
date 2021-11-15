@@ -389,12 +389,11 @@ poacherCard     = Card "Poacher"      4 poacherCardAction Action (simpleVictory 
     poacherCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
-      theDraw <- deal 1 p
-      _ <- basicCardAction 0 0 0 1 p
+      theDraw <- basicCardAction 1 0 0 1 p
       emptyDecks <- numEmptyDecks
       let discards = (thePlayer ^. #strategy . #discardStrategy) aig (emptyDecks, emptyDecks)
       discardCards p discards
-      return $ Just $ Poacher (DominionDraw theDraw) discards
+      return $ Just $ Poacher theDraw discards
 
 -- | Trash a card from your hand. Gain a card costing up to $2 more than it.
 remodelCard :: Card
@@ -589,7 +588,7 @@ sentryCard    = Card "Sentry"       5 sentryCardAction Action (simpleVictory 0)
   where
     sentryCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     sentryCardAction p = do
-      _ <- basicCardAction 1 0 0 0 p
+      drawn <- basicCardAction 1 0 0 0 p
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let oldhand = thePlayer ^. #hand
@@ -599,7 +598,7 @@ sentryCard    = Card "Sentry"       5 sentryCardAction Action (simpleVictory 0)
       field @"players" . ix (unPlayerNumber p) . #discard %= (disc ++)
       field @"players" . ix (unPlayerNumber p) . #deck %= (keep ++)
       field @"players" . ix (unPlayerNumber p) . #hand .= oldhand
-      return $ Just $ Sentry (DominionDraw newcards) trashem disc keep
+      return $ Just $ Sentry drawn trashem disc keep
 
 -- | Gain a card to your hand costing up to $5.
 -- Put a card from your hand onto your deck.
