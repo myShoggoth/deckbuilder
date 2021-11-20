@@ -19,7 +19,7 @@ import DeckBuilding.Dominion.Types
                      Duchy, Province, Gardens, Artisan, Bandit, Chapel, Cellar,
                      Festival, Harbinger, Island, Remodel, Laboratory, Library, Market,
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
-                     ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration),
+                     ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration, NativeVillage),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -97,6 +97,8 @@ instance Pretty DominionAction where
     pretty (Mine c1 c2) = "Mine " <> viaShow c1 <> " into " <> viaShow c2
     pretty (Moat (DominionDraw xs)) = "Moat draws" <+> hsep (map pretty xs)
     pretty MoneyLender = pretty ("MoneyLender" :: Text.Text)
+    pretty (NativeVillage (Left c)) = "Native Village a " <> viaShow c
+    pretty (NativeVillage (Right xs)) = "Native Village " <+> hsep (map pretty xs) <+> "into hand"
     pretty (Poacher (DominionDraw xs) ys) = "Poacher draws" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
     pretty (Sentry (DominionDraw ws) xs ys zs) = "Sentry draws" <+> hsep (map pretty ws) <+> "trashes" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys) <+> "keeps" <+> hsep (map pretty zs)
     pretty (Smithy (DominionDraw xs)) = "Smithy draws" <+> hsep (map pretty xs)

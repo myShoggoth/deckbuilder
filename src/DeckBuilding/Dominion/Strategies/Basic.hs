@@ -30,6 +30,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyAmbassador
     , bigMoneyEmbargo
     , bigMoneyHaven
+    , bigMoneyNativeIsland
     ) where
 
 import Control.Lens ( (^.) )
@@ -94,6 +95,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyAmbassador
                             bigMoneyEmbargo
                             bigMoneyHaven
+                            bigMoneyNativeIsland
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -215,6 +217,11 @@ bigMoneyHaven g = head $ take 1 $ (g ^. #hand) `intersect` havenCards
                      , estateCard
                      ]
 
+-- | Dumb implementation: if the mat is empty, add to it,
+-- otherwise pull its contents
+bigMoneyNativeIsland :: DominionAIGame -> Bool
+bigMoneyNativeIsland g = null $ g ^. #nativeVillages
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -236,6 +243,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyAmbassador
                              bigMoneyEmbargo
                              bigMoneyHaven
+                             bigMoneyNativeIsland
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -295,6 +303,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyAmbassador
                                 bigMoneyEmbargo
                                 bigMoneyHaven
+                                bigMoneyNativeIsland
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]

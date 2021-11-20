@@ -43,7 +43,12 @@ valueCardAction m a p = do
   (field @"players" . ix (unPlayerNumber p) . #money) += m
   pure $ Just a
 
-basicCardAction :: Int -> Int -> Int -> Int  -> PlayerNumber -> DominionState DominionDraw
+basicCardAction :: Int -- ^ Number of cards to draw
+  -> Int -- ^ Number of actions (minus the one being used now)
+  -> Int -- ^ Number of additional buys
+  -> Int -- ^ Amount of additional money
+  -> PlayerNumber -- ^ Player number of the current player
+  -> DominionState DominionDraw
 basicCardAction d a b m p = do
   (field @"players" . ix (unPlayerNumber p) . #actions) += a
   (field @"players" . ix (unPlayerNumber p) . #buys) += b

@@ -31,7 +31,7 @@ import Data.List ( delete, find, group, sort )
 import qualified Data.Map as Map
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
-    ( DominionPlayer (playerName),
+    ( DominionPlayer (playerName, nativeVillage),
       Card(cardName),
       DominionAIGame(..),
       DominionState,
@@ -174,6 +174,7 @@ mkDominionAIGame pnum = do
     , trash = trash'
     , decks = decks'
     , embargoes = embargoes'
+    , nativeVillages = thePlayer ^. #nativeVillage
     }
   where
     buildCardMap :: DominionPlayer -> Map.Map Card Int

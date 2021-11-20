@@ -8,10 +8,11 @@ module DeckBuilding.Dominion.Cards.Seaside
     ambassadorCard,
     embargoCard,
     havenCard,
-    islandCard
+    islandCard,
+    nativeVillageCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration), CardType (Action, Duration))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
@@ -124,3 +125,28 @@ islandCard = Card "Island" 4 islandCardAction Action (simpleVictory 2)
                     field @"players" . ix (unPlayerNumber p) . #island %= (c:)
                     pure $ Just $ Island mc
 
+-- | + 2 Actions
+--
+-- Choose one: Put the top card of your deck face down on your Native
+-- Village mat (you may look at those cards at any time); or put all
+-- the cards from your mat into your hand.
+nativeVillageCard :: Card
+nativeVillageCard = Card "Native Village" 2 nativeVillageCardAction Action (simpleVictory 0)
+    where
+        nativeVillageCardAction :: PlayerNumber  -> DominionState (Maybe DominionAction)
+        nativeVillageCardAction p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let addToMat = (thePlayer ^. #strategy . #nativeVillageStrategy) aig
+            if addToMat
+                then do
+                    (DominionDraw drawn) <- basicCardAction 1 1 0 0 p
+                    thePlayer' <- findPlayer p
+                    field @"players" . ix (unPlayerNumber p) . #nativeVillage %= (++drawn)
+                    field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer' ^. #hand) drawn
+                    pure $ Just $ NativeVillage $ Left (head drawn)
+                else do
+                    let villaged = thePlayer ^. #nativeVillage
+                    field @"players" . ix (unPlayerNumber p) . #hand %= (++villaged)
+                    field @"players" . ix (unPlayerNumber p) . #nativeVillage .= []
+                    pure $ Just $ NativeVillage $ Right villaged

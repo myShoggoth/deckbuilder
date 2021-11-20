@@ -7,14 +7,14 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, havenCard, islandCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, havenCard, islandCard, nativeVillageCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber), Game (tallyPoints) )
 import DeckBuilding.Dominion.Types
     ( Card,
-      DominionPlayer(DominionPlayer),
+      DominionPlayer(DominionPlayer, nativeVillage),
       DominionConfig(DominionConfig),
       Strategy(Strategy),
       DominionState,
@@ -90,3 +90,15 @@ spec = do
         it "counts cards on the Island in the final score" $ do
             let afterCardDone = evalState tallyPoints afterCard
             Map.fromList afterCardDone Map.! "Player 1" `shouldBe` 5
+
+    describe "Native Village action" $ do
+        let afterCard = execState ((nativeVillageCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        let afterCard' = execState ((nativeVillageCard ^. #action) p0) afterCard
+        let (Just p1AfterCard') = afterCard' ^? #players . ix 0
+        it "adds the top of the deck to the Native Village at" $ do
+            length (p1AfterCard ^. #nativeVillage) `shouldBe` 1
+            length (p1AfterCard ^. #deck) `shouldBe` 4
+        it "puts the contents of the Native Village into the hand" $ do
+            length (p1AfterCard' ^. #nativeVillage) `shouldBe` 0
+            length (p1AfterCard' ^. #hand) `shouldBe` 6

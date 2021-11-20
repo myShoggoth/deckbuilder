@@ -76,6 +76,7 @@ data DominionAction =
       Mine Card Card |
       Moat DominionDraw |
       MoneyLender |
+      NativeVillage (Either Card [Card]) |
       Poacher DominionDraw [Card] |
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
@@ -150,7 +151,9 @@ data DominionAIGame = DominionAIGame {
   -- | All the decks, basic and Kingdom: (Card, Number Left)
   decks      :: Map.Map Card Int,
   -- | Embargo tiles (Seaside expansion)
-  embargoes  :: Map.Map Card Int
+  embargoes  :: Map.Map Card Int,
+  -- | Contents of the Native Village mat (Seaside expansion)
+  nativeVillages :: [Card]
 } deriving stock (Show, Generic)
 
 -- | The three 'CardType's are
@@ -265,7 +268,10 @@ data Strategy = Strategy {
   -- | Pick a Supply pile to put an Embargo token on
   embargoStrategy :: DominionAIGame -> Card,
   -- | Pick a Card to set aside for the next turn
-  havenStrategy :: DominionAIGame -> Card
+  havenStrategy :: DominionAIGame -> Card,
+  -- | Add the top card of the deck to the Native Village mat (True),
+  -- or bring all of the cards from that mat into the hand (False)?
+  nativeVillageStrategy :: DominionAIGame -> Bool
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -301,6 +307,8 @@ data DominionPlayer = DominionPlayer {
   -- | Duration cards' duration actions to be run at the
   -- start of the following turn.
   duration   :: [PlayerNumber -> DominionState (Maybe DominionAction)],
+  -- | Native Village mat contents
+  nativeVillage :: [Card],
   -- NOTE: Add new items above the strategy
   -- | The Strategy used by this player.
   strategy   :: Strategy
