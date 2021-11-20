@@ -9,10 +9,11 @@ module DeckBuilding.Dominion.Cards.Seaside
     embargoCard,
     havenCard,
     islandCard,
-    nativeVillageCard
+    nativeVillageCard,
+    pearlDiverCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
@@ -21,6 +22,8 @@ import DeckBuilding.Dominion.Utils
 import Data.Generics.Product (HasField(field))
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack)
+import Control.Monad (when)
+import Safe (lastMay)
 
 -- | Reveal a card from your hand. Return up to 2 copies
 -- of it from your hand to the Supply. Then each other player
@@ -150,3 +153,28 @@ nativeVillageCard = Card "Native Village" 2 nativeVillageCardAction Action (simp
                     field @"players" . ix (unPlayerNumber p) . #hand %= (++villaged)
                     field @"players" . ix (unPlayerNumber p) . #nativeVillage .= []
                     pure $ Just $ NativeVillage $ Right villaged
+
+-- | +1 Card
+-- +1 Action
+--
+-- Look at the bottom card of your deck. You may put it on top.
+pearlDiverCard :: Card
+pearlDiverCard = Card "Pearl Diver" 2 pearlDiverCardAction Action (simpleVictory 0)
+    where
+        pearlDiverCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        pearlDiverCardAction p = do
+            drawn <- basicCardAction 1 0 0 0 p
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let mc = lastMay $ thePlayer ^. #deck
+            -- TODO: There's a corner case here where the basicCardAction draw above
+            -- gets the last card in the deck that isn't handled, should force a
+            -- reshuffling of the discards into the deck again. Need a clean way to
+            -- handle this.
+            case mc of
+                Nothing -> pure Nothing
+                Just c -> do
+                    let moveToTop = (thePlayer ^. #strategy . #pearlDiverStrategy) aig c
+                    when moveToTop $
+                        field @"players" . ix (unPlayerNumber p) . #deck .= c : init (thePlayer ^. #deck)
+                    pure $ Just $ PearlDiver drawn c moveToTop

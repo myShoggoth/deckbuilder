@@ -77,6 +77,7 @@ data DominionAction =
       Moat DominionDraw |
       MoneyLender |
       NativeVillage (Either Card [Card]) |
+      PearlDiver DominionDraw Card Bool |
       Poacher DominionDraw [Card] |
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
@@ -271,7 +272,9 @@ data Strategy = Strategy {
   havenStrategy :: DominionAIGame -> Card,
   -- | Add the top card of the deck to the Native Village mat (True),
   -- or bring all of the cards from that mat into the hand (False)?
-  nativeVillageStrategy :: DominionAIGame -> Bool
+  nativeVillageStrategy :: DominionAIGame -> Bool,
+  -- | Do we move this card from the bottom of the deck to the top?
+  pearlDiverStrategy :: DominionAIGame -> Card -> Bool
 } deriving stock (Generic)
 
 instance Show Strategy where

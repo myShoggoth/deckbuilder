@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, havenCard, islandCard, nativeVillageCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, havenCard, islandCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -38,6 +38,7 @@ import DeckBuilding.Dominion.Strategies.Basic
 import DeckBuilding.Dominion
     ( basicDecks, configToGame, makeDecks )
 import qualified Data.Map as Map
+import Safe (headMay, lastMay)
 
 spec :: Spec
 spec = do
@@ -102,3 +103,9 @@ spec = do
         it "puts the contents of the Native Village into the hand" $ do
             length (p1AfterCard' ^. #nativeVillage) `shouldBe` 0
             length (p1AfterCard' ^. #hand) `shouldBe` 6
+
+    describe "Pearl Diver action" $ do
+        let afterCard = execState ((pearlDiverCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "moves the bottom card of the deck to the top" $ do
+            lastMay (p1AfterDeal ^. #deck) `shouldBe` headMay (p1AfterCard ^. #deck)

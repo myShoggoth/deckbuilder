@@ -83,6 +83,7 @@ test-suite deckbuilder-test
                      , lens
                      , mtl
                      , random
+                     , safe
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   other-modules:       DominionSpec
                      , Dominion.CardsSpec

@@ -30,7 +30,8 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyAmbassador
     , bigMoneyEmbargo
     , bigMoneyHaven
-    , bigMoneyNativeIsland
+    , bigMoneyNativeVillage
+    , bigMoneyPearlDiver
     ) where
 
 import Control.Lens ( (^.) )
@@ -66,7 +67,7 @@ import DeckBuilding.Dominion.Types
     , DominionState
     , Strategy(Strategy)
     , DominionAIGame(..)
-    , DominionBuy )
+    , DominionBuy, DominionPlayer (nativeVillage) )
 import DeckBuilding.Dominion.Utils ( findPlayer )
 import DeckBuilding.Types (PlayerNumber)
 import qualified Data.Map as Map
@@ -95,7 +96,8 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyAmbassador
                             bigMoneyEmbargo
                             bigMoneyHaven
-                            bigMoneyNativeIsland
+                            bigMoneyNativeVillage
+                            bigMoneyPearlDiver
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -219,8 +221,14 @@ bigMoneyHaven g = head $ take 1 $ (g ^. #hand) `intersect` havenCards
 
 -- | Dumb implementation: if the mat is empty, add to it,
 -- otherwise pull its contents
-bigMoneyNativeIsland :: DominionAIGame -> Bool
-bigMoneyNativeIsland g = null $ g ^. #nativeVillages
+bigMoneyNativeVillage :: DominionAIGame -> Bool
+bigMoneyNativeVillage g = null $ g ^. #nativeVillages
+
+-- | Just have a simple list of good cards
+bigMoneyPearlDiver :: DominionAIGame -> Card -> Bool 
+bigMoneyPearlDiver g c = c `elem` pearls
+  where
+    pearls = [goldCard, silverCard, copperCard]
 
 -- Big smithy
 
@@ -243,7 +251,9 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyAmbassador
                              bigMoneyEmbargo
                              bigMoneyHaven
-                             bigMoneyNativeIsland
+                             bigMoneyNativeVillage
+                             bigMoneyPearlDiver
+
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -303,7 +313,8 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyAmbassador
                                 bigMoneyEmbargo
                                 bigMoneyHaven
-                                bigMoneyNativeIsland
+                                bigMoneyNativeVillage
+                                bigMoneyPearlDiver
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
@@ -402,6 +413,7 @@ doBuys g ((x, f):xs) =
                                 , trash = g ^. #trash
                                 , decks = g ^. #decks -- TODO should remove bought card
                                 , embargoes = g ^. #embargoes
+                                , nativeVillages = g ^. #nativeVillages
                                 }
                       in dm : doBuys g' xs
     else []

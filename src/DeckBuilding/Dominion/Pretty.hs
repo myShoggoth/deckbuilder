@@ -19,7 +19,7 @@ import DeckBuilding.Dominion.Types
                      Duchy, Province, Gardens, Artisan, Bandit, Chapel, Cellar,
                      Festival, Harbinger, Island, Remodel, Laboratory, Library, Market,
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
-                     ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration, NativeVillage),
+                     ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -99,6 +99,8 @@ instance Pretty DominionAction where
     pretty MoneyLender = pretty ("MoneyLender" :: Text.Text)
     pretty (NativeVillage (Left c)) = "Native Village a " <> viaShow c
     pretty (NativeVillage (Right xs)) = "Native Village " <+> hsep (map pretty xs) <+> "into hand"
+    pretty (PearlDiver (DominionDraw xs) c True) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> viaShow c <> " on the bottom of the deck and moves it to the top."
+    pretty (PearlDiver (DominionDraw xs) c False) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> viaShow c <> " on the bottom of the deck leaves it."
     pretty (Poacher (DominionDraw xs) ys) = "Poacher draws" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
     pretty (Sentry (DominionDraw ws) xs ys zs) = "Sentry draws" <+> hsep (map pretty ws) <+> "trashes" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys) <+> "keeps" <+> hsep (map pretty zs)
     pretty (Smithy (DominionDraw xs)) = "Smithy draws" <+> hsep (map pretty xs)
