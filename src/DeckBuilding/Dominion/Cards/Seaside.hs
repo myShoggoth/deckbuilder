@@ -7,13 +7,14 @@ module DeckBuilding.Dominion.Cards.Seaside
 (
     ambassadorCard,
     embargoCard,
+    fishingVillageCard,
     havenCard,
     islandCard,
     nativeVillageCard,
     pearlDiverCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
@@ -85,6 +86,23 @@ embargoCard = Card "Embargo" 2 embargoCardAction Action (simpleVictory 0)
             field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [embargoCard]
             field @"trash" %= (embargoCard:)
             return $ Just $ Embargo supplyCard
+
+-- | +2 Actions
+-- +$1
+--
+-- At the start of your next turn: +1 Action and +$1.
+fishingVillageCard :: Card
+fishingVillageCard = Card "Fishing Village" 3 fishingVillageCardAction Duration (simpleVictory 0)
+    where
+        fishingVillageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        fishingVillageCardAction p = do
+            _ <- basicCardAction 0 1 0 1 p
+            field @"players" . ix (unPlayerNumber p) . #duration %= (fishingVillageCardDuration:)
+            pure $ Just FishingVillage
+        fishingVillageCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        fishingVillageCardDuration p = do
+            _ <- basicCardAction 0 1 0 1 p
+            pure $ Just FishingVillageDuration
 
 -- | +1 Card
 -- + 1 Action

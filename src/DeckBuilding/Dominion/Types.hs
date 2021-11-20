@@ -61,6 +61,8 @@ data DominionAction =
       Courtyard DominionDraw |
       Embargo Card |
       Festival |
+      FishingVillage |
+      FishingVillageDuration |
       Harbinger DominionDraw (Maybe Card) |
       Haven DominionDraw Card |
       HavenDuration Card |

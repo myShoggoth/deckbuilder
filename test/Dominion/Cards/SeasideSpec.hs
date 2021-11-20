@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, havenCard, islandCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -71,6 +71,20 @@ spec = do
             (snd . head $ Map.toList $ afterCard ^. #embargoes) `shouldBe` 1
         it "gives two money" $ do
             (p1AfterCard ^. #money) `shouldBe` 2
+
+    describe "Fishing Village action" $ do
+        let afterCard = execState ((fishingVillageCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        let afterCard' = execState (((p1AfterCard ^. #duration) !! 0) p0) afterCard
+        let (Just p1AfterCard') = afterCard' ^? #players . ix 0
+        it "adds a duration entry" $ do
+            length (p1AfterCard ^. #duration) `shouldBe` 1
+        it "adds two actions and one money" $ do
+            p1AfterCard ^. #money `shouldBe` 1
+            p1AfterCard ^. #actions `shouldBe` 2
+        it "adds one action and one money the next turn" $ do
+            p1AfterCard' ^. #money `shouldBe` 2
+            p1AfterCard' ^. #actions `shouldBe` 3
 
     describe "Haven action" $ do
         let afterCard = execState ((havenCard ^. #action) p0) afterDeal
