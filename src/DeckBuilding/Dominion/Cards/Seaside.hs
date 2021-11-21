@@ -11,16 +11,17 @@ module DeckBuilding.Dominion.Cards.Seaside
     havenCard,
     islandCard,
     lighthouseCard,
+    lookoutCard,
     nativeVillageCard,
     pearlDiverCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
 import DeckBuilding.Dominion.Utils
-    ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards )
+    ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack)
@@ -172,6 +173,25 @@ lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Action (simpleVictory 
             _ <- basicCardAction 0 1 0 1 p
             field @"players" . ix (unPlayerNumber p) . #lighthouse -= 1
             pure $ Just LighthouseDuration
+
+-- | +1 Action
+--
+-- Look at the top 3 cards of your deck. Trash one of them. Discard one of them. Put the other one back on to your deck.
+lookoutCard :: Card
+lookoutCard = Card "Lookout" 3 lookoutCardAction Action (simpleVictory 0)
+    where
+        lookoutCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        lookoutCardAction p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let oldhand = thePlayer ^. #hand
+            newcards <- deal 3 p
+            let (trashem, disc, keep) = (thePlayer ^. #strategy . #lookoutStrategy) aig newcards
+            field @"trash" %= (trashem:)
+            field @"players" . ix (unPlayerNumber p) . #discard %= (disc:)
+            field @"players" . ix (unPlayerNumber p) . #deck %= (keep:)
+            field @"players" . ix (unPlayerNumber p) . #hand .= oldhand
+            return $ Just $ Lookout trashem disc keep
 
 -- | + 2 Actions
 --

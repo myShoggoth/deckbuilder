@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -115,6 +115,14 @@ spec = do
             p1AfterCard ^. #lighthouse `shouldBe` 1
         it "decrements the lighthouse counter in the duration" $ do
             p1AfterCard' ^. #lighthouse `shouldBe` 0
+
+    describe "Lookout action" $ do
+        let afterCard = execState ((lookoutCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "trashes one, discards one, puts one back on the deck" $ do
+            length (p1AfterCard ^. #discard) `shouldBe` 1
+            length (afterCard ^. #trash) `shouldBe` 1
+            length (p1AfterCard ^. #deck) `shouldBe` 3
 
     describe "Native Village action" $ do
         let afterCard = execState ((nativeVillageCard ^. #action) p0) afterDeal

@@ -74,6 +74,7 @@ data DominionAction =
       Library [Card] [Card] |
       Lighthouse |
       LighthouseDuration |
+      Lookout Card Card Card |
       Lurker (Either Card Card) |
       Market DominionDraw |
       Merchant DominionDraw |
@@ -279,7 +280,10 @@ data Strategy = Strategy {
   -- or bring all of the cards from that mat into the hand (False)?
   nativeVillageStrategy :: DominionAIGame -> Bool,
   -- | Do we move this card from the bottom of the deck to the top?
-  pearlDiverStrategy :: DominionAIGame -> Card -> Bool
+  pearlDiverStrategy :: DominionAIGame -> Card -> Bool,
+  -- | Take three cards from the deck, pick one fo trash, one to discard,
+  -- and one to return to the deck.
+  lookoutStrategy :: DominionAIGame -> [Card] -> (Card, Card, Card)
 } deriving stock (Generic)
 
 instance Show Strategy where

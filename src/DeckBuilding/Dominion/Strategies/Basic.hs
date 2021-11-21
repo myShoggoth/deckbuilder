@@ -32,6 +32,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyHaven
     , bigMoneyNativeVillage
     , bigMoneyPearlDiver
+    , bigMoneyLookout
     ) where
 
 import Control.Lens ( (^.) )
@@ -98,6 +99,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyHaven
                             bigMoneyNativeVillage
                             bigMoneyPearlDiver
+                            bigMoneyLookout
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -230,6 +232,11 @@ bigMoneyPearlDiver g c = c `elem` pearls
   where
     pearls = [goldCard, silverCard, copperCard]
 
+-- | No logic, just give them back in order
+bigMoneyLookout :: DominionAIGame -> [Card] -> (Card, Card, Card)
+bigMoneyLookout _ (x:y:z:[]) = (x, y, z)
+bigMoneyLookout _ _ = error "bigMoneyLookout called with anything other than three cards?!"
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -253,7 +260,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyHaven
                              bigMoneyNativeVillage
                              bigMoneyPearlDiver
-
+                             bigMoneyLookout
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -315,6 +322,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyHaven
                                 bigMoneyNativeVillage
                                 bigMoneyPearlDiver
+                                bigMoneyLookout
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
