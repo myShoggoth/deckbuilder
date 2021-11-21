@@ -298,7 +298,7 @@ vassalCard      = Card "Vassal"     3 vassalCardAction Action (simpleVictory 0)
 -- TODO: This needs to move to Utils and handle cards beyond Moat.
 defendsAgainstAttack :: Card -> DominionPlayer -> Maybe Card
 defendsAgainstAttack _ p =
-  if moatCard `elem` p ^. #hand
+  if moatCard `elem` p ^. #hand || p ^. #lighthouse > 0
     then Just moatCard
     else Nothing
 

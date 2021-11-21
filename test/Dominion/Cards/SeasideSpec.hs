@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -75,7 +75,7 @@ spec = do
     describe "Fishing Village action" $ do
         let afterCard = execState ((fishingVillageCard ^. #action) p0) afterDeal
         let (Just p1AfterCard) = afterCard ^? #players . ix 0
-        let afterCard' = execState (((p1AfterCard ^. #duration) !! 0) p0) afterCard
+        let afterCard' = execState (head (p1AfterCard ^. #duration) p0) afterCard
         let (Just p1AfterCard') = afterCard' ^? #players . ix 0
         it "adds a duration entry" $ do
             length (p1AfterCard ^. #duration) `shouldBe` 1
@@ -105,6 +105,16 @@ spec = do
         it "counts cards on the Island in the final score" $ do
             let afterCardDone = evalState tallyPoints afterCard
             Map.fromList afterCardDone Map.! "Player 1" `shouldBe` 5
+
+    describe "Lighthouse action" $ do
+        let afterCard = execState ((lighthouseCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        let afterCard' = execState (head (p1AfterCard ^. #duration) p0) afterCard
+        let (Just p1AfterCard') = afterCard' ^? #players . ix 0
+        it "increments the lighthouse counter" $ do
+            p1AfterCard ^. #lighthouse `shouldBe` 1
+        it "decrements the lighthouse counter in the duration" $ do
+            p1AfterCard' ^. #lighthouse `shouldBe` 0
 
     describe "Native Village action" $ do
         let afterCard = execState ((nativeVillageCard ^. #action) p0) afterDeal

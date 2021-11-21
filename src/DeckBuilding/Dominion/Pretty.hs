@@ -19,7 +19,7 @@ import DeckBuilding.Dominion.Types
                      Duchy, Province, Gardens, Artisan, Bandit, Chapel, Cellar,
                      Festival, Harbinger, Island, Remodel, Laboratory, Library, Market,
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
-                     ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration),
+                     ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -94,6 +94,8 @@ instance Pretty DominionAction where
     pretty (Remodel c1 c2) = "Remodels " <> viaShow c1 <> " into " <> viaShow c2
     pretty (Laboratory (DominionDraw xs)) = "Laboratory draws" <+> hsep (map pretty xs)
     pretty (Library xs ys) = "Library draws " <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
+    pretty Lighthouse = pretty ("Lighthouse" :: Text.Text)
+    pretty LighthouseDuration = pretty ("Lighthouse (Duration)" :: Text.Text)
     pretty (Market (DominionDraw xs)) = "Market draws" <+> hsep (map pretty xs)
     pretty (Merchant (DominionDraw xs)) = "Merchant draws" <+> hsep (map pretty xs)
     pretty (Mine c1 c2) = "Mine " <> viaShow c1 <> " into " <> viaShow c2

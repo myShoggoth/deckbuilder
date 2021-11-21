@@ -10,13 +10,14 @@ module DeckBuilding.Dominion.Cards.Seaside
     fishingVillageCard,
     havenCard,
     islandCard,
+    lighthouseCard,
     nativeVillageCard,
     pearlDiverCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
-import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=) )
+import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards )
@@ -130,7 +131,7 @@ havenCard = Card "Haven" 2 havenCardAction Duration (simpleVictory 0)
 --
 -- Put this and a card from your hand onto your Island mat.
 islandCard :: Card
-islandCard = Card "Island" 4 islandCardAction Action (simpleVictory 2)
+islandCard = Card "Island" 4 islandCardAction Duration (simpleVictory 2)
     where
         islandCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         islandCardAction p = do
@@ -145,6 +146,25 @@ islandCard = Card "Island" 4 islandCardAction Action (simpleVictory 2)
                     field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [c]
                     field @"players" . ix (unPlayerNumber p) . #island %= (c:)
                     pure $ Just $ Island mc
+
+-- | +1 Action
+-- Now and at the start of your next turn: +$1.
+--
+-- While this is in play, when another player plays an Attack card, it doesn’t affect you.
+lighthouseCard :: Card
+lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Action (simpleVictory 0)
+    where
+        lighthouseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        lighthouseCardAction p = do
+            _ <- basicCardAction 0 0 0 1 p
+            field @"players" . ix (unPlayerNumber p) . #duration %= (lighthouseCardDuration:)
+            field @"players" . ix (unPlayerNumber p) . #lighthouse += 1
+            pure $ Just Lighthouse
+        lighthouseCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        lighthouseCardDuration p = do
+            _ <- basicCardAction 0 1 0 1 p
+            field @"players" . ix (unPlayerNumber p) . #lighthouse -= 1
+            pure $ Just LighthouseDuration
 
 -- | + 2 Actions
 --

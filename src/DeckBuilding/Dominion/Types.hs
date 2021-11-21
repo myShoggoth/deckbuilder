@@ -71,6 +71,8 @@ data DominionAction =
       Remodel Card Card |
       Laboratory DominionDraw |
       Library [Card] [Card] |
+      Lighthouse |
+      LighthouseDuration |
       Lurker (Either Card Card) |
       Market DominionDraw |
       Merchant DominionDraw |
@@ -314,6 +316,8 @@ data DominionPlayer = DominionPlayer {
   duration   :: [PlayerNumber -> DominionState (Maybe DominionAction)],
   -- | Native Village mat contents
   nativeVillage :: [Card],
+  -- | How many Lighthouses are protecting this player?
+  lighthouse :: Int,
   -- NOTE: Add new items above the strategy
   -- | The Strategy used by this player.
   strategy   :: Strategy
