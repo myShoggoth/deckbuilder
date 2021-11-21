@@ -13,13 +13,14 @@ module DeckBuilding.Dominion.Cards.Seaside
     lighthouseCard,
     lookoutCard,
     nativeVillageCard,
-    pearlDiverCard
+    pearlDiverCard,
+    warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
-import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
@@ -243,3 +244,15 @@ pearlDiverCard = Card "Pearl Diver" 2 pearlDiverCardAction Action (simpleVictory
                     when moveToTop $
                         field @"players" . ix (unPlayerNumber p) . #deck .= c : init (thePlayer ^. #deck)
                     pure $ Just $ PearlDiver drawn c moveToTop
+
+warehouseCard :: Card
+warehouseCard = Card "Warehouse" 3 warehouseCardAction Action (simpleVictory 0)
+    where
+        warehouseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        warehouseCardAction p = do
+            drawn <- basicCardAction 3 0 0 0 p
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let discards = (thePlayer ^. #strategy . #discardStrategy) aig (3, 3)
+            discardCards p discards
+            pure $ Just $ Warehouse drawn discards

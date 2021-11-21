@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -141,3 +141,10 @@ spec = do
         let (Just p1AfterCard) = afterCard ^? #players . ix 0
         it "moves the bottom card of the deck to the top" $ do
             lastMay (p1AfterDeal ^. #deck) `shouldBe` headMay (p1AfterCard ^. #deck)
+
+    describe "Warehouse action" $ do
+        let afterCard = execState ((warehouseCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "draws and then discards three" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 5
+            length (p1AfterCard ^. #discard) `shouldBe` 3

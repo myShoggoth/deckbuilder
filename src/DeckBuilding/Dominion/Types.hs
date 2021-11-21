@@ -92,6 +92,7 @@ data DominionAction =
       Vassal (Maybe DominionAction) |
       Village DominionDraw |
       Witch DominionDraw (Map.Map PlayerNumber (Either Card (Maybe Card))) |
+      Warehouse DominionDraw [Card] |
       Workshop Card
   deriving stock (Show)
 

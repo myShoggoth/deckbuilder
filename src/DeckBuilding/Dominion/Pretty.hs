@@ -21,7 +21,7 @@ import DeckBuilding.Dominion.Types
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
                      ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration,
                      NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration,
-                     Lighthouse, LighthouseDuration, Bazaar),
+                     Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -99,6 +99,7 @@ instance Pretty DominionAction where
     pretty (Library xs ys) = "Library draws " <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
     pretty Lighthouse = pretty ("Lighthouse" :: Text.Text)
     pretty LighthouseDuration = pretty ("Lighthouse (Duration)" :: Text.Text)
+    pretty (Lookout x y z) = "Lookout trashed " <> viaShow x <> ", discarded " <> viaShow y <> ", and put " <> viaShow z <> " back on the deck."
     pretty (Market (DominionDraw xs)) = "Market draws" <+> hsep (map pretty xs)
     pretty (Merchant (DominionDraw xs)) = "Merchant draws" <+> hsep (map pretty xs)
     pretty (Mine c1 c2) = "Mine " <> viaShow c1 <> " into " <> viaShow c2
@@ -114,6 +115,7 @@ instance Pretty DominionAction where
     pretty (ThroneRoom c da1 da2) = "Throne Rooms " <> viaShow c <> "for" <+> hsep (map pretty [da1, da2])
     pretty (Vassal mda) = "Vassal " <> viaShow mda
     pretty (Village (DominionDraw xs)) = "Village draws" <+> hsep (map pretty xs)
+    pretty (Warehouse (DominionDraw xs) ys) = "Warehouse draws" <+> hsep (map pretty xs) <+> "and discards" <+> hsep (map pretty ys)
     pretty (Workshop c) = "Workshop gains " <> viaShow c
     pretty _ = pretty ("Unknown action" :: Text.Text) -- TODO: This needs to go away as soon as the tricky ones are implemented
 {-    
