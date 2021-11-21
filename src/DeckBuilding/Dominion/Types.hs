@@ -53,6 +53,7 @@ data DominionAction =
       Ambassador [Card] (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Artisan Card Card |
       Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
+      Bazaar DominionDraw |
       Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
       Chapel [Card] |
       Cellar [Card] DominionDraw |

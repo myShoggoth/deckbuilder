@@ -15,7 +15,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     pearlDiverCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction)
@@ -68,6 +68,13 @@ ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 
                             field @"players" . ix (unPlayerNumber p) . #discard %= (c:)
                             return (p, Right $ Just c)
 
+bazaarCard :: Card
+bazaarCard = Card "Bazaar" 5 bazaarCardAction Action (simpleVictory 0)
+    where
+        bazaarCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        bazaarCardAction p = do
+            drawn <- basicCardAction 1 1 0 1 p
+            pure $ Just $ Bazaar drawn
 
 -- | +$2
 --
