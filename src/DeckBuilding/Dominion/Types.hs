@@ -55,6 +55,8 @@ data DominionAction =
       Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
       Bazaar DominionDraw |
       Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
+      Caravan DominionDraw |
+      CaravanDuration DominionDraw |
       Chapel [Card] |
       Cellar [Card] DominionDraw |
       Conspirator DominionDraw |

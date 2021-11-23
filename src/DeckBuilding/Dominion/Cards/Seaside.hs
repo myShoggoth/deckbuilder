@@ -6,6 +6,7 @@
 module DeckBuilding.Dominion.Cards.Seaside
 (
     ambassadorCard,
+    caravanCard,
     embargoCard,
     fishingVillageCard,
     havenCard,
@@ -17,7 +18,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards)
@@ -77,6 +78,19 @@ bazaarCard = Card "Bazaar" 5 bazaarCardAction Action (simpleVictory 0)
         bazaarCardAction p = do
             drawn <- basicCardAction 1 1 0 1 p
             pure $ Just $ Bazaar drawn
+
+caravanCard :: Card
+caravanCard = Card "Caravan" 4 caravanCardAction Duration (simpleVictory 0)
+    where
+        caravanCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        caravanCardAction p = do
+            drawn <- basicCardAction 1 0 0 0 p
+            field @"players" . ix (unPlayerNumber p) . #duration %= (caravanCardDuration:)
+            pure $ Just $ Caravan drawn
+        caravanCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        caravanCardDuration p = do
+            drawn <- basicCardAction 1 0 0 0 p
+            pure $ Just $ CaravanDuration drawn
 
 -- | +$2
 --

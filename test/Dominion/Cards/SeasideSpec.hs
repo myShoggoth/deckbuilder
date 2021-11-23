@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -62,6 +62,19 @@ spec = do
             length (p1AfterCard ^. #hand) `shouldBe` 4
         it "gives the other player a copy" $ do
             length (p2AfterCard ^. #discard) `shouldBe` 11
+
+    describe "Caravan action" $ do
+        let afterCard = execState ((caravanCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        let afterCard' = execState (head (p1AfterCard ^. #duration) p0) afterCard
+        let (Just p1AfterCard') = afterCard' ^? #players . ix 0
+        it "adds a duration entry" $ do
+            length (p1AfterCard ^. #duration) `shouldBe` 1
+        it "draws a card, does not use an action" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 6
+            p1AfterCard ^. #actions `shouldBe` 1
+        it "duration action draws another card" $ do
+            length (p1AfterCard' ^. #hand) `shouldBe` 7
 
     describe "Embargo action" $  do
         let afterCard = execState ((embargoCard ^. #action) p0) afterDeal
