@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -75,6 +75,16 @@ spec = do
             p1AfterCard ^. #actions `shouldBe` 1
         it "duration action draws another card" $ do
             length (p1AfterCard' ^. #hand) `shouldBe` 7
+
+    describe "Cutpurse action" $ do
+        let afterCard = execState (deal 5 p1) afterDeal
+        let afterCard2 = execState ((cutpurseCard ^. #action) p0) afterCard
+        let (Just p1AfterCard) = afterCard2 ^? #players . ix 0
+        let (Just p2AfterCard) = afterCard2 ^? #players . ix 1
+        it "gives 2 money" $ do
+            p1AfterCard ^. #money `shouldBe` 2
+        it "discards a copper from the opponent's hand" $ do
+            length (p2AfterCard ^. #hand) `shouldBe` 4
 
     describe "Embargo action" $  do
         let afterCard = execState ((embargoCard ^. #action) p0) afterDeal

@@ -7,6 +7,7 @@ module DeckBuilding.Dominion.Cards.Seaside
 (
     ambassadorCard,
     caravanCard,
+    cutpurseCard,
     embargoCard,
     fishingVillageCard,
     havenCard,
@@ -18,7 +19,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards)
@@ -26,7 +27,7 @@ import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
 import qualified Data.Map as Map
-import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack)
+import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard)
 import Control.Monad (when)
 import Safe (lastMay)
 
@@ -71,6 +72,9 @@ ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 
                             field @"players" . ix (unPlayerNumber p) . #discard %= (c:)
                             return (p, Right $ Just c)
 
+-- | +1 Card
+-- +2 Actions
+-- +$1.
 bazaarCard :: Card
 bazaarCard = Card "Bazaar" 5 bazaarCardAction Action (simpleVictory 0)
     where
@@ -79,6 +83,10 @@ bazaarCard = Card "Bazaar" 5 bazaarCardAction Action (simpleVictory 0)
             drawn <- basicCardAction 1 1 0 1 p
             pure $ Just $ Bazaar drawn
 
+-- | +1 Card
+-- +1 Action
+--
+-- At the start of your next turn, +1 Card.
 caravanCard :: Card
 caravanCard = Card "Caravan" 4 caravanCardAction Duration (simpleVictory 0)
     where
@@ -91,6 +99,34 @@ caravanCard = Card "Caravan" 4 caravanCardAction Duration (simpleVictory 0)
         caravanCardDuration p = do
             drawn <- basicCardAction 1 0 0 0 p
             pure $ Just $ CaravanDuration drawn
+
+-- | +$2
+--
+-- Each other player discards a Copper (or reveals a hand with no Copper).
+cutpurseCard :: Card
+cutpurseCard = Card "Cutpurse" 4 cutpurseCardAction Action (simpleVictory 0)
+    where
+        cutpurseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        cutpurseCardAction p = do
+            players' <- use #players
+            _ <- basicCardAction 0 0 0 2 p
+            playerResponses <- mapM (cutpurseDiscard p) $ PlayerNumber <$> [0.. length players' - 1]
+            pure $ Just $ Cutpurse $ Map.fromList playerResponses
+        cutpurseDiscard :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
+        cutpurseDiscard e p | e == p = return (e, Right Nothing)
+        cutpurseDiscard _ p = do
+            thePlayer <- findPlayer p
+            case defendsAgainstAttack cutpurseCard thePlayer of
+                Just defender -> return (p, Left defender)
+                Nothing -> do
+                    aig <- mkDominionAIGame p
+                    if copperCard `elem` thePlayer ^. #hand
+                        then do
+                            field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [copperCard]
+                            field @"players" . ix (unPlayerNumber p) . #discard %= (copperCard:)
+                            return (p, Right $ Just copperCard)
+                        else
+                            return (p, Right Nothing)
 
 -- | +$2
 --

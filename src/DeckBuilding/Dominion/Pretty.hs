@@ -123,6 +123,7 @@ instance Pretty DominionAction where
 {-    
       Ambassador [Card] (Map.Map PlayerNumber (Either Card (Maybe Card)))
       Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
+      Cutpurse (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |
       Militia (Map.Map PlayerNumber (Either Card [Card])) |
       Witch [Card] (Map.Map PlayerNumber (Either Card (Maybe Card))) |

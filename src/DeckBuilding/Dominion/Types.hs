@@ -62,6 +62,7 @@ data DominionAction =
       Conspirator DominionDraw |
       CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |
       Courtyard DominionDraw |
+      Cutpurse (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Embargo Card |
       Festival |
       FishingVillage |
