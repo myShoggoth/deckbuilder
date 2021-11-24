@@ -19,7 +19,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards)
@@ -252,7 +252,7 @@ lookoutCard = Card "Lookout" 3 lookoutCardAction Action (simpleVictory 0)
 nativeVillageCard :: Card
 nativeVillageCard = Card "Native Village" 2 nativeVillageCardAction Action (simpleVictory 0)
     where
-        nativeVillageCardAction :: PlayerNumber  -> DominionState (Maybe DominionAction)
+        nativeVillageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         nativeVillageCardAction p = do
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
@@ -269,6 +269,24 @@ nativeVillageCard = Card "Native Village" 2 nativeVillageCardAction Action (simp
                     field @"players" . ix (unPlayerNumber p) . #hand %= (++villaged)
                     field @"players" . ix (unPlayerNumber p) . #nativeVillage .= []
                     pure $ Just $ NativeVillage $ Right villaged
+
+-- | +$2
+--
+-- Look at the top 5 cards of your deck. Either discard them all, or put them back in any order.
+navigatorCard :: Card
+navigatorCard = Card "Navigator" 4 navigatorCardAction Action (simpleVictory 0)
+    where
+        navigatorCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        navigatorCardAction p = do
+            (DominionDraw drawn) <- basicCardAction 5 0 0 2 p
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let reorder = (thePlayer ^. #strategy . #navigatorStrategy) aig drawn
+            thePlayer' <- findPlayer p
+            case reorder of
+                [] -> field @"players" . ix (unPlayerNumber p) . #discard %= (reorder++)
+                xs -> field @"players" . ix (unPlayerNumber p) . #deck .= xs ++ thePlayer' ^. #hand
+            pure $ Just $ Navigator reorder
 
 -- | +1 Card
 -- +1 Action

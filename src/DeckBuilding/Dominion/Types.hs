@@ -86,6 +86,7 @@ data DominionAction =
       Moat DominionDraw |
       MoneyLender |
       NativeVillage (Either Card [Card]) |
+      Navigator [Card] |
       PearlDiver DominionDraw Card Bool |
       Poacher DominionDraw [Card] |
       Sentry DominionDraw [Card] [Card] [Card] |
@@ -287,7 +288,10 @@ data Strategy = Strategy {
   pearlDiverStrategy :: DominionAIGame -> Card -> Bool,
   -- | Take three cards from the deck, pick one fo trash, one to discard,
   -- and one to return to the deck.
-  lookoutStrategy :: DominionAIGame -> [Card] -> (Card, Card, Card)
+  lookoutStrategy :: DominionAIGame -> [Card] -> (Card, Card, Card),
+  -- | Look at the cards, either return an empty list to discard all of
+  -- the originals, or reorder to be put back on the top of the deck.
+  navigatorStrategy :: DominionAIGame -> [Card] -> [Card]
 } deriving stock (Generic)
 
 instance Show Strategy where

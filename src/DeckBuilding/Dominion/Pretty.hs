@@ -21,7 +21,7 @@ import DeckBuilding.Dominion.Types
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
                      ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration,
                      NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration,
-                     Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration),
+                     Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Navigator),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -109,6 +109,8 @@ instance Pretty DominionAction where
     pretty MoneyLender = pretty ("MoneyLender" :: Text.Text)
     pretty (NativeVillage (Left c)) = "Native Village a " <> viaShow c
     pretty (NativeVillage (Right xs)) = "Native Village " <+> hsep (map pretty xs) <+> "into hand"
+    pretty (Navigator []) = pretty ("Navigator discards all." :: Text.Text)
+    pretty (Navigator xs) = "Navigator puts cards back on the deck in the order" <+> hsep (map pretty xs)
     pretty (PearlDiver (DominionDraw xs) c True) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> viaShow c <> " on the bottom of the deck and moves it to the top."
     pretty (PearlDiver (DominionDraw xs) c False) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> viaShow c <> " on the bottom of the deck leaves it."
     pretty (Poacher (DominionDraw xs) ys) = "Poacher draws" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)

@@ -159,6 +159,12 @@ spec = do
             length (p1AfterCard' ^. #nativeVillage) `shouldBe` 0
             length (p1AfterCard' ^. #hand) `shouldBe` 6
 
+    describe "Navigator action" $  do
+        let afterCard = execState ((embargoCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "gives two money" $ do
+            (p1AfterCard ^. #money) `shouldBe` 2
+
     describe "Pearl Diver action" $ do
         let afterCard = execState ((pearlDiverCard ^. #action) p0) afterDeal
         let (Just p1AfterCard) = afterCard ^? #players . ix 0
