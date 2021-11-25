@@ -33,12 +33,8 @@ deal 0   _    = return []
 deal num pnum = do
   p <- findPlayer pnum
   r <- use $ #random
-  let (enoughDeck, newDiscard)
-          | length (p ^. #deck) >= num   = (p ^. #deck, p ^. #discard)
-          | null (p ^. #discard)         = (p ^. #deck, [])
-          | otherwise                   = ( (p ^. #deck) ++ shuffle' (p ^. #discard) (length (p ^. #discard)) r, [])
-  let (newCards, newDeck)  = splitAt num enoughDeck
-  field @"random" %= (snd . split)
+  let (r', newCards, newDeck, newDiscard) = deal' r (p ^. #deck) (p ^. #discard) num
+  field @"random" .= r'
   (field @"players" . ix (unPlayerNumber pnum) . #deck) .= newDeck
   (field @"players" . ix (unPlayerNumber pnum) . #discard) .= newDiscard
   (field @"players" . ix (unPlayerNumber pnum) . #hand) %= (++ newCards)

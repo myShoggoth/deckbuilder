@@ -37,22 +37,19 @@ import DeckBuilding.Dominion.Types
       DominionBuy(DominionBuy) )
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
+import DeckBuilding (deal')
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> PlayerNumber -> DominionState [Card]
 deal 0   _    = return []
 deal num pnum = do
   p <- findPlayer pnum
-  r <- use $ field @"random"
-  let (enoughDeck, newDiscard)
-          | length (p ^. field @"deck") >= num   = (p ^. field @"deck", p ^. field @"discard")
-          | null (p ^. field @"discard")         = (p ^. field @"deck", [])
-          | otherwise                            = ( (p ^. field @"deck") ++ shuffle' (p ^. field @"discard") (length (p ^. field @"discard")) r, [])
-  let (newCards, newDeck)  = splitAt num enoughDeck
-  field @"random" %= snd . split
-  (field @"players" . ix (unPlayerNumber pnum) . field @"deck") .= newDeck
-  (field @"players" . ix (unPlayerNumber pnum) . field @"discard") .= newDiscard
-  (field @"players" . ix (unPlayerNumber pnum) . field @"hand") %= (++ newCards)
+  r <- use $ #random
+  let (r', newCards, newDeck, newDiscard) = deal' r (p ^. #deck) (p ^. #discard) num
+  field @"random" .= r'
+  (field @"players" . ix (unPlayerNumber pnum) . #deck) .= newDeck
+  (field @"players" . ix (unPlayerNumber pnum) . #discard) .= newDiscard
+  (field @"players" . ix (unPlayerNumber pnum) . #hand) %= (++ newCards)
   return newCards
 
 -- | How many of the game's decks have been emptied?
