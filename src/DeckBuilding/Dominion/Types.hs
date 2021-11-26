@@ -52,15 +52,15 @@ data DominionAction =
       Curse | Estate | Duchy | Province | Gardens | Duke |
       Artisan Card Card |
       Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
-      Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
+      Bureaucrat (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Chapel [Card] |
       Cellar [Card] DominionDraw |
       Conspirator DominionDraw |
       CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |
-      Courtyard DominionDraw |
+      Courtyard DominionDraw [Card] |
       Festival |
       Harbinger DominionDraw (Maybe Card) |
-      Ironworks DominionDraw DominionDraw |
+      Ironworks Card DominionDraw |
       Remodel Card Card |
       Laboratory DominionDraw |
       Library [Card] [Card] |

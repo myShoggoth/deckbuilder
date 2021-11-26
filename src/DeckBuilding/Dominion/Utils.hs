@@ -55,7 +55,7 @@ deal num pnum = do
 -- | How many of the game's decks have been emptied?
 numEmptyDecks :: DominionState Int
 numEmptyDecks = do
-  decks' <- use $ field @"decks"
+  decks' <- use $ #decks
   return $ length $ Map.filter (== 0) decks'
 
 -- | Move a card from the player's hand to their played pile.
@@ -76,7 +76,7 @@ decreaseCards c1 c2 n = if c1 == c2
 isCardInPlay :: Card -> DominionState Bool
 isCardInPlay c = do
   gs <- get
-  return $ c `Map.member` (gs ^. field @"decks") && (gs ^. field @"decks") Map.! c > 0
+  return $ c `Map.member` (gs ^. #decks) && (gs ^. #decks) Map.! c > 0
 
 -- | Find the first card, if any, in the list which is still in play.
 firstCardInPlay :: [Card] -> DominionState (Maybe Card)
