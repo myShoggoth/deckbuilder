@@ -40,6 +40,7 @@ constantly write conversion code.
 
 > {-# LANGUAGE OverloadedStrings         #-}
 > {-# LANGUAGE StandaloneDeriving #-}
+> {-# LANGUAGE ScopedTypeVariables #-}
 
 Module declaration
 ------------------
@@ -66,7 +67,8 @@ using in this module from another one.
 > import Prettyprinter
 >    ( layoutPretty,
 >      vsep,
->      defaultLayoutOptions )
+>      defaultLayoutOptions,
+>      pretty )
 > import Prettyprinter.Render.Text ( renderStrict )
 
 Qualified Imports
@@ -88,6 +90,8 @@ Text.length.
 >      summary,
 >      verbosity,
 >      typFile )
+> import Test.QuickCheck (generate, Gen, arbitrary)
+> import DeckBuilding.Dominion.Types (DominionGame)
 
 Instance importing
 ------------------
@@ -114,6 +118,7 @@ parsed values.
 >  { times :: Int
 >  , out :: FilePath
 >  , seed :: Maybe Int
+>  , prettyTest :: Bool
 >  }
 >  deriving (Data, Typeable, Show, Eq)
 
@@ -127,6 +132,7 @@ for the cmdArgs parser.
 >  { times = 1 &= help "Number of games to run."
 >  , out = "deckgames.txt" &= typFile &= help "File name to write the game logs to, default is 'deckgames.txt'"
 >  , seed = Nothing &= help "Base seed for the entire run, default is RNG."
+>  , prettyTest = False &= help "Use QuickCheck to test pretty printing output by throwing random game results at it."
 >  } &= 
 >  verbosity &=
 >  help "stack run -- deckbuilder-exe --times 1 --out myfile.txt" &=
@@ -194,7 +200,10 @@ but that often makes the code harder to read.
   It returns a list of Doc ann, which is the pretty
   printed results. It then vertically separates them.
 
->  let res = vsep $ runGames n conf g
+>  arbs :: [DominionGame] <- generate arbitrary
+>  let res = if prettyTest args'
+>              then pretty arbs
+>              else vsep $ runGames n conf g
 
   Take that Doc ann and lay it out, then write it
   to the output file.
