@@ -88,6 +88,8 @@ instance Pretty DominionAction where
     pretty (Cellar xs (DominionDraw dds)) = "Cellar discards" <+> hsep (map pretty xs) <+> "and draws" <+> hsep (map pretty dds)
     pretty (Conspirator (DominionDraw xs)) = "Conspirator draws" <+> hsep (map pretty xs)
     pretty (CouncilRoom (DominionDraw xs) others) = "Council Room draws" <+> hsep (map pretty xs) <+> "and causes others to draw:" <+> vsep (map (\(k,v) -> "Player draws " <> pretty v) $ Map.toList others)
+    pretty (Courtyard (DominionDraw []) []) = "Courtyard cannot draw anything and has nothing to put back on the deck."
+    pretty (Courtyard (DominionDraw []) h2d) = "Courtyard is unable to draw any cards, and puts" <+> hsep (map pretty h2d) <+> "on the deck."
     pretty (Courtyard (DominionDraw xs) h2d) = "Courtyard draws" <+> hsep (map pretty xs) <+> "and puts" <+> hsep (map pretty h2d) <+> "on the deck."
     pretty Festival = pretty ("Festival" :: Text.Text)
     pretty (Harbinger (DominionDraw xs) c) = "Harbinger draws" <+> hsep (map pretty xs) <+> "and pulls" <> viaShow c <> " from the discards and puts it on their deck"
@@ -104,16 +106,18 @@ instance Pretty DominionAction where
     pretty (Mine c1 c2) = "Mine " <> viaShow c1 <> " into " <> viaShow c2
     pretty (Moat (DominionDraw xs)) = "Moat draws" <+> hsep (map pretty xs)
     pretty MoneyLender = pretty ("MoneyLender" :: Text.Text)
+    pretty (Poacher (DominionDraw []) ys) = "Poacher discards" <+> hsep (map pretty ys)
+    pretty (Poacher (DominionDraw xs) []) = "Poacher draws" <+> hsep (map pretty xs)
     pretty (Poacher (DominionDraw xs) ys) = "Poacher draws" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
     pretty (Sentry (DominionDraw ws) xs ys zs) = "Sentry draws" <+> hsep (map pretty ws) <+> "trashes" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys) <+> "keeps" <+> hsep (map pretty zs)
-    pretty (ShantyTown (DominionDraw []) hnd) = "Shanty Town reveals a hand with no actions: " <+> hsep (map pretty hnd)
+    pretty (ShantyTown (DominionDraw []) hnd) = "Shanty Town reveals a hand with no actions:" <+> hsep (map pretty hnd)
     pretty (ShantyTown (DominionDraw xs) hnd) = "Shanty Town draws" <+> hsep (map pretty xs) <+> "after revealing a hand with actions:" <+> hsep (map pretty hnd)
     pretty (Smithy (DominionDraw xs)) = "Smithy draws" <+> hsep (map pretty xs)
-    pretty (ThroneRoom c da1 da2) = "Throne Rooms " <> viaShow c <> " for" <+> hsep (map pretty [da1, da2])
+    pretty (ThroneRoom c da1 da2) = "Throne Rooms " <> viaShow c <> " for" <+> align (vsep $ map pretty [da1, da2])
     pretty (Vassal Nothing) = pretty ("Vassal" :: Text.Text)
-    pretty (Vassal (Just c)) = "Vassal plays " <> viaShow c
+    pretty (Vassal (Just c)) = "Vassal plays " <> pretty c
     pretty (Village (DominionDraw xs)) = "Village draws" <+> hsep (map pretty xs)
-    pretty (Witch (DominionDraw xs) ys) = "Witch:" <+> align (vsep $ "Draws " <> hsep (map pretty xs) : (map witchResponse $ Map.toList ys))
+    pretty (Witch (DominionDraw xs) ys) = "Witch:" <+> align (vsep $ "Draws " <> hsep (map pretty xs) : map witchResponse (Map.toList ys))
     pretty (Workshop c) = "Workshop gains " <> viaShow c
 
 militiaResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
