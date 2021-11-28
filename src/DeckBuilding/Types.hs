@@ -3,6 +3,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module DeckBuilding.Types
     ( module DeckBuilding.Types
@@ -10,6 +14,8 @@ module DeckBuilding.Types
 
 import Control.Monad.State.Lazy ( State )
 import Data.Text ( Text )
+import GHC.Generics (Generic)
+import Test.QuickCheck.Arbitrary (Arbitrary, CoArbitrary)
 
 -- | The result of a game. Includes the optional text representation
 -- of the move by move description of what happened (usually
@@ -23,7 +29,10 @@ data Result = Result
   deriving (Show, Eq)
 
 newtype PlayerNumber = PlayerNumber { unPlayerNumber :: Int }
-  deriving (Show, Eq, Ord) via Int
+  deriving (Show, Eq, Ord, Arbitrary) via Int
+
+instance CoArbitrary PlayerNumber
+deriving instance Generic PlayerNumber
 
 class Game g where
   -- | Create the initial state of the 'Game' turn.

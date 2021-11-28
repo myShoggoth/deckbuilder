@@ -39,12 +39,12 @@ courtyardCard   = Card "Courtyard"    2 courtyardCardAction Action (simpleVictor
   where
     courtyardCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     courtyardCardAction p = do
+      theDeal <- basicCardAction 3 (-1) 0 0 p
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       let cs = (thePlayer ^. #strategy . #handToDeckStrategy) aig 1
       handToDeck p cs
-      theDeal <- basicCardAction 3 (-1) 0 0 p
-      pure $ Just $ Courtyard theDeal
+      pure $ Just $ Courtyard theDeal cs
 
 -- | +1 Action
 --
@@ -127,13 +127,13 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
       case mc of
         Nothing   -> return Nothing
         Just card
-              | (card ^. #cardType) == Action -> pure $ Just $ Ironworks (DominionDraw [card]) (DominionDraw [])
+              | (card ^. #cardType) == Action -> pure $ Just $ Ironworks card (DominionDraw [])
               | card `elem` treasureCards             -> do
                 _ <- basicCardAction 0 (-1) 0 1 p
-                pure $ Just $ Ironworks (DominionDraw [card]) (DominionDraw [])
+                pure $ Just $ Ironworks card (DominionDraw [])
               | card `elem` victoryCards              -> do
                 theDeal <- basicCardAction 1 (-1) 0 0 p
-                pure $ Just $ Ironworks (DominionDraw [card]) theDeal
+                pure $ Just $ Ironworks card theDeal
         Just _ -> error "Ironworks: this should never happen."
 
 -- | Worth 1VP per Duchy you have.

@@ -49,6 +49,9 @@ library
                      , parallel
                      , safe
                      , text
+                     , generic-arbitrary >= 0.2.0
+                     , QuickCheck >= 2.14
+                     , quickcheck-instances
   default-language:    Haskell2010
 
 executable deckbuilder-exe
@@ -68,6 +71,7 @@ executable deckbuilder-exe
                      , prettyprinter
                      , mtl
                      , extra
+                     , QuickCheck >= 2.14
   default-language:    Haskell2010
 
 test-suite deckbuilder-test

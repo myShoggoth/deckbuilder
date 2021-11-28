@@ -8,6 +8,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
@@ -19,8 +21,11 @@ import qualified Data.Map as Map
 import qualified Data.Semigroup as Semi
 import Data.Text ( unpack, Text )
 import GHC.Generics ( Generic )
-import System.Random ( StdGen )
+import System.Random ( StdGen, mkStdGen )
 import DeckBuilding.Types ( PlayerNumber )
+import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..), Arbitrary (arbitrary))
+import Test.QuickCheck.Arbitrary (Arbitrary)
+import Test.QuickCheck.Instances ()
 
 data DominionGame = DominionGame
   { players :: [(Text, Strategy)]
@@ -31,9 +36,14 @@ data DominionGame = DominionGame
   , result :: Maybe [(Text, Int)]
   }
   deriving stock (Generic, Show)
+  deriving Arbitrary via GenericArbitrary DominionGame
+
+instance Arbitrary StdGen where
+  arbitrary = mkStdGen <$> arbitrary
 
 newtype DominionTurn = DominionTurn [DominionPlayerTurn]
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+  deriving Arbitrary via GenericArbitrary DominionTurn
 
 data DominionPlayerTurn = DominionPlayerTurn
   { playerNumber :: PlayerNumber
@@ -42,10 +52,12 @@ data DominionPlayerTurn = DominionPlayerTurn
   , actions :: [DominionAction]
   , draws :: DominionDraw
   }
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+  deriving Arbitrary via GenericArbitrary DominionPlayerTurn
 
 data DominionBuy = DominionBuy Int Card
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+  deriving Arbitrary via GenericArbitrary DominionBuy
 
 data DominionAction =
       Copper | Silver | Gold | Harem |
@@ -54,14 +66,14 @@ data DominionAction =
       Artisan Card Card |
       Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
       Bazaar DominionDraw |
-      Bureaucrat (Map.Map PlayerNumber (Maybe Card)) |
+      Bureaucrat (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Caravan DominionDraw |
       CaravanDuration DominionDraw |
       Chapel [Card] |
       Cellar [Card] DominionDraw |
       Conspirator DominionDraw |
       CouncilRoom DominionDraw (Map.Map PlayerNumber (Maybe Card)) |
-      Courtyard DominionDraw |
+      Courtyard DominionDraw [Card] |
       Cutpurse (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Embargo Card |
       Festival |
@@ -71,7 +83,7 @@ data DominionAction =
       Haven DominionDraw Card |
       HavenDuration Card |
       Island (Maybe Card) |
-      Ironworks DominionDraw DominionDraw |
+      Ironworks Card DominionDraw |
       Remodel Card Card |
       Laboratory DominionDraw |
       Library [Card] [Card] |
@@ -98,10 +110,12 @@ data DominionAction =
       Witch DominionDraw (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Warehouse DominionDraw [Card] |
       Workshop Card
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+  deriving Arbitrary via GenericArbitrary DominionAction
 
 newtype DominionDraw = DominionDraw [Card]
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+  deriving Arbitrary via GenericArbitrary DominionDraw
 
 type DominionState a = State DominionBoard a
 
@@ -178,7 +192,8 @@ data DominionAIGame = DominionAIGame {
 -- is called when initially played, and the Duration function is
 -- called at the beginning of the next turn.
 data CardType = Value | Action | Duration
-  deriving (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving Arbitrary via GenericArbitrary CardType
 
 -- | A Dominion card, basic supply, kingdom, or expansion.
 data Card = Card {
@@ -204,6 +219,18 @@ data Card = Card {
   score    :: PlayerNumber -> DominionState Int
 } deriving stock (Generic)
 
+instance Arbitrary Card where
+  arbitrary = do
+    cst <- arbitrary
+    ct <- arbitrary
+    return $ Card {
+    cardName = "Arbitrary Card",
+    cost = cst,
+    action = \_ -> return Nothing,
+    cardType = ct,
+    score = \_ -> return 0
+  }
+
 type instance Index Card = Card
 
 instance Ord Card where
@@ -214,6 +241,10 @@ instance Eq Card where
 
 instance Show Card where
   show c = unpack $ cardName c
+
+-- | What poor choices have I made that led me to this?
+instance Semi.Semigroup Card where
+  c1 <> c2 = c1
 
 {-|
   The playing strategy used by the player. A list of functions that are
@@ -300,6 +331,34 @@ instance Show Strategy where
 instance Eq Strategy where
   a == b = strategyName a == strategyName b
 
+instance Arbitrary Strategy where
+  arbitrary = do
+    sn <- arbitrary
+    return $ Strategy
+      { strategyName = sn
+      , buyStrategy = return mempty
+      , discardStrategy = return mempty
+      , trashStrategy = return mempty
+      , retrieveStrategy = return mempty
+      , nextCard = return (return mempty)
+      , gainCardStrategy = return mempty
+      , throneRoomStrategy = return mempty
+      , libraryStrategy = return (pure False)
+      , sentryStrategy = return mempty
+      , handToDeckStrategy = return mempty
+      , lurkerStrategy = return $ Left arbitraryCard
+      , islandStrategy = return mempty
+      , ambassadorStrategy = return mempty
+      , embargoStrategy = return arbitraryCard
+      , havenStrategy = return arbitraryCard
+      , nativeVillageStrategy = return False
+      , pearlDiverStrategy = return (pure False)
+      , lookoutStrategy = return (pure (arbitraryCard, arbitraryCard, arbitraryCard))
+      , navigatorStrategy = return mempty
+      }
+      where
+        arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)
+
 data DominionPlayer = DominionPlayer {
   -- | Player name, mostly used for debugging.
   playerName :: Text,
@@ -356,4 +415,5 @@ newtype BoughtCard = BoughtCard Card
 data BanditDecision = BanditDecision
   { trashed :: Maybe Card
   , discarded :: [Card]
-  } deriving (Show, Eq)
+  } deriving stock (Show, Eq, Generic)
+    deriving Arbitrary via GenericArbitrary BanditDecision

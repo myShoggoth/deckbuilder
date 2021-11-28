@@ -313,19 +313,22 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
     bureaucratCardAction p = do
       field @"players" . ix (unPlayerNumber p) . #deck %= (silverCard:)
       players' <- use #players
-      discards :: [Maybe Card] <- mapM (discardVictory p) $ PlayerNumber <$> [0.. length players' - 1]
+      discards <- mapM (discardVictory p) $ PlayerNumber <$> [0.. length players' - 1]
       field @"decks" %= Map.mapWithKey (decreaseCards silverCard)
       _ <- basicCardAction 0 (-1) 0 0 p
       pure $ Just $ Bureaucrat $ Map.fromList $ zip (PlayerNumber <$> [0.. length players' - 1]) discards
-    discardVictory :: PlayerNumber -> PlayerNumber -> DominionState (Maybe Card)
-    discardVictory e p | p == e = return Nothing
+    discardVictory :: PlayerNumber -> PlayerNumber -> DominionState (Either Card (Maybe Card))
+    discardVictory e p | p == e = return $ Right Nothing
     discardVictory _ p = do
       thePlayer <- findPlayer p
-      case find (`elem` victoryCards) (thePlayer ^. #hand) of
-        Nothing -> return Nothing
-        Just c  -> do
-          discardCards p [c]
-          return $ Just c
+      case defendsAgainstAttack militiaCard thePlayer of
+        Just defender -> return $ Left defender
+        Nothing       -> do
+          case find (`elem` victoryCards) (thePlayer ^. #hand) of
+            Nothing -> return $Right Nothing
+            Just c  -> do
+              discardCards p [c]
+              return $ Right $ Just c
 
 -- | Worth 1VP per 10 cards you have (round down).
 gardensCard :: Card
