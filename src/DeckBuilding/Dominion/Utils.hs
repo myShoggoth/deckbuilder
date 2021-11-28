@@ -35,10 +35,11 @@ import DeckBuilding.Dominion.Types
       Card(cardName),
       DominionAIGame(..),
       DominionState,
-      DominionBuy(DominionBuy), DominionBoard (embargoes) )
+      DominionBuy(DominionBuy), DominionBoard (embargoes), CardType (Duration) )
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
 import DeckBuilding (deal')
+import Control.Monad.List (unless)
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> PlayerNumber -> DominionState [Card]
@@ -63,7 +64,8 @@ numEmptyDecks = do
 cardPlayed :: Card -> PlayerNumber -> DominionState ()
 cardPlayed c p = do
   thePlayer <- findPlayer p
-  (field @"players" . ix (unPlayerNumber p) . #played) <>= [c]
+  unless (c ^. #cardType == Duration) $
+    (field @"players" . ix (unPlayerNumber p) . #played) <>= [c]
   (field @"players" . ix (unPlayerNumber p) . #hand) .= removeFromCards (thePlayer ^. #hand) [c]
 
 -- | If the cards are the same, return number of cards - 1.

@@ -98,6 +98,7 @@ caravanCard = Card "Caravan" 4 caravanCardAction Duration (simpleVictory 0)
         caravanCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         caravanCardDuration p = do
             drawn <- basicCardAction 1 0 0 0 p
+            field @"players" . ix (unPlayerNumber p) . #played %= (caravanCard:)
             pure $ Just $ CaravanDuration drawn
 
 -- | +$2
@@ -162,6 +163,7 @@ fishingVillageCard = Card "Fishing Village" 3 fishingVillageCardAction Duration 
         fishingVillageCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         fishingVillageCardDuration p = do
             _ <- basicCardAction 0 1 0 1 p
+            field @"players" . ix (unPlayerNumber p) . #played %= (fishingVillageCard:)
             pure $ Just FishingVillageDuration
 
 -- | +1 Card
@@ -184,6 +186,7 @@ havenCard = Card "Haven" 2 havenCardAction Duration (simpleVictory 0)
         havenCardDuration :: Card -> PlayerNumber -> DominionState (Maybe DominionAction)
         havenCardDuration c p = do
             field @"players" . ix (unPlayerNumber p) . #hand %= (c:)
+            field @"players" . ix (unPlayerNumber p) . #played %= (havenCard:)
             pure $ Just $ HavenDuration c
 
 -- | 2VP
@@ -211,7 +214,7 @@ islandCard = Card "Island" 4 islandCardAction Duration (simpleVictory 2)
 --
 -- While this is in play, when another player plays an Attack card, it doesn’t affect you.
 lighthouseCard :: Card
-lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Action (simpleVictory 0)
+lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Duration (simpleVictory 0)
     where
         lighthouseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         lighthouseCardAction p = do
@@ -223,6 +226,7 @@ lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Action (simpleVictory 
         lighthouseCardDuration p = do
             _ <- basicCardAction 0 1 0 1 p
             field @"players" . ix (unPlayerNumber p) . #lighthouse -= 1
+            field @"players" . ix (unPlayerNumber p) . #played %= (lighthouseCard:)
             pure $ Just LighthouseDuration
 
 -- | +1 Action

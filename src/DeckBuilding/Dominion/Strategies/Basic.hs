@@ -69,7 +69,7 @@ import DeckBuilding.Dominion.Types
     , DominionState
     , Strategy(Strategy)
     , DominionAIGame(..)
-    , DominionBuy, DominionPlayer (nativeVillage) )
+    , DominionBuy, DominionPlayer (nativeVillage), CardType (Value) )
 import DeckBuilding.Dominion.Utils ( findPlayer )
 import DeckBuilding.Types (PlayerNumber)
 import qualified Data.Map as Map
@@ -155,6 +155,7 @@ bigMoneyGain _ = gainCard gainCards
                     ]
 
 bigMoneyCardWeight :: Card -> Int
+bigMoneyCardWeight (Card _ _ _ Value _) = 2
 bigMoneyCardWeight _ = 1
 
 -- | We don't buy throne rooms in big money.
@@ -288,6 +289,7 @@ nextCardByWeight weights p = do
   return $ headMay $ sortByWeight weights $ thePlayer ^. #hand
 
 bigSmithyCardWeight :: Card -> Int
+bigSmithyCardWeight (Card _ _ _ Value _)         = 12
 bigSmithyCardWeight (Card "Throne Room" _ _ _ _) = 11 -- This is for the Throne Room test
 bigSmithyCardWeight (Card "Smithy" _ _ _ _)      = 10
 bigSmithyCardWeight _                            = 1
@@ -352,6 +354,7 @@ villageSmithyEngine4Buy g = doBuys g bigVillageSmithyEngine4Cards
 
 
 villageSmithyEngine4CardWeight :: Card -> Int
+villageSmithyEngine4CardWeight (Card _ _ _ Value _)     = 11
 villageSmithyEngine4CardWeight (Card "Village" _ _ _ _) = 10
 villageSmithyEngine4CardWeight (Card "Market" _ _ _ _)  = 9
 villageSmithyEngine4CardWeight (Card "Militia" _ _ _ _) = 8
