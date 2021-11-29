@@ -174,6 +174,7 @@ mkDominionAIGame pnum = do
     , decks = decks'
     , embargoes = embargoes'
     , nativeVillages = thePlayer ^. #nativeVillage
+    , pirateShip = thePlayer ^. #pirateShip
     }
   where
     buildCardMap :: DominionPlayer -> Map.Map Card Int

@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards)
+import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards, pirateShipCard)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -19,7 +19,7 @@ import DeckBuilding.Dominion.Types
       Strategy(Strategy),
       DominionState,
       CardType(Action),
-      DominionGame(DominionGame), DominionBoard(DominionBoard), DominionAIGame, DominionPlayerTurn (actions) )
+      DominionGame(DominionGame), DominionBoard(DominionBoard), DominionAIGame (pirateShip), DominionPlayerTurn (actions) )
 import DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyCardWeight,
       bigMoneyDiscard,
@@ -170,6 +170,12 @@ spec = do
         let (Just p1AfterCard) = afterCard ^? #players . ix 0
         it "moves the bottom card of the deck to the top" $ do
             lastMay (p1AfterDeal ^. #deck) `shouldBe` headMay (p1AfterCard ^. #deck)
+
+    describe "Pirate Ship action" $ do
+        let afterCard = execState ((pirateShipCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "gets a pirate ship mat coin token" $ do
+            p1AfterCard ^. #pirateShip `shouldBe` 1
 
     describe "Warehouse action" $ do
         let afterCard = execState ((warehouseCard ^. #action) p0) afterDeal

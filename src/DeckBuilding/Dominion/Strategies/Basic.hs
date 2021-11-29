@@ -34,6 +34,8 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyPearlDiver
     , bigMoneyLookout
     , bigMoneyNavigator
+    , bigMoneyPirateShip
+    , bigMoneyPirateShipDecision
     ) where
 
 import Control.Lens ( (^.) )
@@ -56,7 +58,9 @@ import DeckBuilding.Dominion.Cards
       laboratoryCard,
       cellarCard,
       militiaCard,
-      remodelCard, throneRoomCard )
+      remodelCard,
+      throneRoomCard,
+      treasureCards )
 import DeckBuilding.Dominion.Cards.Utils ( gainCard )
 import DeckBuilding.Dominion.Strategies.Utils
     ( alwaysBuy,
@@ -102,6 +106,8 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyPearlDiver
                             bigMoneyLookout
                             bigMoneyNavigator
+                            bigMoneyPirateShip
+                            bigMoneyPirateShipDecision
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -230,7 +236,7 @@ bigMoneyNativeVillage :: DominionAIGame -> Bool
 bigMoneyNativeVillage g = null $ g ^. #nativeVillages
 
 -- | Just have a simple list of good cards
-bigMoneyPearlDiver :: DominionAIGame -> Card -> Bool 
+bigMoneyPearlDiver :: DominionAIGame -> Card -> Bool
 bigMoneyPearlDiver g c = c `elem` pearls
   where
     pearls = [goldCard, silverCard, copperCard]
@@ -243,6 +249,20 @@ bigMoneyLookout _ _ = error "bigMoneyLookout called with anything other than thr
 -- | No logic, just give  it back in the same order
 bigMoneyNavigator :: DominionAIGame -> [Card] -> [Card]
 bigMoneyNavigator _ xs = xs
+
+-- | If I can afford a province, do it
+bigMoneyPirateShip :: DominionAIGame -> Bool
+bigMoneyPirateShip g = g ^. #pirateShip + g ^. #money < 8
+
+-- | If they show a treasure card, have them trash it. No nuance.
+bigMoneyPirateShipDecision :: DominionAIGame -> [Card] -> Maybe Card
+bigMoneyPirateShipDecision _ [] = Nothing
+bigMoneyPirateShipDecision _ [x] =
+    if x `elem` treasureCards
+      then Just x
+      else Nothing
+bigMoneyPirateShipDecision g xs@[x, y] = headMay $ treasureCards `intersect` xs
+bigMoneyPirateShipDecision _ _ = error "More than two cards for pirate ship decision!"
 
 -- Big smithy
 
@@ -269,6 +289,8 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyPearlDiver
                              bigMoneyLookout
                              bigMoneyNavigator
+                             bigMoneyPirateShip
+                             bigMoneyPirateShipDecision
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -333,6 +355,8 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyPearlDiver
                                 bigMoneyLookout
                                 bigMoneyNavigator
+                                bigMoneyPirateShip
+                                bigMoneyPirateShipDecision
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
@@ -433,6 +457,7 @@ doBuys g ((x, f):xs) =
                                 , decks = g ^. #decks -- TODO should remove bought card
                                 , embargoes = g ^. #embargoes
                                 , nativeVillages = g ^. #nativeVillages
+                                , pirateShip = g ^. #pirateShip
                                 }
                       in dm : doBuys g' xs
     else []

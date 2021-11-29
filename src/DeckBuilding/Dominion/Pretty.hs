@@ -22,13 +22,13 @@ import DeckBuilding.Dominion.Types
                      ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration,
                      NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration,
                      Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Navigator,
-                     ThroneRoom, Vassal, Village, Militia, Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard, Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse),
+                     ThroneRoom, Vassal, Village, Militia, Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard, Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse, PirateShip),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
       Card(cardName),
       Strategy(strategyName),
-      DominionGame(DominionGame) )
+      DominionGame(DominionGame), DominionAIGame (pirateShip) )
 import DeckBuilding.Types ( PlayerNumber )
 import qualified Data.Text as Text
 import System.Random (StdGen)
@@ -129,6 +129,8 @@ instance Pretty DominionAction where
     pretty (Navigator xs) = "Navigator puts cards back on the deck in the order" <+> hsep (map pretty xs)
     pretty (PearlDiver (DominionDraw xs) c True) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> pretty c <> " on the bottom of the deck and moves it to the top."
     pretty (PearlDiver (DominionDraw xs) c False) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> pretty c <> " on the bottom of the deck leaves it."
+    pretty (PirateShip (Left n)) = "Pirate gains " <> viaShow n <> " money from pirate mat Coin tokens."
+    pretty (PirateShip (Right xs)) = "Pirate:" <+> align (vsep $ map pirateResponse $ Map.toList xs)
     pretty (Poacher (DominionDraw []) ys) = "Poacher discards" <+> hsep (map pretty ys)
     pretty (Poacher (DominionDraw xs) []) = "Poacher draws" <+> hsep (map pretty xs)
     pretty (Poacher (DominionDraw xs) ys) = "Poacher draws" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
@@ -167,6 +169,11 @@ cutpurseResponse :: (PlayerNumber, Either Card (Maybe Card)) -> Doc ann
 cutpurseResponse (k, Left c) = "Player " <> viaShow k <> " defends with " <> pretty c
 cutpurseResponse (k, Right Nothing) = "Player " <> viaShow k <> " discards nothing."
 cutpurseResponse (k, Right (Just c)) = "Player " <> viaShow k <> " discards " <> pretty c <> "."
+
+pirateResponse :: (PlayerNumber, Either Card (Maybe Card)) -> Doc ann
+pirateResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+pirateResponse (k, Right Nothing) = "Player " <> viaShow k <> " does not trash a treasure card."
+pirateResponse (k, Right (Just c)) = "Player " <> viaShow k <> " trashes" <+> pretty c
 
 instance {-# OVERLAPS #-} Pretty (PlayerNumber, Either Card BanditDecision) where
     pretty (n, Left c) = "Player #" <> viaShow n <> " showed " <> pretty c

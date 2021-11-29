@@ -100,6 +100,7 @@ data DominionAction =
       NativeVillage (Either Card [Card]) |
       Navigator [Card] |
       PearlDiver DominionDraw Card Bool |
+      PirateShip (Either Int (Map.Map PlayerNumber (Either Card (Maybe Card)))) |
       Poacher DominionDraw [Card] |
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
@@ -179,7 +180,9 @@ data DominionAIGame = DominionAIGame {
   -- | Embargo tiles (Seaside expansion)
   embargoes  :: Map.Map Card Int,
   -- | Contents of the Native Village mat (Seaside expansion)
-  nativeVillages :: [Card]
+  nativeVillages :: [Card],
+  -- | Number of Coin tokens on the Pirate Ship mat
+  pirateShip :: Int
 } deriving stock (Show, Generic)
 
 -- | The three 'CardType's are
@@ -322,7 +325,17 @@ data Strategy = Strategy {
   lookoutStrategy :: DominionAIGame -> [Card] -> (Card, Card, Card),
   -- | Look at the cards, either return an empty list to discard all of
   -- the originals, or reorder to be put back on the top of the deck.
-  navigatorStrategy :: DominionAIGame -> [Card] -> [Card]
+  navigatorStrategy :: DominionAIGame -> [Card] -> [Card],
+  -- | Does the player take +money equal to the number of Coin tokens
+  -- on their pirate ship mat, or do they look at the top two cards
+  -- of each other player's deck and tell them whether to trash a
+  -- treasure (if they do so for one player, they get a Coin token)
+  pirateShipStrategy :: DominionAIGame -> Bool,
+  -- | The top 2 cards for a particular other player, if at least one
+  -- is a treasure card, can return that card to trash it for that
+  -- player (if this happens at least one, the pirate ship player
+  -- gains a Coin token for their pirate ship mat).
+  pirateShipDecisionStrategy :: DominionAIGame -> [Card] -> Maybe Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -355,6 +368,8 @@ instance Arbitrary Strategy where
       , pearlDiverStrategy = return (pure False)
       , lookoutStrategy = return (pure (arbitraryCard, arbitraryCard, arbitraryCard))
       , navigatorStrategy = return mempty
+      , pirateShipStrategy = return False
+      , pirateShipDecisionStrategy = return mempty
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)
@@ -390,6 +405,8 @@ data DominionPlayer = DominionPlayer {
   nativeVillage :: [Card],
   -- | How many Lighthouses are protecting this player?
   lighthouse :: Int,
+  -- | Coin tokens on the pirate ship mat
+  pirateShip :: Int,
   -- NOTE: Add new items above the strategy
   -- | The Strategy used by this player.
   strategy   :: Strategy

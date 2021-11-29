@@ -16,12 +16,13 @@ module DeckBuilding.Dominion.Cards.Seaside
     lookoutCard,
     nativeVillageCard,
     pearlDiverCard,
+    pirateShipCard,
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
-import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=) )
+import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
@@ -30,6 +31,9 @@ import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard)
 import Control.Monad (when)
 import Safe (lastMay)
+import Data.List ((\\))
+import Data.Maybe (isJust)
+import Control.Conditional (unless)
 
 -- | Reveal a card from your hand. Return up to 2 copies
 -- of it from your hand to the Supply. Then each other player
@@ -317,6 +321,44 @@ pearlDiverCard = Card "Pearl Diver" 2 pearlDiverCardAction Action (simpleVictory
                         field @"players" . ix (unPlayerNumber p) . #deck .= c : init (thePlayer ^. #deck)
                     pure $ Just $ PearlDiver drawn c moveToTop
 
+pirateShipCard :: Card
+pirateShipCard = Card "Pirate Ship" 4 pirateShipCardAction Action (simpleVictory 0)
+    where
+        pirateShipCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        pirateShipCardAction p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            if thePlayer ^. #strategy . #pirateShipStrategy $ aig
+                then do
+                    players' <- use #players
+                    playerResponses <- mapM (pirateShipDiscard p) $ PlayerNumber <$> [0.. length players' - 1]
+                    unless (null (playerResponses ^.. traverse . _2 . _Right . _Just)) $
+                        field @"players" . ix (unPlayerNumber p) . #pirateShip += 1
+                    pure $ Just $ PirateShip $ Right $ Map.fromList playerResponses
+                else pure $ Just $ PirateShip $ Left $ thePlayer ^. #pirateShip
+        pirateShipDiscard :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
+        pirateShipDiscard e p | e == p = return (e, Right Nothing)
+        pirateShipDiscard e p = do
+            thePlayer <- findPlayer e
+            case defendsAgainstAttack pirateShipCard thePlayer of
+                Just defender -> return (p, Left defender)
+                Nothing -> do
+                    aig <- mkDominionAIGame p
+                    topTwo <- deal 2 p
+                    let mc = (thePlayer ^. #strategy . #pirateShipDecisionStrategy) aig topTwo
+                    case mc of
+                        Nothing -> do
+                            field @"players" . ix (unPlayerNumber p) . #discard %= (topTwo++)
+                            return (p, Right Nothing)
+                        Just c -> do
+                            field @"trash" %= (c:)
+                            field @"players" . ix (unPlayerNumber p) . #discard %= ((topTwo \\ [c])++)
+                            return (p, Right $ Just c)
+
+-- | +3 Cards
+-- +1 Action
+--
+-- Discard 3 cards.
 warehouseCard :: Card
 warehouseCard = Card "Warehouse" 3 warehouseCardAction Action (simpleVictory 0)
     where
