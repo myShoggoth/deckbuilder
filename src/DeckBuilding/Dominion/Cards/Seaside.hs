@@ -17,13 +17,14 @@ module DeckBuilding.Dominion.Cards.Seaside
     nativeVillageCard,
     pearlDiverCard,
     pirateShipCard,
+    salvagerCard,
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
-import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
@@ -321,6 +322,10 @@ pearlDiverCard = Card "Pearl Diver" 2 pearlDiverCardAction Action (simpleVictory
                         field @"players" . ix (unPlayerNumber p) . #deck .= c : init (thePlayer ^. #deck)
                     pure $ Just $ PearlDiver drawn c moveToTop
 
+-- | Choose one: +$1 per Coin token on your Pirate Ship mat; or each other player
+-- reveals the top 2 cards of their deck, trashes one of those Treasures that you
+-- choose, and discards the rest, and then if anyone trashed a Treasure you add a
+-- Coin token to your Pirate Ship mat.
 pirateShipCard :: Card
 pirateShipCard = Card "Pirate Ship" 4 pirateShipCardAction Action (simpleVictory 0)
     where
@@ -354,6 +359,24 @@ pirateShipCard = Card "Pirate Ship" 4 pirateShipCardAction Action (simpleVictory
                             field @"trash" %= (c:)
                             field @"players" . ix (unPlayerNumber p) . #discard %= ((topTwo \\ [c])++)
                             return (p, Right $ Just c)
+
+-- | +1 Buy
+--
+-- Trash a card from your hand. +$1 per $1 it costs.
+salvagerCard :: Card
+salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
+    where
+        salvagerCardAction :: PlayerNumber  -> DominionState (Maybe DominionAction)
+        salvagerCardAction p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let mc = thePlayer ^. #strategy . #salvagerStrategy $ aig
+            case mc of
+                Nothing -> pure Nothing
+                Just c -> do
+                    _ <- basicCardAction 0 (-1) 1 (c ^. #cost) p
+                    trashCards p [c]
+                    pure $ Just $ Salvager c
 
 -- | +3 Cards
 -- +1 Action

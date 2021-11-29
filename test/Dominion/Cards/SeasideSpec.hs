@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards, pirateShipCard)
+import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards, pirateShipCard, salvagerCard)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -176,6 +176,14 @@ spec = do
         let (Just p1AfterCard) = afterCard ^? #players . ix 0
         it "gets a pirate ship mat coin token" $ do
             p1AfterCard ^. #pirateShip `shouldBe` 1
+
+    describe "Salvager action" $ do
+        let afterCard = execState ((salvagerCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "gets coins for trashing an estate" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 4
+            p1AfterCard ^. #money `shouldBe` 2
+            length (afterCard ^. #trash) `shouldBe` 1
 
     describe "Warehouse action" $ do
         let afterCard = execState ((warehouseCard ^. #action) p0) afterDeal

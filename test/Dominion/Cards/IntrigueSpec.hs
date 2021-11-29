@@ -48,7 +48,8 @@ import DeckBuilding.Dominion.Strategies.Basic
       bigMoneyLookout,
       bigMoneyNavigator,
       bigMoneyPirateShip,
-      bigMoneyPirateShipDecision )
+      bigMoneyPirateShipDecision,
+      bigMoneySalvage )
 import DeckBuilding.Dominion.Types
     ( Card,
       DominionPlayer(DominionPlayer),
@@ -124,7 +125,7 @@ spec = do
 
   describe "ironworksCardAction" $ do
     it "gets +action for an action card" $ do
-      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] [] [] 0 0 $ Strategy "Ironworks Action" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve (nextCardByWeight bigMoneyCardWeight) gainAction bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker bigMoneyIsland bigMoneyAmbassador bigMoneyEmbargo bigMoneyHaven bigMoneyNativeVillage bigMoneyPearlDiver bigMoneyLookout bigMoneyNavigator bigMoneyPirateShip bigMoneyPirateShipDecision
+      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [] [vassalCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] [] [] 0 0 $ Strategy "Ironworks Action" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve (nextCardByWeight bigMoneyCardWeight) gainAction bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker bigMoneyIsland bigMoneyAmbassador bigMoneyEmbargo bigMoneyHaven bigMoneyNativeVillage bigMoneyPearlDiver bigMoneyLookout bigMoneyNavigator bigMoneyPirateShip bigMoneyPirateShipDecision bigMoneySalvage
       let afterCard = execState ((ironworksCard ^. #action) p1) $ DominionBoard [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] (Map.fromList [] :: Map.Map Card Int) [moatCard] curseCard g
       let (Just p2AfterCard) = afterCard ^? #players . ix 1
       (p2AfterCard ^. #actions) `shouldBe` 1
@@ -138,7 +139,7 @@ spec = do
       (p2AfterCard ^. #money) `shouldBe` 1
       length (p2AfterCard ^. #hand) `shouldBe` 5
     it "gets +card for a victory card" $ do
-      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [] [estateCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] [] [] 0 0 $ Strategy "Ironworks Victory" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve (nextCardByWeight bigMoneyCardWeight) gainVictory bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker bigMoneyIsland bigMoneyAmbassador bigMoneyEmbargo bigMoneyHaven bigMoneyNativeVillage bigMoneyPearlDiver bigMoneyLookout bigMoneyNavigator bigMoneyPirateShip bigMoneyPirateShipDecision
+      let forcedDeal = DominionPlayer "Ironworks Deal" (replicate 5 copperCard) [] [estateCard, estateCard, estateCard, copperCard, copperCard] [] 1 1 0 0 0 [] [] [] 0 0 $ Strategy "Ironworks Victory" bigSmithyBuy bigMoneyDiscard bigMoneyTrash bigMoneyRetrieve (nextCardByWeight bigMoneyCardWeight) gainVictory bigMoneyThroneRoom bigMoneyLibrary bigMoneySentry bigMoneyHandToDeck bigMoneyLurker bigMoneyIsland bigMoneyAmbassador bigMoneyEmbargo bigMoneyHaven bigMoneyNativeVillage bigMoneyPearlDiver bigMoneyLookout bigMoneyNavigator bigMoneyPirateShip bigMoneyPirateShipDecision bigMoneySalvage
       let afterCard = execState ((ironworksCard ^. #action) p1) $ DominionBoard [p1AfterDeal, forcedDeal] (basicDecks 2 `Map.union` makeDecks firstGameKingdomCards) [] (Map.fromList [] :: Map.Map Card Int) [moatCard] curseCard g
       let (Just p2AfterCard) = afterCard ^? #players . ix 1
       (p2AfterCard ^. #actions) `shouldBe` 0

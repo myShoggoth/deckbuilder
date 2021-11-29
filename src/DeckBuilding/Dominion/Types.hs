@@ -102,6 +102,7 @@ data DominionAction =
       PearlDiver DominionDraw Card Bool |
       PirateShip (Either Int (Map.Map PlayerNumber (Either Card (Maybe Card)))) |
       Poacher DominionDraw [Card] |
+      Salvager Card |
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
       Smithy DominionDraw |
@@ -335,7 +336,9 @@ data Strategy = Strategy {
   -- is a treasure card, can return that card to trash it for that
   -- player (if this happens at least one, the pirate ship player
   -- gains a Coin token for their pirate ship mat).
-  pirateShipDecisionStrategy :: DominionAIGame -> [Card] -> Maybe Card
+  pirateShipDecisionStrategy :: DominionAIGame -> [Card] -> Maybe Card,
+  -- | Choose which card to trash, gaining its cost as +money
+  salvagerStrategy :: DominionAIGame -> Maybe Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -370,6 +373,7 @@ instance Arbitrary Strategy where
       , navigatorStrategy = return mempty
       , pirateShipStrategy = return False
       , pirateShipDecisionStrategy = return mempty
+      , salvagerStrategy = return mempty
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

@@ -36,6 +36,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyNavigator
     , bigMoneyPirateShip
     , bigMoneyPirateShipDecision
+    , bigMoneySalvage
     ) where
 
 import Control.Lens ( (^.) )
@@ -73,7 +74,7 @@ import DeckBuilding.Dominion.Types
     , DominionState
     , Strategy(Strategy)
     , DominionAIGame(..)
-    , DominionBuy, DominionPlayer (nativeVillage), CardType (Value) )
+    , DominionBuy, DominionPlayer (nativeVillage), CardType (Value), DominionAction (Estate) )
 import DeckBuilding.Dominion.Utils ( findPlayer )
 import DeckBuilding.Types (PlayerNumber)
 import qualified Data.Map as Map
@@ -108,6 +109,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyNavigator
                             bigMoneyPirateShip
                             bigMoneyPirateShipDecision
+                            bigMoneySalvage
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -243,7 +245,7 @@ bigMoneyPearlDiver g c = c `elem` pearls
 
 -- | No logic, just give them back in order
 bigMoneyLookout :: DominionAIGame -> [Card] -> (Card, Card, Card)
-bigMoneyLookout _ (x:y:z:[]) = (x, y, z)
+bigMoneyLookout _ [x, y, z] = (x, y, z)
 bigMoneyLookout _ _ = error "bigMoneyLookout called with anything other than three cards?!"
 
 -- | No logic, just give  it back in the same order
@@ -263,6 +265,10 @@ bigMoneyPirateShipDecision _ [x] =
       else Nothing
 bigMoneyPirateShipDecision g xs@[x, y] = headMay $ treasureCards `intersect` xs
 bigMoneyPirateShipDecision _ _ = error "More than two cards for pirate ship decision!"
+
+-- | Pick Estate so we can test it
+bigMoneySalvage :: DominionAIGame -> Maybe Card
+bigMoneySalvage g = headMay $ [estateCard] `intersect` (g ^. #hand)
 
 -- Big smithy
 
@@ -291,6 +297,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyNavigator
                              bigMoneyPirateShip
                              bigMoneyPirateShipDecision
+                             bigMoneySalvage
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -357,6 +364,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyNavigator
                                 bigMoneyPirateShip
                                 bigMoneyPirateShipDecision
+                                bigMoneySalvage
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]

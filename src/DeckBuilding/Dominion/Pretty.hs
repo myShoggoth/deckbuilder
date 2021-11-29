@@ -22,7 +22,7 @@ import DeckBuilding.Dominion.Types
                      ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration,
                      NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration,
                      Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Navigator,
-                     ThroneRoom, Vassal, Village, Militia, Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard, Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse, PirateShip),
+                     ThroneRoom, Vassal, Village, Militia, Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard, Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse, PirateShip, Salvager),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -134,6 +134,7 @@ instance Pretty DominionAction where
     pretty (Poacher (DominionDraw []) ys) = "Poacher discards" <+> hsep (map pretty ys)
     pretty (Poacher (DominionDraw xs) []) = "Poacher draws" <+> hsep (map pretty xs)
     pretty (Poacher (DominionDraw xs) ys) = "Poacher draws" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
+    pretty (Salvager c) = "Salvage" <+> pretty c
     pretty (Sentry (DominionDraw ws) xs ys zs) = "Sentry draws" <+> hsep (map pretty ws) <+> "trashes" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys) <+> "keeps" <+> hsep (map pretty zs)
     pretty (ShantyTown (DominionDraw []) hnd) = "Shanty Town reveals a hand with no actions:" <+> hsep (map pretty hnd)
     pretty (ShantyTown (DominionDraw xs) hnd) = "Shanty Town draws" <+> hsep (map pretty xs) <+> "after revealing a hand with actions:" <+> hsep (map pretty hnd)
