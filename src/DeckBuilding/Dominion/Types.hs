@@ -108,6 +108,7 @@ data DominionAction =
       ShantyTown DominionDraw [Card] |
       Smithy DominionDraw |
       ThroneRoom Card DominionAction DominionAction |
+      TreasureMap [Card] |
       Vassal (Maybe DominionAction) |
       Village DominionDraw |
       Witch DominionDraw (Map.Map PlayerNumber (Either Card (Maybe Card))) |

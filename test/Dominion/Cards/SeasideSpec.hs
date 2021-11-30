@@ -1,13 +1,35 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
-
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE DataKinds                 #-}
 module Dominion.Cards.SeasideSpec
     ( spec
     ) where
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards, pirateShipCard, salvagerCard, seaHagCard, curseCard)
+import DeckBuilding.Dominion.Cards
+    ( ambassadorCard,
+      caravanCard,
+      cutpurseCard,
+      embargoCard,
+      fishingVillageCard,
+      havenCard,
+      islandCard,
+      lighthouseCard,
+      lookoutCard,
+      nativeVillageCard,
+      pearlDiverCard,
+      warehouseCard,
+      firstGameKingdomCards,
+      pirateShipCard,
+      salvagerCard,
+      seaHagCard,
+      curseCard,
+      treasureMapCard
+    )
+
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -39,6 +61,8 @@ import DeckBuilding.Dominion
     ( basicDecks, configToGame, makeDecks )
 import qualified Data.Map as Map
 import Safe (headMay, lastMay)
+import DeckBuilding.Dominion.Cards.Seaside (treasureMapCard)
+import Data.Generics.Product ( HasField(field) )
 
 spec :: Spec
 spec = do
@@ -195,6 +219,19 @@ spec = do
         it "causes other players to discard the top card of their deck" $ do
             length (p2' ^. #discard) `shouldBe` 2
             length (p2' ^. #deck) `shouldBe` 9
+
+    describe "Treasure Map action" $ do
+        let afterCard = execState ((treasureMapCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "does nothing if there aren't two treasure maps" $ do
+            length (p1AfterCard ^. #deck) `shouldBe` 5
+        let afterTMsAdded = execState ((field @"players" . ix 0 . #hand) %= ([treasureMapCard, treasureMapCard] ++)) afterCard
+        let afterTM = execState ((treasureMapCard ^. #action) p0) afterTMsAdded
+        let (Just p1AfterTM) = afterTM ^? #players . ix 0
+        it "trashes two treasure maps" $ do
+            afterTM ^. #trash `shouldBe` [treasureMapCard, treasureMapCard]
+        it "adds four gold to the deck" $ do
+            length (p1AfterTM ^. #deck) `shouldBe` 9
 
     describe "Warehouse action" $ do
         let afterCard = execState ((warehouseCard ^. #action) p0) afterDeal

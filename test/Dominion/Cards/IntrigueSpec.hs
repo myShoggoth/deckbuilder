@@ -24,7 +24,6 @@ import DeckBuilding.Dominion.Cards
       firstGameKingdomCards,
       vassalCard,
       victoryCards, moatCard )
-import DeckBuilding.Dominion.Cards.Utils ( gainCard )
 import DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyCardWeight,
       bigMoneyDiscard,
@@ -63,12 +62,13 @@ import DeckBuilding.Types ( PlayerNumber(PlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, shantyTownCard, conspiratorCard, ironworksCard, dukeCard)
+import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 
 gainAction :: DominionAIGame -> Int -> Maybe Card
-gainAction _ = gainCard firstGameKingdomCards
+gainAction _ = gainWhichCard firstGameKingdomCards
 
 gainVictory :: DominionAIGame -> Int -> Maybe Card
-gainVictory _ = gainCard (delete curseCard victoryCards)
+gainVictory _ = gainWhichCard (delete curseCard victoryCards)
 
 spec :: Spec
 spec = do

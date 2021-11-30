@@ -7,8 +7,7 @@
 {-# LANGUAGE GADTs                     #-}
 
 module DeckBuilding.Dominion.Cards.Utils
-    ( gainCard
-    , simpleVictory
+    ( simpleVictory
     , hasActionCards
     , valueCardAction
     , basicCardAction
@@ -16,9 +15,10 @@ module DeckBuilding.Dominion.Cards.Utils
     , discardCards
     , handToDeck
     , discardToDeck
+    , gainCardsToDeck
     ) where
 
-import Control.Lens ( (^.), (%=), (+=), Ixed(ix), (.=) )
+import Control.Lens ( (^.), (%=), (+=), Ixed(ix), (.=), use )
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
 import Data.List ( find )
@@ -27,7 +27,8 @@ import DeckBuilding.Dominion.Types
     ( Card, CardType(Action), DominionState, DominionAction,
       DominionDraw(DominionDraw) )
 import DeckBuilding.Dominion.Utils
-    ( deal, findPlayer, removeFromCards )
+    ( deal, findPlayer, removeFromCards, decreaseCards, isCardInPlay )
+import qualified Data.Map as Map
 
 -- | A simple points-only Victory card
 -- | Victory Points
@@ -56,13 +57,6 @@ basicCardAction d a b m p = do
   theDraw <- deal d p
   pure $ DominionDraw theDraw
 
--- | Given a list of cards in descending priorty order to gain and a max price,
---  gain the first card in the list that's available that is under the max
---  price.
---  TODO: same structure as buying cards (Card,Card->Player->State Game Bool)
-gainCard :: [Card] -> Int -> Maybe Card
-gainCard cards highestPrice = find (\c -> (c ^. #cost) <= highestPrice) cards
-
 hasActionCards :: Int -> [Card] -> Bool
 hasActionCards num cs = num <= length (filter (\c -> (c ^. #cardType) == Action) cs)
 
@@ -89,3 +83,15 @@ discardToDeck p cards = do
   thePlayer <- findPlayer p
   field @"players" . ix (unPlayerNumber p) . #discard .= removeFromCards (thePlayer ^. #discard) cards
   field @"players" . ix (unPlayerNumber p) . #deck %= (cards ++)
+
+gainCardsToDeck :: PlayerNumber -> [Card] -> DominionState [Card]
+gainCardsToDeck _ [] = return []
+gainCardsToDeck p (x:xs) = do
+  hasCard <- isCardInPlay x
+  if hasCard
+    then do
+      field @"decks" %= Map.mapWithKey (decreaseCards x)
+      field @"players" . ix (unPlayerNumber p) . #deck %= (x:)
+      theRest <- gainCardsToDeck p xs
+      return $ x : theRest
+    else gainCardsToDeck p xs

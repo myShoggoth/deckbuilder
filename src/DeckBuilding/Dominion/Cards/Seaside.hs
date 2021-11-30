@@ -19,21 +19,22 @@ module DeckBuilding.Dominion.Cards.Seaside
     pirateShipCard,
     salvagerCard,
     seaHagCard,
+    treasureMapCard,
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
-import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
 import qualified Data.Map as Map
-import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curseCard, gainCurse)
+import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curseCard, gainCurse, goldCard)
 import Control.Monad (when)
 import Safe (lastMay, headMay)
-import Data.List ((\\))
+import Data.List ((\\), intersect)
 import Data.Maybe (isJust)
 import Control.Conditional (unless)
 
@@ -378,6 +379,22 @@ salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
                     _ <- basicCardAction 0 (-1) 1 (c ^. #cost) p
                     trashCards p [c]
                     pure $ Just $ Salvager c
+
+-- | Trash this and a Treasure Map from your hand. If you trashed two Treasure Maps, gain 4 Golds onto your deck.
+treasureMapCard :: Card
+treasureMapCard = Card "Treasure Map" 4 treasureMapCardAction Duration (simpleVictory 0)
+    -- This is not actually a "Duration" card, but it is the simplest way to avoid having it put into the
+    -- player's 'played' pile. If we don't end up playing it, though, we need to do that here.
+    where
+        treasureMapCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        treasureMapCardAction p = do
+            thePlayer <- findPlayer p
+            if length ( (thePlayer ^. #hand) `intersect` [treasureMapCard, treasureMapCard] ) >= 2
+                then do
+                    trashCards p [treasureMapCard, treasureMapCard]
+                    gained <- gainCardsToDeck p [goldCard, goldCard, goldCard, goldCard]
+                    return $ Just $ TreasureMap gained
+                else return Nothing
 
 -- | Each other player discards the top card of their deck, then gains a Curse onto their deck.
 seaHagCard :: Card

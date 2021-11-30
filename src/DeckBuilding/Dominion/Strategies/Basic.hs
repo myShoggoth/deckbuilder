@@ -62,13 +62,12 @@ import DeckBuilding.Dominion.Cards
       remodelCard,
       throneRoomCard,
       treasureCards )
-import DeckBuilding.Dominion.Cards.Utils ( gainCard )
 import DeckBuilding.Dominion.Strategies.Utils
     ( alwaysBuy,
       buyIfLowerThanTerminalActions,
       buyIfNumberOfCardIsBelow,
       buyN,
-      sortByWeight )
+      sortByWeight, gainWhichCard )
 import DeckBuilding.Dominion.Types
     ( Card(Card)
     , DominionState
@@ -155,7 +154,7 @@ bigMoneyRetrieve aig rng = doRetrieveDiscard aig rng retrieveCards
 -- | When you're given the opportunity to gain a card, the is the list in
 --  descending cost order. Would be good to make this better ala buy.
 bigMoneyGain :: DominionAIGame -> Int -> Maybe Card
-bigMoneyGain _ = gainCard gainCards
+bigMoneyGain _ = gainWhichCard gainCards
   where gainCards = [ provinceCard
                     , goldCard
                     , duchyCard
@@ -325,7 +324,7 @@ bigSmithyCardWeight _                            = 1
 
 -- | Just like big money buy we also gain smithy cards.
 bigSmithyGain :: DominionAIGame -> Int -> Maybe Card
-bigSmithyGain _ = gainCard gainCards
+bigSmithyGain _ = gainWhichCard gainCards
   where gainCards = [ provinceCard
                     , goldCard
                     , smithyCard
