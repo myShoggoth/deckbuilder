@@ -51,6 +51,7 @@ module DeckBuilding.Dominion.Cards.Base
     , firstGameKingdomCards
     , baseSetActionTerminators
     , defendsAgainstAttack
+    , gainCurse
     ) where
 
 import Control.Lens ( (^.), use, (%=), (.=), Ixed(ix) )
@@ -77,10 +78,11 @@ import DeckBuilding.Dominion.Types
       BanditDecision(BanditDecision),
       DominionDraw(DominionDraw) )
 import DeckBuilding.Dominion.Utils
-    ( deal, numEmptyDecks, decreaseCards, firstCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, cardPlayed )
+    ( deal, numEmptyDecks, decreaseCards, firstCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, cardPlayed, isCardInPlay )
 import System.Random.Shuffle ( shuffle' )
 import Safe (headMay)
 import Data.Either (isRight, fromRight)
+import Control.Conditional (whenM)
 
 -- Cards and their actions
 
@@ -504,13 +506,13 @@ witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
     witchCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     witchCardAction p = do
       ps <- use #players
-      curses <- mapM (gainCurse p) $ PlayerNumber <$> [0.. length ps - 1]
+      curses <- mapM (witchCurse p) $ PlayerNumber <$> [0.. length ps - 1]
       drawn <- basicCardAction 2 (-1) 0 0 p
       pure $ Just $ Witch drawn $ Map.fromList curses
-    gainCurse :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
+    witchCurse :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
     -- TODO: Model the player playing the witch ala Bandit
-    gainCurse e p | p == e = return (p, Right Nothing)
-    gainCurse _ p = do
+    witchCurse e p | p == e = return (p, Right Nothing)
+    witchCurse _ p = do
       thePlayer <- findPlayer p
       case defendsAgainstAttack witchCard thePlayer of
         Just defender -> return (p, Left defender)
@@ -519,9 +521,18 @@ witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
           if curseCard `Map.notMember` decks || decks Map.! curseCard <= 0
             then return (p, Right Nothing)
             else do
-              field @"players" . ix (unPlayerNumber p) . #discard %= (curseCard:)
-              field @"decks" %= Map.mapWithKey (decreaseCards curseCard)
-              return (p, Right $ Just curseCard)
+              mc <- gainCurse p
+              return (p, Right mc)
+
+gainCurse :: PlayerNumber -> DominionState (Maybe Card)
+gainCurse p = do
+  haveCurses <- isCardInPlay curseCard
+  if haveCurses
+    then do
+      field @"players" . ix (unPlayerNumber p) . #discard %= (curseCard:)
+      field @"decks" %= Map.mapWithKey (decreaseCards curseCard)
+      return $ Just curseCard
+    else return Nothing
 
 -- | You may trash a Treasure card from your hand. Gain a Treasure
 -- card to your hand costing up to $3 more than it.

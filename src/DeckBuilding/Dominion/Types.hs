@@ -103,6 +103,7 @@ data DominionAction =
       PirateShip (Either Int (Map.Map PlayerNumber (Either Card (Maybe Card)))) |
       Poacher DominionDraw [Card] |
       Salvager Card |
+      SeaHag (Map.Map PlayerNumber (Either Card (Maybe Card, Maybe Card))) |
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
       Smithy DominionDraw |

@@ -18,10 +18,11 @@ module DeckBuilding.Dominion.Cards.Seaside
     pearlDiverCard,
     pirateShipCard,
     salvagerCard,
+    seaHagCard,
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards)
@@ -29,9 +30,9 @@ import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
 import qualified Data.Map as Map
-import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard)
+import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curseCard, gainCurse)
 import Control.Monad (when)
-import Safe (lastMay)
+import Safe (lastMay, headMay)
 import Data.List ((\\))
 import Data.Maybe (isJust)
 import Control.Conditional (unless)
@@ -366,7 +367,7 @@ pirateShipCard = Card "Pirate Ship" 4 pirateShipCardAction Action (simpleVictory
 salvagerCard :: Card
 salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
     where
-        salvagerCardAction :: PlayerNumber  -> DominionState (Maybe DominionAction)
+        salvagerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         salvagerCardAction p = do
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
@@ -377,6 +378,27 @@ salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
                     _ <- basicCardAction 0 (-1) 1 (c ^. #cost) p
                     trashCards p [c]
                     pure $ Just $ Salvager c
+
+-- | Each other player discards the top card of their deck, then gains a Curse onto their deck.
+seaHagCard :: Card
+seaHagCard = Card "Sea Hag" 4 seaHagCardAction Action (simpleVictory 0)
+    where
+        seaHagCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        seaHagCardAction p = do
+            players' <- use #players
+            playerResponses <- mapM (seaHagDiscard p) $ PlayerNumber <$> [0.. length players' - 1]
+            pure $ Just $ SeaHag $ Map.fromList playerResponses
+        seaHagDiscard :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card, Maybe Card))
+        seaHagDiscard e p | e == p = return (e, Right (Nothing, Nothing))
+        seaHagDiscard _ p = do
+            thePlayer <- findPlayer p
+            case defendsAgainstAttack seaHagCard thePlayer of
+                Just defender -> return (p, Left defender)
+                Nothing -> do
+                    topCard <- deal 1 p
+                    discardCards p topCard
+                    mc <- gainCurse p
+                    return (p, Right (headMay topCard, mc))
 
 -- | +3 Cards
 -- +1 Action

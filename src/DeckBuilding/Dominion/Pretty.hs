@@ -21,8 +21,11 @@ import DeckBuilding.Dominion.Types
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
                      ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration,
                      NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration,
-                     Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Navigator,
-                     ThroneRoom, Vassal, Village, Militia, Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard, Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse, PirateShip, Salvager),
+                     Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan,
+                     CaravanDuration, Navigator, ThroneRoom, Vassal, Village, Militia,
+                     Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard,
+                     Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
+                     PirateShip, Salvager, SeaHag),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -135,6 +138,7 @@ instance Pretty DominionAction where
     pretty (Poacher (DominionDraw xs) []) = "Poacher draws" <+> hsep (map pretty xs)
     pretty (Poacher (DominionDraw xs) ys) = "Poacher draws" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys)
     pretty (Salvager c) = "Salvage" <+> pretty c
+    pretty (SeaHag xs) = "Sea Hag:" <+> align (vsep $ map seaHagResponse $ Map.toList xs)
     pretty (Sentry (DominionDraw ws) xs ys zs) = "Sentry draws" <+> hsep (map pretty ws) <+> "trashes" <+> hsep (map pretty xs) <+> "discards" <+> hsep (map pretty ys) <+> "keeps" <+> hsep (map pretty zs)
     pretty (ShantyTown (DominionDraw []) hnd) = "Shanty Town reveals a hand with no actions:" <+> hsep (map pretty hnd)
     pretty (ShantyTown (DominionDraw xs) hnd) = "Shanty Town draws" <+> hsep (map pretty xs) <+> "after revealing a hand with actions:" <+> hsep (map pretty hnd)
@@ -175,6 +179,13 @@ pirateResponse :: (PlayerNumber, Either Card (Maybe Card)) -> Doc ann
 pirateResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
 pirateResponse (k, Right Nothing) = "Player " <> viaShow k <> " does not trash a treasure card."
 pirateResponse (k, Right (Just c)) = "Player " <> viaShow k <> " trashes" <+> pretty c
+
+seaHagResponse :: (PlayerNumber, Either Card (Maybe Card, Maybe Card)) -> Doc ann
+seaHagResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+seaHagResponse (k, Right (Nothing, Nothing)) = "Player " <> viaShow k <> " has nothing to discard, and there are no more curse cards."
+seaHagResponse (k, Right (Nothing, Just c)) = "Player " <> viaShow k <> " has nothing to discard, and gains" <+> pretty c
+seaHagResponse (k, Right (Just c, Nothing)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and there are no more curse cards."
+seaHagResponse (k, Right (Just c, Just c1)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and gains" <+> pretty c1
 
 instance {-# OVERLAPS #-} Pretty (PlayerNumber, Either Card BanditDecision) where
     pretty (n, Left c) = "Player #" <> viaShow n <> " showed " <> pretty c

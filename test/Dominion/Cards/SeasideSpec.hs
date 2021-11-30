@@ -7,7 +7,7 @@ module Dominion.Cards.SeasideSpec
 
 import Test.Hspec ( shouldBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
-import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards, pirateShipCard, salvagerCard)
+import DeckBuilding.Dominion.Cards (ambassadorCard, caravanCard, cutpurseCard, embargoCard, fishingVillageCard, havenCard, islandCard, lighthouseCard, lookoutCard, nativeVillageCard, pearlDiverCard, warehouseCard, firstGameKingdomCards, pirateShipCard, salvagerCard, seaHagCard, curseCard)
 import Control.Monad.State ( execState, evalState )
 import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal )
@@ -184,6 +184,17 @@ spec = do
             length (p1AfterCard ^. #hand) `shouldBe` 4
             p1AfterCard ^. #money `shouldBe` 2
             length (afterCard ^. #trash) `shouldBe` 1
+
+    describe "Sea Hag action" $ do
+        let afterCard = execState ((seaHagCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        let (Just p2') = afterCard ^? #players . ix 1
+        it "causes other players to get curses" $ do
+            p1AfterCard ^. #discard `shouldBe` []
+            head (p2' ^. #discard) `shouldBe` curseCard
+        it "causes other players to discard the top card of their deck" $ do
+            length (p2' ^. #discard) `shouldBe` 2
+            length (p2' ^. #deck) `shouldBe` 9
 
     describe "Warehouse action" $ do
         let afterCard = execState ((warehouseCard ^. #action) p0) afterDeal
