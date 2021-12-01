@@ -138,10 +138,10 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
 
 -- | Worth 1VP per Duchy you have.
 dukeCard :: Card
-dukeCard        = Card "Duke"         5 (valueCardAction 0 Duke) Action dukeCardAction
+dukeCard        = Card "Duke"         5 (valueCardAction 0 Duke) Action dukeCardValue
   where
-    dukeCardAction :: PlayerNumber -> DominionState Int
-    dukeCardAction p = do
+    dukeCardValue :: PlayerNumber -> DominionState Int
+    dukeCardValue p = do
       thePlayer <- findPlayer p
       let points = length $ filter (== duchyCard) ( (thePlayer ^. #hand) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #played) ++ (thePlayer ^. #deck) )
       return points

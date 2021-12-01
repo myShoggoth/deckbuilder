@@ -82,7 +82,7 @@ import Data.Maybe (catMaybes)
 
 -- Core Engine
 
--- | Creates a new player with a name and strategy and the default started deck.
+-- | Creates a new player with a name and strategy and the default starter deck.
 newPlayer :: Text.Text -> Strategy -> DominionPlayer
 newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 1 [] [] [] 0 0
 
@@ -120,9 +120,9 @@ evaluateCard c pnum _ = evaluateCard' c pnum
 
 evaluateCard' :: Card -> PlayerNumber -> DominionState (Maybe DominionAction)
 evaluateCard' c pnum = do
-  mdm <- (c ^. #action) pnum
+  mda <- (c ^. #action) pnum
   cardPlayed c pnum
-  return mdm
+  return mda
 
 -- | Given a set of potential kingdom cards, pick a random ten to play with.
 randomKingdomDecks :: [Card] -> StdGen -> [Card]
@@ -133,7 +133,6 @@ makeDecks :: [Card] -> Map.Map Card Int
 makeDecks cs = Map.fromList $ (, 10) <$> cs
 
 -- | Basic decks that are in all games, numbers based on the total players.
--- TODO: Only add curses if there are witches in game.
 basicDecks :: Int -> Map.Map Card Int
 basicDecks numPlayers
     | numPlayers == 2 = Map.fromList [ (copperCard, 60 - (7 * numPlayers)), (silverCard, 40), (goldCard, 30), (estateCard, 8), (duchyCard, 8), (provinceCard, 8), (curseCard, 10) ]
@@ -152,6 +151,7 @@ resetTurn p = do
   (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
   (field @"players" . ix (unPlayerNumber p) . #turns) += 1
 
+-- | Instantiate a new 'DominionBoard' based on a 'DominionConfig' and a random seed.
 configToGame :: DominionConfig -> StdGen -> DominionBoard
 configToGame c = DominionBoard
     (map (uncurry newPlayer) (c ^. #playerDefs))
@@ -164,6 +164,10 @@ configToGame c = DominionBoard
     allDecks = basicDecks (length (c ^. #playerDefs)) `Map.union` makeDecks (c ^. #kingdomCards)
     zeroedDecks = fmap (const 0) allDecks
 
+-- | Run n games of Dominion based on a config and a seed.
+-- Outputs a prettyprinted document with the results.
+--
+-- Try to parallelize the running of the games as much as possible.
 runGames :: Int -> DominionConfig -> StdGen -> [Doc ann]
 runGames 0 _ _ = []
 runGames n conf g = do
@@ -173,6 +177,8 @@ runGames n conf g = do
     _ <- rseq x
     return $ x : runGames (n - 1) conf g2
 
+-- | Run a single game of Dominion based on a 'DominionConfig'
+-- and a random seed.
 runGame :: DominionConfig -> StdGen -> DominionGame
 runGame conf g =
     DominionGame
@@ -180,17 +186,20 @@ runGame conf g =
       (kingdomCards conf)
       g
       turns
-      (Just results)
+      results
   where
     (turns, endGameState) = runState runTurns $ configToGame conf g
     results = evalState tallyPoints endGameState
 
+-- | Start the game, determine player order, and run the turns.
 runTurns :: DominionState [DominionTurn]
 runTurns = do
   start
   players <- turnOrder
   runDominionTurns players
 
+-- | Given the turn order, generate the 'DominionTurn's, which
+-- each contain a turn per player.
 runDominionTurns :: [PlayerNumber] -> DominionState [DominionTurn]
 runDominionTurns [] = pure []
 runDominionTurns xs = do
@@ -203,6 +212,8 @@ runDominionTurns xs = do
       dts <- runDominionTurns xs
       pure $ dt : dts
 
+-- | Given the turn order, generate the 'DominionPlayerTurn's
+-- within a 'DominionTurn'.
 runPlayerTurns :: [PlayerNumber] -> DominionState [DominionPlayerTurn]
 runPlayerTurns [] = pure []
 runPlayerTurns (x:xs) = do
@@ -214,17 +225,25 @@ runPlayerTurns (x:xs) = do
       following <- runPlayerTurns xs
       pure $ turn : following
 
+-- | Run the 'DominionPlayerTurn' for a specified player.
 runPlayerTurn :: PlayerNumber -> DominionState DominionPlayerTurn
 runPlayerTurn p = do
   thePlayer <- findPlayer p
+  -- Duration cards register their second turn's action as a function,
+  -- which we run at the beginning of the next turn (and then empty
+  -- the list).
   durations <- mapM (\f -> f p) (thePlayer ^. #duration)
   field @"players" . ix (unPlayerNumber p) . #duration .= []
+
   actns <- evaluateHand p
+
   aig <- mkDominionAIGame p
   let bys = thePlayer ^. #strategy . #buyStrategy $ aig
   executeBuys bys aig
+
   resetTurn p
   dealt <- deal 5 p
+
   pure $ DominionPlayerTurn
           p
           (thePlayer ^. #turns)

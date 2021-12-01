@@ -48,6 +48,7 @@ ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 
         ambassadorCardAction p = do
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
+            _ <- basicCardAction 0 (-1) 0 0 p
             let macs = (thePlayer ^. #strategy . #ambassadorStrategy) aig
             case macs of
                 [] -> pure Nothing
@@ -117,7 +118,7 @@ cutpurseCard = Card "Cutpurse" 4 cutpurseCardAction Action (simpleVictory 0)
         cutpurseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         cutpurseCardAction p = do
             players' <- use #players
-            _ <- basicCardAction 0 0 0 2 p
+            _ <- basicCardAction 0 (-1) 0 2 p
             playerResponses <- mapM (cutpurseDiscard p) $ PlayerNumber <$> [0.. length players' - 1]
             pure $ Just $ Cutpurse $ Map.fromList playerResponses
         cutpurseDiscard :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
@@ -148,6 +149,7 @@ embargoCard = Card "Embargo" 2 embargoCardAction Action (simpleVictory 0)
         embargoCardAction p = do
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
+            _ <- basicCardAction 0 (-1) 0 0 p
             let supplyCard = (thePlayer ^. #strategy . #embargoStrategy) aig
             field @"embargoes" %= Map.mapWithKey (increaseCards supplyCard 1)
             field @"players" . ix (unPlayerNumber p) . #money += 2
@@ -206,6 +208,7 @@ islandCard = Card "Island" 4 islandCardAction Duration (simpleVictory 2)
         islandCardAction p = do
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
+            _ <- basicCardAction 0 (-1) 0 0 p
             let mc = (thePlayer ^. #strategy . #islandStrategy) aig
             field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [islandCard]
             field @"players" . ix (unPlayerNumber p) . #island %= (islandCard:)
@@ -231,7 +234,7 @@ lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Duration (simpleVictor
             pure $ Just Lighthouse
         lighthouseCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         lighthouseCardDuration p = do
-            _ <- basicCardAction 0 1 0 1 p
+            _ <- basicCardAction 0 0 0 1 p
             field @"players" . ix (unPlayerNumber p) . #lighthouse -= 1
             field @"players" . ix (unPlayerNumber p) . #played %= (lighthouseCard:)
             pure $ Just LighthouseDuration
@@ -277,6 +280,7 @@ nativeVillageCard = Card "Native Village" 2 nativeVillageCardAction Action (simp
                     pure $ Just $ NativeVillage $ Left (head drawn)
                 else do
                     let villaged = thePlayer ^. #nativeVillage
+                    _ <- basicCardAction 0 1 0 0 p
                     field @"players" . ix (unPlayerNumber p) . #hand %= (++villaged)
                     field @"players" . ix (unPlayerNumber p) . #nativeVillage .= []
                     pure $ Just $ NativeVillage $ Right villaged
@@ -289,7 +293,7 @@ navigatorCard = Card "Navigator" 4 navigatorCardAction Action (simpleVictory 0)
     where
         navigatorCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         navigatorCardAction p = do
-            (DominionDraw drawn) <- basicCardAction 5 0 0 2 p
+            (DominionDraw drawn) <- basicCardAction 5 (-1) 0 2 p
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
             let reorder = (thePlayer ^. #strategy . #navigatorStrategy) aig drawn
@@ -335,6 +339,7 @@ pirateShipCard = Card "Pirate Ship" 4 pirateShipCardAction Action (simpleVictory
         pirateShipCardAction p = do
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
+            _ <- basicCardAction 0 (-1) 0 0 p
             if thePlayer ^. #strategy . #pirateShipStrategy $ aig
                 then do
                     players' <- use #players
@@ -391,6 +396,7 @@ treasureMapCard = Card "Treasure Map" 4 treasureMapCardAction Duration (simpleVi
             thePlayer <- findPlayer p
             if length ( (thePlayer ^. #hand) `intersect` [treasureMapCard, treasureMapCard] ) >= 2
                 then do
+                    _ <- basicCardAction 0 (-1) 0 0 p
                     trashCards p [treasureMapCard, treasureMapCard]
                     gained <- gainCardsToDeck p [goldCard, goldCard, goldCard, goldCard]
                     return $ Just $ TreasureMap gained
@@ -402,6 +408,7 @@ seaHagCard = Card "Sea Hag" 4 seaHagCardAction Action (simpleVictory 0)
     where
         seaHagCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         seaHagCardAction p = do
+            _ <- basicCardAction 0 (-1) 0 0 p
             players' <- use #players
             playerResponses <- mapM (seaHagDiscard p) $ PlayerNumber <$> [0.. length players' - 1]
             pure $ Just $ SeaHag $ Map.fromList playerResponses

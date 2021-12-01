@@ -33,7 +33,7 @@ data DominionGame = DominionGame
   , seed :: StdGen
   , turns :: [DominionTurn]
   -- | [(Player Name, Score)]
-  , result :: Maybe [(Text, Int)]
+  , result :: [(Text, Int)]
   }
   deriving stock (Generic, Show)
   deriving Arbitrary via GenericArbitrary DominionGame

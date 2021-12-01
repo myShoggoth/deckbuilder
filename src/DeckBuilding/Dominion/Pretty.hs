@@ -38,14 +38,13 @@ import System.Random (StdGen)
 import qualified Data.Map as Map
 
 instance Pretty DominionGame where
-    pretty (DominionGame pls kndms sed trns (Just res)) =
+    pretty (DominionGame pls kndms sed trns res) =
         vsep [indent 2 $ "Dominion Game " <> pretty sed
              , indent 4 "Players", indent 6 $ align $ vsep $ map pretty pls
              , indent 4 "Kingdom", indent 6 $ align $ hsep $ map pretty kndms
              , indent 4 "Turns", indent 6 $ align $ vsep $ map pretty trns
              , indent 4 "Results", indent 6 $ align $ vsep $ map pretty res
              ]
-    pretty (DominionGame _ _ _ _ Nothing) = pretty ("Game ends without results, should never happen." :: Text.Text)
 
 instance Pretty StdGen where
     pretty g = pretty $ show g

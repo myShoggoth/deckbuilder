@@ -248,10 +248,10 @@ harbingerCard   = Card "Harbinger"  4 harbingerCardAction Action (simpleVictory 
     harbingerCardAction p = do
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
-      theDraw <- deal 1 p
+      theDraw <- basicCardAction 1 0 0 0 p
       let cards = (thePlayer ^. #strategy . #retrieveStrategy) aig (0, 1) (thePlayer ^. #discard)
       discardToDeck p cards
-      pure $ Just $ Harbinger (DominionDraw theDraw) $ headMay cards
+      pure $ Just $ Harbinger theDraw $ headMay cards
 
 -- | +1 Card
 --
@@ -307,7 +307,6 @@ defendsAgainstAttack _ p =
 -- | Gain a Silver onto your deck. Each other player reveals a Victory
 -- card from their hand and puts it onto their deck (or reveals a hand
 -- with no Victory cards).
-
 bureaucratCard :: Card
 bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory 0)
   where
@@ -327,17 +326,17 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
         Just defender -> return $ Left defender
         Nothing       -> do
           case find (`elem` victoryCards) (thePlayer ^. #hand) of
-            Nothing -> return $Right Nothing
+            Nothing -> return $ Right Nothing
             Just c  -> do
               discardCards p [c]
               return $ Right $ Just c
 
 -- | Worth 1VP per 10 cards you have (round down).
 gardensCard :: Card
-gardensCard     = Card "Gardens"    4 (valueCardAction 0 Gardens) Value gardensCardAction
+gardensCard     = Card "Gardens"    4 (valueCardAction 0 Gardens) Value gardensCardVictory
   where
-    gardensCardAction :: PlayerNumber -> DominionState Int
-    gardensCardAction p = do
+    gardensCardVictory :: PlayerNumber -> DominionState Int
+    gardensCardVictory p = do
       thePlayer <- findPlayer p
       let points = length ( thePlayer ^. #hand ++ thePlayer ^. #discard ++ thePlayer ^. #played ++ thePlayer ^. #deck ) `div` 10
       pure points
@@ -436,9 +435,13 @@ throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action (simpleVicto
         (Just card) -> do
           mm1 <- (card ^. #action) p
           case mm1 of
-            Nothing -> return Nothing
+            Nothing -> return Nothing -- Maybe we should error out, here?
             Just m1 -> do
               cardPlayed card p -- If we're able to do this once, it has been played.
+              -- This is a little subtle. You don't use up actions when doing
+              -- the throne roomed card, just the thrown room. So we run the action
+              -- twice (which will use up two actions), and then give one back, so
+              -- we end up having use a single action for the throne room.
               _ <- basicCardAction 0 1 0 0 p
               mm2 <- (card ^. #action) p
               case mm2 of
