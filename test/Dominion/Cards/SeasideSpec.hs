@@ -14,6 +14,7 @@ import DeckBuilding.Dominion.Cards
       caravanCard,
       cutpurseCard,
       embargoCard,
+      explorerCard,
       fishingVillageCard,
       havenCard,
       islandCard,
@@ -27,7 +28,10 @@ import DeckBuilding.Dominion.Cards
       salvagerCard,
       seaHagCard,
       curseCard,
-      treasureMapCard
+      treasureMapCard,
+      silverCard,
+      provinceCard,
+      goldCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -61,7 +65,6 @@ import DeckBuilding.Dominion
     ( basicDecks, configToGame, makeDecks )
 import qualified Data.Map as Map
 import Safe (headMay, lastMay)
-import DeckBuilding.Dominion.Cards.Seaside (treasureMapCard)
 import Data.Generics.Product ( HasField(field) )
 
 spec :: Spec
@@ -118,6 +121,19 @@ spec = do
             (snd . head $ Map.toList $ afterCard ^. #embargoes) `shouldBe` 1
         it "gives two money" $ do
             (p1AfterCard ^. #money) `shouldBe` 2
+
+    describe "Explorer action" $ do
+        let afterCard = execState ((explorerCard ^. #action) p0) afterDeal
+        let (Just p1AfterCard) = afterCard ^? #players . ix 0
+        it "gains a silver to the hand if there is no province" $ do
+            headMay (p1AfterCard ^. #hand) `shouldBe` Just silverCard
+            length (p1AfterCard ^. #hand) `shouldBe` 6
+        it "gains a gold to the hand if there is a province" $ do
+            let afterProvinceAdded = execState ((field @"players" . ix 0 . #hand) %= (provinceCard:)) afterDeal
+            let afterTM = execState ((explorerCard ^. #action) p0) afterProvinceAdded
+            let (Just p1AfterProvinceCard) = afterTM ^? #players . ix 0
+            headMay (p1AfterProvinceCard ^. #hand) `shouldBe` Just goldCard
+            length (p1AfterProvinceCard ^. #hand) `shouldBe` 7
 
     describe "Fishing Village action" $ do
         let afterCard = execState ((fishingVillageCard ^. #action) p0) afterDeal

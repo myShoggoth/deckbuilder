@@ -76,6 +76,7 @@ data DominionAction =
       Courtyard DominionDraw [Card] |
       Cutpurse (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Embargo Card |
+      Explorer Card |
       Festival |
       FishingVillage |
       FishingVillageDuration |

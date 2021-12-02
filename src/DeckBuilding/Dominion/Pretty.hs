@@ -25,7 +25,7 @@ import DeckBuilding.Dominion.Types
                      CaravanDuration, Navigator, ThroneRoom, Vassal, Village, Militia,
                      Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard,
                      Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
-                     PirateShip, Salvager, SeaHag, TreasureMap),
+                     PirateShip, Salvager, SeaHag, TreasureMap, Explorer),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -102,6 +102,7 @@ instance Pretty DominionAction where
     pretty (Courtyard (DominionDraw xs) h2d) = "Courtyard draws" <+> hsep (map pretty xs) <+> "and puts" <+> hsep (map pretty h2d) <+> "on the deck."
     pretty (Cutpurse xs) = "Cutpurse:" <+> align (vsep $ map cutpurseResponse $ Map.toList xs)
     pretty (Embargo x) = "Embargoes" <+> pretty x
+    pretty (Explorer c) = "Explorer gained" <+> pretty c
     pretty Festival = pretty ("Festival" :: Text.Text)
     pretty FishingVillage = pretty ("Fishing Village" :: Text.Text)
     pretty FishingVillageDuration  = pretty ("Fishing Village (Duration)" :: Text.Text)

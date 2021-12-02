@@ -9,6 +9,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     caravanCard,
     cutpurseCard,
     embargoCard,
+    explorerCard,
     fishingVillageCard,
     havenCard,
     islandCard,
@@ -23,15 +24,15 @@ module DeckBuilding.Dominion.Cards.Seaside
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
-import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
 import qualified Data.Map as Map
-import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curseCard, gainCurse, goldCard)
+import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curseCard, gainCurse, goldCard, provinceCard, silverCard)
 import Control.Monad (when)
 import Safe (lastMay, headMay)
 import Data.List ((\\), intersect)
@@ -156,6 +157,20 @@ embargoCard = Card "Embargo" 2 embargoCardAction Action (simpleVictory 0)
             field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [embargoCard]
             field @"trash" %= (embargoCard:)
             return $ Just $ Embargo supplyCard
+
+-- | You may reveal a Province from your hand. If you do, gain a Gold to your hand.
+-- If you don’t, gain a Silver to your hand.
+explorerCard :: Card
+explorerCard = Card "Explorer" 5 explorerCardAction Action (simpleVictory 0)
+    where
+        explorerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        explorerCardAction p = do
+            thePlayer <- findPlayer p
+            _ <- basicCardAction 0 (-1) 0 0 p
+            crds <- if provinceCard `elem` (thePlayer ^. #hand ++ thePlayer ^. #played)
+                then gainCardsToHand p [goldCard]
+                else gainCardsToHand p [silverCard]
+            return $ Just $ Explorer $ head crds
 
 -- | +2 Actions
 -- +$1
