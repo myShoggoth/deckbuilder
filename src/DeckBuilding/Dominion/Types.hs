@@ -95,6 +95,8 @@ data DominionAction =
       Lurker (Either Card Card) |
       Market DominionDraw |
       Merchant DominionDraw |
+      MerchantShip |
+      MerchantShipDuration |
       Militia (Map.Map PlayerNumber (Either Card [Card])) |
       Mine Card Card |
       Moat DominionDraw |

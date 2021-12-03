@@ -44,10 +44,10 @@ import Control.Monad.RWS ( MonadState(put, get) )
 -- | Player Number
 valueCard :: Int -> Int -> HeroCard -> PlayerNumber -> LegendaryState PlayerNumber
 valueCard m pew c p = do
-  (field @"players" . ix (unPlayerNumber p) . #hand) %= delete c
-  (field @"players" . ix (unPlayerNumber p) . #played) %= (c:)
-  (field @"players" . ix (unPlayerNumber p) . #unusedMoney) += m
-  (field @"players" . ix (unPlayerNumber p) . #unusedAttack) += pew
+  (#players . ix (unPlayerNumber p) . #hand) %= delete c
+  (#players . ix (unPlayerNumber p) . #played) %= (c:)
+  (#players . ix (unPlayerNumber p) . #unusedMoney) += m
+  (#players . ix (unPlayerNumber p) . #unusedAttack) += pew
   return p
 
 -- | For basic card values: draw cards, +money, +attack
@@ -67,41 +67,41 @@ koNOfTopofDeck cards _replace _ _ pnum = do
   cs <- deal cards pnum
   p <- findPlayer pnum
   (toKO, toReplace) <- (p ^. #strategy . #koNOfStrategy) (cards, cards) cs pnum
-  (field @"koPile") <>= toKO
-  (field @"players" . ix (unPlayerNumber pnum) . #deck) %= (toReplace <>)
+  #koPile <>= toKO
+  (#players . ix (unPlayerNumber pnum) . #deck) %= (toReplace <>)
   pure pnum
 
 gainRecruit :: Int -> VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber
 gainRecruit r _ _ pnum = do
-  (field @"players" . ix (unPlayerNumber pnum) . #unusedMoney) += r
+  (#players . ix (unPlayerNumber pnum) . #unusedMoney) += r
   pure pnum
 
 koNFromHand :: Int -> VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber
 koNFromHand n _ _ pnum = do
   p <- findPlayer pnum
   (toKO, theRest) <- (p ^. #strategy . #koNOfStrategy) (n, n) (hand p) pnum
-  (field @"koPile") <>= toKO
-  (field @"players" . ix (unPlayerNumber pnum) . #hand) .= theRest
+  #koPile <>= toKO
+  (#players . ix (unPlayerNumber pnum) . #hand) .= theRest
   pure pnum
 
 adjustNextTurnCards :: Int -> VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber
 adjustNextTurnCards antc _ _ pnum = do
-  (field @"players" . ix (unPlayerNumber pnum) . #nextTurnCards) += antc
+  (#players . ix (unPlayerNumber pnum) . #nextTurnCards) += antc
   pure pnum
 
 vpPerClass :: HeroClass -> VillainCard -> PlayerNumber -> LegendaryState Int
 vpPerClass cl _ pnum = do
   p <- findPlayer pnum
-  let allCards = ((p ^. field @"deck") <> (p ^. #discard) <> (p ^. #played) <> (p ^. #hand)) ^.. folded . #heroClass . folded
+  let allCards = ((p ^. #deck) <> (p ^. #discard) <> (p ^. #played) <> (p ^. #hand)) ^.. folded . #heroClass . folded
   pure $ length $ filter (== cl) allCards
 
 classOrWound :: HeroClass -> VillainCard -> PlayerNumber -> LegendaryState ()
 classOrWound cl _ _ = do
-  ps <- use $ field @"players"
+  ps <- use $ #players
   forM_ [0 .. length ps - 1] $ \pnum -> do
     p <- findPlayer $ PlayerNumber pnum
     if 0 < (length $ filter (== cl) $ (p ^. #hand) ^.. folded . #heroClass . folded)
-      then (field @"players" . ix pnum . #discard) %= (wound:)
+      then (#players . ix pnum . #discard) %= (wound:)
       else pure ()
 
 emptyWoundPile :: LegendaryState Bool
@@ -116,12 +116,12 @@ recruitN f n cost _ _ pnum = do
   let possibles = filter f (gs ^. #heroDeck)
   chosen <- (p ^. #strategy . #recruitNStrategy) possibles n cost pnum
   removeFromHq chosen
-  (field @"players" . ix (unPlayerNumber pnum) . #discard) <>= chosen
-  (field @"players" . ix (unPlayerNumber pnum) . #unusedMoney) -= (cost * length chosen)
+  (#players . ix (unPlayerNumber pnum) . #discard) <>= chosen
+  (#players . ix (unPlayerNumber pnum) . #unusedMoney) -= (cost * length chosen)
   pure pnum
 
 removeFromHq :: [HeroCard] -> LegendaryState ()
-removeFromHq hcs = do -- Why doesn't '(field @"hq") %= removeHero hcs' work?!
+removeFromHq hcs = do -- Why doesn't '(#hq) %= removeHero hcs' work?!
   gs <- get
   let gs' = gs { hq = removeHero <$> gs ^. #hq }
   put gs'

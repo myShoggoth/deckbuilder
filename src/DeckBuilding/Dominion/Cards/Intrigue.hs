@@ -66,16 +66,16 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
       icip <- isCardInPlay c
       if icip
         then do
-          field @"trash" %= (c:)
-          field @"decks" %= Map.mapWithKey (decreaseCards c)
+          #trash %= (c:)
+          #decks %= Map.mapWithKey (decreaseCards c)
           return $ Just e
         else return Nothing
     lurk e@(Right c@(Card _ _ _ Action _)) p = do
       trsh <- use #trash
       if c `elem` trsh
         then do
-          field @"trash" %= delete c
-          (field @"players" . ix (unPlayerNumber p) . #discard) %= (c:)
+          #trash %= delete c
+          (#players . ix (unPlayerNumber p) . #discard) %= (c:)
           return $ Just e
         else return Nothing
     lurk (Right _) _ = return Nothing

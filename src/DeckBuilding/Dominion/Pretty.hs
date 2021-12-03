@@ -25,7 +25,7 @@ import DeckBuilding.Dominion.Types
                      CaravanDuration, Navigator, ThroneRoom, Vassal, Village, Militia,
                      Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard,
                      Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
-                     PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip),
+                     PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -123,6 +123,8 @@ instance Pretty DominionAction where
     pretty (Lurker (Right c)) = "Lurker gains " <> pretty c <> " from the trash."
     pretty (Market (DominionDraw xs)) = "Market draws" <+> hsep (map pretty xs)
     pretty (Merchant (DominionDraw xs)) = "Merchant draws" <+> hsep (map pretty xs)
+    pretty MerchantShip = pretty ("Merchant Ship" :: Text.Text)
+    pretty MerchantShipDuration = pretty ("Merchant Ship (Duration)" :: Text.Text)
     pretty (Militia xs) = "Militia:" <+> align (vsep $ map militiaResponse $ Map.toList xs)
     pretty (Mine c1 c2) = "Mine " <> pretty c1 <> " into " <> pretty c2
     pretty (Moat (DominionDraw xs)) = "Moat draws" <+> hsep (map pretty xs)

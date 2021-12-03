@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE DataKinds                 #-}
 module Dominion.Cards.SeasideSpec
     ( spec
@@ -21,6 +20,7 @@ import DeckBuilding.Dominion.Cards
       islandCard,
       lighthouseCard,
       lookoutCard,
+      merchantShipCard,
       nativeVillageCard,
       pearlDiverCard,
       warehouseCard,
@@ -163,7 +163,7 @@ spec = do
         it "causes the other player to put cards back on their deck down to 3 in hand" $ do
             length (p2AfterCard ^. #hand) `shouldBe` 3
             length (p2AfterCard ^. #deck) `shouldBe` 7
-    
+
     describe "Haven action" $ do
         let (p1AfterCard, _) = initialState defaultConfig $ do
                 havenCard ^. #action $ p0
@@ -206,6 +206,18 @@ spec = do
             length (p1AfterCard ^. #discard) `shouldBe` 1
             length (afterCard ^. #trash) `shouldBe` 1
             length (p1AfterCard ^. #deck) `shouldBe` 3
+
+    describe "Merchant Ship action" $ do
+        let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
+                merchantShipCard ^. #action $ p0
+                p0' <- findPlayer p0
+                head (p0' ^. #duration) p0
+                p0'' <- findPlayer p0
+                return (p0', p0'')
+        it "adds two money this turn" $ do
+            p1AfterCard ^. #money `shouldBe` 2
+        it "adds another two the next turn" $ do
+            p1AfterCard' ^. #money `shouldBe` 4
 
     describe "Native Village action" $ do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do

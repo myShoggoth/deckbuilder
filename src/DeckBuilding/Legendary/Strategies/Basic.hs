@@ -45,9 +45,9 @@ dumbBuy pnum = do
     p <- findPlayer pnum
     hqs <- use $ #hq
     let (unused, bought, hq') = doBuy (p ^. #unusedMoney) [] hqs
-    (field @"players" . ix (unPlayerNumber pnum) . #unusedMoney) .= unused
-    (field @"players" . ix (unPlayerNumber pnum) . #discard) <>= bought
-    field @"hq" .= hq'
+    (#players . ix (unPlayerNumber pnum) . #unusedMoney) .= unused
+    (#players . ix (unPlayerNumber pnum) . #discard) <>= bought
+    #hq .= hq'
     pure pnum
   where
       doBuy 0 b theHq = (0, b, theHq)
@@ -83,7 +83,7 @@ dumbGain :: Int -> PlayerNumber -> LegendaryState (Maybe HeroCard)
 dumbGain _ _ = undefined
 
 dumbAttack :: PlayerNumber -> LegendaryState PlayerNumber
-dumbAttack pnum = pure pnum
+dumbAttack = pure
 
 dumbKONOf :: (Int, Int) -> [HeroCard] -> PlayerNumber -> LegendaryState ([HeroCard], [HeroCard])
 dumbKONOf (_, _) _ _ = undefined

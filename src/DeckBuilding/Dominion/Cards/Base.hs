@@ -228,10 +228,10 @@ chapelCard     = Card "Chapel"      2 chapelCardAction Action (simpleVictory 0)
       thePlayer <- findPlayer p
       aig <- mkDominionAIGame p
       -- Remove the chapel from the hand so the AI doesn't decide it can trash it as one of the four
-      field @"players" . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [chapelCard]
+      #players . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [chapelCard]
       let toTrash = (thePlayer ^. #strategy . #trashStrategy) aig (0, 4) []
       -- then restore, `thePlayer` in this case has the old values anyway
-      field @"players" . ix (unPlayerNumber p) . #hand .= thePlayer ^. #hand
+      #players . ix (unPlayerNumber p) . #hand .= thePlayer ^. #hand
       trashCards p toTrash
       _ <- basicCardAction 0 (-1) 0 0 p
       pure $ Just $ Chapel toTrash
@@ -293,7 +293,7 @@ vassalCard      = Card "Vassal"     3 vassalCardAction Action (simpleVictory 0)
                 cardPlayed c' p
                 pure $ Just $ Vassal mdm
               else do
-                field @"players" . ix (unPlayerNumber p) . #discard %= (c':)
+                #players . ix (unPlayerNumber p) . #discard %= (c':)
                 pure $ Just $ Vassal Nothing
       topOfDeck $ find (const True) enoughDeck
 
@@ -312,10 +312,10 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
   where
     bureaucratCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     bureaucratCardAction p = do
-      field @"players" . ix (unPlayerNumber p) . #deck %= (silverCard:)
+      #players . ix (unPlayerNumber p) . #deck %= (silverCard:)
       players' <- use #players
       discards <- mapM (discardVictory p) $ PlayerNumber <$> [0.. length players' - 1]
-      field @"decks" %= Map.mapWithKey (decreaseCards silverCard)
+      #decks %= Map.mapWithKey (decreaseCards silverCard)
       _ <- basicCardAction 0 (-1) 0 0 p
       pure $ Just $ Bureaucrat $ Map.fromList $ zip (PlayerNumber <$> [0.. length players' - 1]) discards
     discardVictory :: PlayerNumber -> PlayerNumber -> DominionState (Either Card (Maybe Card))
@@ -416,7 +416,7 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
             Nothing -> pure Nothing
             Just card -> do
               _ <- basicCardAction 0 (-1) 0 0 p
-              field @"players" . ix (unPlayerNumber p) . #discard %= (card:)
+              #players . ix (unPlayerNumber p) . #discard %= (card:)
               pure $ Just $ Remodel (head moves) card
         else
           return Nothing
@@ -458,8 +458,8 @@ banditCard      = Card "Bandit"       5 banditCardAction Action (simpleVictory 0
     banditCardAction p = do
       ps <- use #players
       decisions <- mapM (banditDiscard p) $ PlayerNumber <$> [0.. length ps - 1]
-      field @"players" . ix (unPlayerNumber p) . #discard %= (goldCard:)
-      field @"decks" %= Map.mapWithKey (decreaseCards goldCard)
+      #players . ix (unPlayerNumber p) . #discard %= (goldCard:)
+      #decks %= Map.mapWithKey (decreaseCards goldCard)
       _ <- basicCardAction 0 (-1) 0 0 p
       let oppDecisions = filter (\(_, x) -> isRight x) decisions
           fixedOppDecisions :: [(PlayerNumber, Either Card BanditDecision)] = fixup <$> oppDecisions
@@ -532,8 +532,8 @@ gainCurse p = do
   haveCurses <- isCardInPlay curseCard
   if haveCurses
     then do
-      field @"players" . ix (unPlayerNumber p) . #discard %= (curseCard:)
-      field @"decks" %= Map.mapWithKey (decreaseCards curseCard)
+      #players . ix (unPlayerNumber p) . #discard %= (curseCard:)
+      #decks %= Map.mapWithKey (decreaseCards curseCard)
       return $ Just curseCard
     else return Nothing
 
@@ -555,8 +555,8 @@ mineCard          = Card "Mine"       5 mineCardAction Action (simpleVictory 0)
     exch :: Card -> Card -> PlayerNumber -> DominionState (Maybe DominionAction)
     exch c1 c2 p = do
       trashCards p [c1]
-      field @"decks" %= Map.mapWithKey (decreaseCards c2)
-      field @"players" . ix (unPlayerNumber p) . #hand %= (c2:)
+      #decks %= Map.mapWithKey (decreaseCards c2)
+      #players . ix (unPlayerNumber p) . #hand %= (c2:)
       _ <- basicCardAction 0 (-1) 0 0 p
       return $ Just $ Mine c1 c2
 
@@ -611,10 +611,10 @@ sentryCard    = Card "Sentry"       5 sentryCardAction Action (simpleVictory 0)
       let oldhand = thePlayer ^. #hand
       newcards <- deal 2 p
       let (trashem, disc, keep) = (thePlayer ^. #strategy . #sentryStrategy) aig newcards
-      field @"trash" %= (trashem ++)
-      field @"players" . ix (unPlayerNumber p) . #discard %= (disc ++)
-      field @"players" . ix (unPlayerNumber p) . #deck %= (keep ++)
-      field @"players" . ix (unPlayerNumber p) . #hand .= oldhand
+      #trash %= (trashem ++)
+      #players . ix (unPlayerNumber p) . #discard %= (disc ++)
+      #players . ix (unPlayerNumber p) . #deck %= (keep ++)
+      #players . ix (unPlayerNumber p) . #hand .= oldhand
       return $ Just $ Sentry drawn trashem disc keep
 
 -- | Gain a card to your hand costing up to $5.
@@ -631,8 +631,8 @@ artisanCard   = Card "Artisan"      6 artisanCardAction Action (simpleVictory 0)
         Nothing   -> return Nothing
         Just card -> do
           _ <- basicCardAction 0 (-1) 0 0 p
-          field @"decks" %= Map.mapWithKey (decreaseCards card)
-          field @"players" . ix (unPlayerNumber p) . #hand %= (card:)
+          #decks %= Map.mapWithKey (decreaseCards card)
+          #players . ix (unPlayerNumber p) . #hand %= (card:)
           aig' <- mkDominionAIGame p
           let putOnDeck = (thePlayer ^. #strategy . #handToDeckStrategy) aig' 1
           if length putOnDeck == 1
@@ -653,8 +653,8 @@ workshopCard  = Card "Workshop"     3 workshopCardAction Action (simpleVictory 0
       case mc of
         Nothing -> return Nothing
         Just card -> do
-          field @"decks" %= Map.mapWithKey (decreaseCards card)
-          field @"players" . ix (unPlayerNumber p) . #hand %= (card:)
+          #decks %= Map.mapWithKey (decreaseCards card)
+          #players . ix (unPlayerNumber p) . #hand %= (card:)
           return $ Just $ Workshop card
 
 -- | The kingdom cards from Dominion 2nd edition.

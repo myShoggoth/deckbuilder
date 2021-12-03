@@ -93,7 +93,7 @@ sentinel = VillainCard "Sentinel" 3 False False (\_ _ -> return 1) Nothing (Just
 
 sentinels :: [VillainCard]
 sentinels = take 15 $ repeat sentinel
- 
+
 -- Masters of Evil
 
 whirlwind :: VillainCard
@@ -143,20 +143,20 @@ monarch'sDecree = VillainCard "Monarch's Decree" 9 False False (\_ _ -> pure 5) 
   where
     drawOrDiscard :: VillainCard -> CityLocation -> PlayerNumber -> LegendaryState PlayerNumber
     drawOrDiscard _ _ pnum = do
-      ps <- use $ field @"players"
+      ps <- use #players
       p <- findPlayer pnum
-      ((p ^. #strategy . #othersDrawOrDiscardStrategy) 1 pnum) >>= \case
-        DrawChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == (unPlayerNumber pnum)
+      (p ^. #strategy . #othersDrawOrDiscardStrategy) 1 pnum >>= \case
+        DrawChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == unPlayerNumber pnum
             then return ()
             else void $ deal 1 $ PlayerNumber opnum
-        DiscardChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == (unPlayerNumber pnum)
+        DiscardChoice -> forM_ [0 .. length ps - 1] $ \opnum -> if opnum == unPlayerNumber pnum
             then return ()
             else do
               op <- findPlayer $ PlayerNumber opnum
               _ <- (op ^. #strategy . #discardStrategy) (1, 1) $ PlayerNumber opnum
               return ()
       return pnum
-          
+
 
 --secretsOfTimeTravel :: VillainCard
 
@@ -165,14 +165,13 @@ monarch'sDecree = VillainCard "Monarch's Decree" 9 False False (\_ _ -> pure 5) 
 
 drdoomMasterStrike :: PlayerNumber -> LegendaryState ()
 drdoomMasterStrike _ = do
-  ps <- use $ field @"players"
+  ps <- use #players
   forM_ [0 .. length ps - 1] $ \pnum -> do
     p <- findPlayer $ PlayerNumber pnum
-    if (6 == (length $ p ^. #hand)) &&
+    if (6 == length $ p ^. #hand) &&
        (0 < (length $ filter (== Tech) $ (p ^. #hand) ^.. folded . #heroClass . folded))
       then void $ (p ^. #strategy . #discardStrategy) (2, 2) $ PlayerNumber pnum
       else pure ()
-  pure ()
 
 -- Schemes
 

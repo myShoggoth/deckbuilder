@@ -34,16 +34,16 @@ deal num pnum = do
   p <- findPlayer pnum
   r <- use $ #random
   let (r', newCards, newDeck, newDiscard) = deal' r (p ^. #deck) (p ^. #discard) num
-  field @"random" .= r'
-  (field @"players" . ix (unPlayerNumber pnum) . #deck) .= newDeck
-  (field @"players" . ix (unPlayerNumber pnum) . #discard) .= newDiscard
-  (field @"players" . ix (unPlayerNumber pnum) . #hand) %= (++ newCards)
+  #random .= r'
+  (#players . ix (unPlayerNumber pnum) . #deck) .= newDeck
+  (#players . ix (unPlayerNumber pnum) . #discard) .= newDiscard
+  (#players . ix (unPlayerNumber pnum) . #hand) %= (++ newCards)
   return newCards
 
 -- | Find player # n, error if not found
 findPlayer :: PlayerNumber -> LegendaryState LegendaryPlayer
 findPlayer p = do
-  mp <- preuse(field @"players" . ix (unPlayerNumber p))
+  mp <- preuse(#players . ix (unPlayerNumber p))
   case mp of
     Just player' -> pure player'
     Nothing      -> error $ "Unable to find player #" <> show p
@@ -58,7 +58,7 @@ drawVillain n p = do
     then error "Villain deck is empty!"
     else do
       let (newVillains, newVillainDeck) = splitAt n vdeck
-      (field @"villainDeck") .= newVillainDeck
+      (#villainDeck) .= newVillainDeck
       void $ sequence $ enterVillain <$> newVillains
   where
     enterVillain :: VillainCard -> LegendaryState ()
@@ -68,8 +68,8 @@ drawVillain n p = do
         else do
           entr <- use $ #entrance
           let (newCity,escaped) = advanceVillain entr v [] 
-          field @"escapees" <>= escaped
-          field @"entrance" .= newCity
+          #escapees <>= escaped
+          #entrance .= newCity
 
     -- | Advance this villain one city location.
     -- If the location is empty, just move from one to another.
@@ -93,8 +93,8 @@ fillHq _ = do
   let missing = length . filter (== Nothing) $ hqs
   let (newHeroes, newHeroDeck) = splitAt missing hdeck
   let newhq = allocate newHeroes hqs
-  field @"heroDeck" .= newHeroDeck
-  field @"hq" .= newhq
+  #heroDeck .= newHeroDeck
+  #hq .= newhq
   where
     -- | Given a list of `a`s and a list of `Maybe a`s,
     -- put the `a`s into each Nothing until they run out.

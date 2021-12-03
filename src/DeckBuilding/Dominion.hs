@@ -142,14 +142,14 @@ basicDecks numPlayers
 resetTurn :: PlayerNumber -> DominionState ()
 resetTurn p = do
   thePlayer <- findPlayer p
-  (field @"players" . ix (unPlayerNumber p) . #discard) %= ( ((thePlayer ^. #hand) ++ (thePlayer ^. #played) ) ++)
-  (field @"players" . ix (unPlayerNumber p) . #played) .= []
-  (field @"players" . ix (unPlayerNumber p) . #hand) .= []
-  (field @"players" . ix (unPlayerNumber p) . #actions) .= 1
-  (field @"players" . ix (unPlayerNumber p) . #buys) .= 1
-  (field @"players" . ix (unPlayerNumber p) . #money) .= 0
-  (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
-  (field @"players" . ix (unPlayerNumber p) . #turns) += 1
+  (#players . ix (unPlayerNumber p) . #discard) %= ( ((thePlayer ^. #hand) ++ (thePlayer ^. #played) ) ++)
+  (#players . ix (unPlayerNumber p) . #played) .= []
+  (#players . ix (unPlayerNumber p) . #hand) .= []
+  (#players . ix (unPlayerNumber p) . #actions) .= 1
+  (#players . ix (unPlayerNumber p) . #buys) .= 1
+  (#players . ix (unPlayerNumber p) . #money) .= 0
+  (#players . ix (unPlayerNumber p) . #victory) .= 0
+  (#players . ix (unPlayerNumber p) . #turns) += 1
 
 -- | Instantiate a new 'DominionBoard' based on a 'DominionConfig' and a random seed.
 configToGame :: DominionConfig -> StdGen -> DominionBoard
@@ -233,7 +233,7 @@ runPlayerTurn p = do
   -- which we run at the beginning of the next turn (and then empty
   -- the list).
   durations <- mapM (\f -> f p) (thePlayer ^. #duration)
-  field @"players" . ix (unPlayerNumber p) . #duration .= []
+  #players . ix (unPlayerNumber p) . #duration .= []
 
   actns <- evaluateHand p
 
@@ -268,9 +268,9 @@ instance Game DominionBoard where
       pure $ zip names points
     where
       tallyPlayerPoints p = do
-        (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
+        (#players . ix (unPlayerNumber p) . #victory) .= 0
         thePlayer <- findPlayer p
-        (field @"players" . ix (unPlayerNumber p) . #hand) .= ((thePlayer ^. #deck) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #hand) ++ (thePlayer ^. #played) ++ (thePlayer ^. #island))
+        (#players . ix (unPlayerNumber p) . #hand) .= ((thePlayer ^. #deck) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #hand) ++ (thePlayer ^. #played) ++ (thePlayer ^. #island))
         player' <- findPlayer p
         mapM_ (victoryPts p) (player' ^. #hand)
         finalPlayer <- findPlayer p
