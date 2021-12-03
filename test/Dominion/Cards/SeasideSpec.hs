@@ -34,7 +34,8 @@ import DeckBuilding.Dominion.Cards
       provinceCard,
       goldCard,
       treasureCards,
-      wharfCard
+      wharfCard,
+      treasuryCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -42,7 +43,7 @@ import System.Random ( mkStdGen )
 import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber), Game (tallyPoints) )
 import DeckBuilding.Dominion.Types
-    ( Card,
+    ( Card (action),
       DominionPlayer(DominionPlayer, nativeVillage),
       DominionConfig(DominionConfig),
       Strategy(Strategy),
@@ -65,12 +66,11 @@ import DeckBuilding.Dominion.Strategies.Basic
       bigMoneyIsland,
       nextCardByWeight )
 import DeckBuilding.Dominion
-    ( basicDecks, configToGame, makeDecks )
+    ( basicDecks, configToGame, makeDecks, resetTurn )
 import qualified Data.Map as Map
 import Safe (headMay, lastMay)
 import Data.Generics.Product ( HasField(field) )
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
-import DeckBuilding.Dominion.Cards.Seaside (ambassadorCard, wharfCard)
 import DeckBuilding.Dominion.Cards.Base (provinceCard)
 
 spec :: Spec
@@ -294,6 +294,16 @@ spec = do
             afterCard ^. #trash `shouldBe` [treasureMapCard, treasureMapCard]
         it "adds four gold to the deck" $ do
             length (p1AfterCard ^. #deck) `shouldBe` 9
+
+    describe "Treasury action" $ do
+        let (p1AfterCard, _) = initialState defaultConfig $ do
+                treasuryCard ^. #action $ p0
+                #players . ix (unPlayerNumber p0) . #played %= (treasuryCard:)
+                resetTurn p0
+                deal 5 p0
+                findPlayer p0
+        it "is put on the deck when no victory card is bought" $ do
+            treasuryCard `elem` p1AfterCard ^. #hand `shouldBe` True
 
     describe "Warehouse action" $ do
         let (p1AfterCard, _) = initialState defaultConfig $ do

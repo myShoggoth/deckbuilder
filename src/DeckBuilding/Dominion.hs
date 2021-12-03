@@ -52,7 +52,8 @@ import DeckBuilding.Dominion.Cards
       duchyCard,
       estateCard,
       curseCard,
-      moatCard
+      moatCard, victoryCards,
+      treasuryCard
     )
 import DeckBuilding.Types ( Game(..), PlayerNumber(PlayerNumber, unPlayerNumber) )
 import DeckBuilding.Dominion.Types
@@ -69,7 +70,7 @@ import DeckBuilding.Dominion.Types
       DominionDraw(DominionDraw),
       DominionBoard(DominionBoard) )
 import DeckBuilding.Dominion.Utils
-    ( deal, numEmptyDecks, findPlayer, discardCard, mkDominionAIGame, executeBuys, cardPlayed )
+    ( deal, numEmptyDecks, findPlayer, discardCard, mkDominionAIGame, executeBuys, cardPlayed, removeFromCards )
 import System.Random (StdGen, RandomGen(split))
 import System.Random.Shuffle (shuffle')
 import Control.Monad.List ( forM_ )
@@ -77,6 +78,8 @@ import Control.Parallel.Strategies ( rseq, rpar, runEval )
 import Prettyprinter ( Doc, pretty )
 import DeckBuilding.Dominion.Pretty ()
 import Data.Maybe (catMaybes)
+import Data.List (intersect)
+import Control.Conditional (when)
 
 -- Dominion
 
@@ -142,6 +145,7 @@ basicDecks numPlayers
 resetTurn :: PlayerNumber -> DominionState ()
 resetTurn p = do
   thePlayer <- findPlayer p
+  treasuryDecision p
   (#players . ix (unPlayerNumber p) . #discard) %= ( ((thePlayer ^. #hand) ++ (thePlayer ^. #played) ) ++)
   (#players . ix (unPlayerNumber p) . #played) .= []
   (#players . ix (unPlayerNumber p) . #hand) .= []
@@ -151,6 +155,24 @@ resetTurn p = do
   (#players . ix (unPlayerNumber p) . #victory) .= 0
   (#players . ix (unPlayerNumber p) . #turns) += 1
 
+  where
+    treasuryDecision :: PlayerNumber -> DominionState ()
+    treasuryDecision p = do
+      thePlayer <- findPlayer p
+      lbs <- use #lastBuys
+
+      when (treasuryCard `elem` thePlayer ^. #discard && null (victoryCards `intersect` (lbs Map.! p))) $ do
+        aig <- mkDominionAIGame p
+        when (thePlayer ^. #strategy . #treasuryStrategy $ aig) $ do
+            moveTreasuryCard p
+            treasuryDecision p
+    moveTreasuryCard :: PlayerNumber -> DominionState ()
+    moveTreasuryCard p = do
+      thePlayer <- findPlayer p
+      #players . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [treasuryCard]
+      #players . ix (unPlayerNumber p) . #deck %= (treasuryCard:)
+
+
 -- | Instantiate a new 'DominionBoard' based on a 'DominionConfig' and a random seed.
 configToGame :: DominionConfig -> StdGen -> DominionBoard
 configToGame c = DominionBoard
@@ -158,6 +180,7 @@ configToGame c = DominionBoard
     allDecks
     []
     zeroedDecks
+    Map.empty
     [moatCard]
     curseCard
   where
@@ -239,6 +262,7 @@ runPlayerTurn p = do
 
   aig <- mkDominionAIGame p
   let bys = thePlayer ^. #strategy . #buyStrategy $ aig
+  #lastBuys %= Map.mapWithKey (zeroBuys p)
   executeBuys bys aig
 
   resetTurn p
@@ -250,6 +274,9 @@ runPlayerTurn p = do
           bys
           (catMaybes durations ++ actns)
           (DominionDraw dealt)
+
+  where
+    zeroBuys p p1 xs = if p == p1 then [] else xs
 
 instance Game DominionBoard where
   start       = do

@@ -109,6 +109,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyPirateShip
                             bigMoneyPirateShipDecision
                             bigMoneySalvage
+                            bigMoneyTreasury
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -269,6 +270,10 @@ bigMoneyPirateShipDecision _ _ = error "More than two cards for pirate ship deci
 bigMoneySalvage :: DominionAIGame -> Maybe Card
 bigMoneySalvage g = headMay $ [estateCard] `intersect` (g ^. #hand)
 
+-- | Uh, sure, yes, let's do.
+bigMoneyTreasury :: DominionAIGame -> Bool
+bigMoneyTreasury _ = True
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -297,6 +302,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyPirateShip
                              bigMoneyPirateShipDecision
                              bigMoneySalvage
+                             bigMoneyTreasury
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -364,6 +370,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyPirateShip
                                 bigMoneyPirateShipDecision
                                 bigMoneySalvage
+                                bigMoneyTreasury
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]

@@ -1,11 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DerivingVia #-}
@@ -113,6 +109,7 @@ data DominionAction =
       Smithy DominionDraw |
       ThroneRoom Card DominionAction DominionAction |
       TreasureMap [Card] |
+      Treasury DominionDraw |
       Vassal (Maybe DominionAction) |
       Village DominionDraw |
       Witch DominionDraw (Map.Map PlayerNumber (Either Card (Maybe Card))) |
@@ -155,6 +152,8 @@ data DominionBoard = DominionBoard {
   trash   :: [Card],
   -- | Embargo tiles (Seaside expansion)
   embargoes  :: Map.Map Card Int,
+  -- | What cards did each player buy in their last turn?
+  lastBuys :: Map.Map PlayerNumber [Card],
 
   -- I'm putting these here to avoid cyclic dependencies, I would like a better solution.
   defenders :: [Card],
@@ -346,7 +345,9 @@ data Strategy = Strategy {
   -- gains a Coin token for their pirate ship mat).
   pirateShipDecisionStrategy :: DominionAIGame -> [Card] -> Maybe Card,
   -- | Choose which card to trash, gaining its cost as +money
-  salvagerStrategy :: DominionAIGame -> Maybe Card
+  salvagerStrategy :: DominionAIGame -> Maybe Card,
+  -- | Do we want to return the Treasury card to the deck?
+  treasuryStrategy :: DominionAIGame -> Bool
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -382,6 +383,7 @@ instance Arbitrary Strategy where
       , pirateShipStrategy = return False
       , pirateShipDecisionStrategy = return mempty
       , salvagerStrategy = return mempty
+      , treasuryStrategy = return True
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

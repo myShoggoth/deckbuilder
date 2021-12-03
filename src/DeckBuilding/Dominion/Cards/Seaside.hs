@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 
 module DeckBuilding.Dominion.Cards.Seaside
@@ -23,11 +22,12 @@ module DeckBuilding.Dominion.Cards.Seaside
     salvagerCard,
     seaHagCard,
     treasureMapCard,
+    treasuryCard,
     warehouseCard,
     wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck)
@@ -460,6 +460,19 @@ treasureMapCard = Card "Treasure Map" 4 treasureMapCardAction Duration (simpleVi
                     gained <- gainCardsToDeck p [goldCard, goldCard, goldCard, goldCard]
                     return $ Just $ TreasureMap gained
                 else return Nothing
+
+-- | +1 Card
+-- +1 Action
+-- +$1
+--
+-- When you discard this from play, if you didn’t buy a Victory card this turn, you may put this onto your deck.
+treasuryCard :: Card
+treasuryCard = Card "Treasury" 5 treasuryCardAction Action (simpleVictory 0)
+    where
+        treasuryCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        treasuryCardAction p = do
+            drawn <- basicCardAction 1 0 0 1 p
+            pure $ Just $ Treasury drawn
 
 -- | Each other player discards the top card of their deck, then gains a Curse onto their deck.
 seaHagCard :: Card

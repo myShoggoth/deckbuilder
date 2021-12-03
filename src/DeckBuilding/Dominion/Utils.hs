@@ -35,7 +35,7 @@ import DeckBuilding.Dominion.Types
       Card(cardName),
       DominionAIGame(..),
       DominionState,
-      DominionBuy(DominionBuy), DominionBoard (embargoes), CardType (Duration) )
+      DominionBuy(DominionBuy), DominionBoard (embargoes, lastBuys), CardType (Duration) )
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
 import DeckBuilding (deal')
@@ -154,6 +154,9 @@ executeBuys ((DominionBuy _ c):xs) g = do
       ems <- use #embargoes
       ep <- use #embargoPenalty
       supplyToDiscard ep p (ems Map.! c)
+      #lastBuys %= Map.mapWithKey (addToBuys p c) 
+    addToBuys :: Eq a1 => a1 -> a2 -> a1 -> [a2] -> [a2]
+    addToBuys p c p1 xs = if p == p1 then c : xs else xs
 
 mkDominionAIGame :: PlayerNumber -> DominionState DominionAIGame
 mkDominionAIGame pnum = do
