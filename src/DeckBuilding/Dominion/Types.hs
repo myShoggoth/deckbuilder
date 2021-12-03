@@ -80,6 +80,7 @@ data DominionAction =
       Festival |
       FishingVillage |
       FishingVillageDuration |
+      GhostShip DominionDraw (Map.Map PlayerNumber (Either Card [Card])) |
       Harbinger DominionDraw (Maybe Card) |
       Haven DominionDraw Card |
       HavenDuration Card |

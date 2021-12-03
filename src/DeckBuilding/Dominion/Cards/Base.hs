@@ -322,7 +322,7 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
     discardVictory e p | p == e = return $ Right Nothing
     discardVictory _ p = do
       thePlayer <- findPlayer p
-      case defendsAgainstAttack militiaCard thePlayer of
+      case defendsAgainstAttack bureaucratCard thePlayer of
         Just defender -> return $ Left defender
         Nothing       -> do
           case find (`elem` victoryCards) (thePlayer ^. #hand) of

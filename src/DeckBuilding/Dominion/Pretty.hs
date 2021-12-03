@@ -25,7 +25,7 @@ import DeckBuilding.Dominion.Types
                      CaravanDuration, Navigator, ThroneRoom, Vassal, Village, Militia,
                      Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard,
                      Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
-                     PirateShip, Salvager, SeaHag, TreasureMap, Explorer),
+                     PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -106,6 +106,7 @@ instance Pretty DominionAction where
     pretty Festival = pretty ("Festival" :: Text.Text)
     pretty FishingVillage = pretty ("Fishing Village" :: Text.Text)
     pretty FishingVillageDuration  = pretty ("Fishing Village (Duration)" :: Text.Text)
+    pretty (GhostShip (DominionDraw xs) ys) = "Ghost Ship:" <+> align (vsep $ "Draws" <+> hsep (map pretty xs) : map ghostShipResponse (Map.toList ys)) 
     pretty (Harbinger (DominionDraw xs) c) = "Harbinger draws" <+> hsep (map pretty xs) <+> "and pulls" <+> pretty c <+> "from the discards and puts it on their deck"
     pretty (Haven (DominionDraw xs) c) = "Haven draws" <+> hsep (map pretty xs) <+> "and puts aside" <+> pretty c <+> "for next turn"
     pretty (HavenDuration c) = "Haven (Duration) puts " <> pretty c <> " into the hand"
@@ -187,6 +188,10 @@ seaHagResponse (k, Right (Nothing, Nothing)) = "Player " <> viaShow k <> " has n
 seaHagResponse (k, Right (Nothing, Just c)) = "Player " <> viaShow k <> " has nothing to discard, and gains" <+> pretty c
 seaHagResponse (k, Right (Just c, Nothing)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and there are no more curse cards."
 seaHagResponse (k, Right (Just c, Just c1)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and gains" <+> pretty c1
+
+ghostShipResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
+ghostShipResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+ghostShipResponse (k, Right xs) = "Player " <> viaShow k <> " puts" <+> hsep (map pretty xs) <+> "on their deck"
 
 instance {-# OVERLAPS #-} Pretty (PlayerNumber, Either Card BanditDecision) where
     pretty (n, Left c) = "Player #" <> viaShow n <> " showed " <> pretty c

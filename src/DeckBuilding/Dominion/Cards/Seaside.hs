@@ -11,6 +11,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     embargoCard,
     explorerCard,
     fishingVillageCard,
+    ghostShipCard,
     havenCard,
     islandCard,
     lighthouseCard,
@@ -24,10 +25,10 @@ module DeckBuilding.Dominion.Cards.Seaside
     warehouseCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
-import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
@@ -171,6 +172,32 @@ explorerCard = Card "Explorer" 5 explorerCardAction Action (simpleVictory 0)
                 then gainCardsToHand p [goldCard]
                 else gainCardsToHand p [silverCard]
             return $ Just $ Explorer $ head crds
+
+-- | +2 Cards
+--
+-- Each other player with 4 or more cards in hand puts cards from their
+-- hand onto their deck until they have 3 cards in hand.
+ghostShipCard :: Card
+ghostShipCard = Card "Ghost Ship" 5 ghostShipCardAction Action (simpleVictory 0)
+    where
+        ghostShipCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        ghostShipCardAction p = do
+            drawn <- basicCardAction 2 (-1) 0 0 p
+            players' <- use #players
+            playerResponses <- mapM (ghostShipToDeck p) $ PlayerNumber <$> [0.. length players' - 1]
+            pure $ Just $ GhostShip drawn $ Map.fromList playerResponses
+        ghostShipToDeck :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card [Card])
+        ghostShipToDeck e p | e == p = return (e, Right [])
+        ghostShipToDeck _ p = do
+            thePlayer <- findPlayer p
+            case defendsAgainstAttack cutpurseCard thePlayer of
+                Just defender -> return (p, Left defender)
+                Nothing -> do
+                    aig <- mkDominionAIGame p
+                    -- Not technically asking for what to put on the deck
+                    let toDeck = (thePlayer ^. #strategy . #handToDeckStrategy) aig $ length (thePlayer ^. #hand) - 3
+                    handToDeck p toDeck
+                    return (p, Right toDeck)
 
 -- | +2 Actions
 -- +$1

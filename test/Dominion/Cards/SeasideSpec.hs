@@ -16,6 +16,7 @@ import DeckBuilding.Dominion.Cards
       embargoCard,
       explorerCard,
       fishingVillageCard,
+      ghostShipCard,
       havenCard,
       islandCard,
       lighthouseCard,
@@ -151,6 +152,18 @@ spec = do
             p1AfterCard' ^. #money `shouldBe` 2
             p1AfterCard' ^. #actions `shouldBe` 3
 
+    describe "Ghost Ship action" $ do
+        let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
+                ghostShipCard ^. #action $ p0
+                p0' <- findPlayer p0
+                p1' <- findPlayer p1
+                return (p0', p1')
+        it "draws two cards" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 7
+        it "causes the other player to put cards back on their deck down to 3 in hand" $ do
+            length (p2AfterCard ^. #hand) `shouldBe` 3
+            length (p2AfterCard ^. #deck) `shouldBe` 7
+    
     describe "Haven action" $ do
         let (p1AfterCard, _) = initialState defaultConfig $ do
                 havenCard ^. #action $ p0
