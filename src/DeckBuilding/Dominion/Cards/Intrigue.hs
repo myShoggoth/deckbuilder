@@ -27,7 +27,7 @@ import DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
-    ( Card(Card), CardType(Value, Action), DominionState, DominionAction (Courtyard, Lurker, ShantyTown, Conspirator, Ironworks, Duke, Harem), DominionDraw(DominionDraw) )
+    ( Card(Card), CardType(Value, Action, Duration), DominionState, DominionAction (Courtyard, Lurker, ShantyTown, Conspirator, Ironworks, Duke, Harem), DominionDraw(DominionDraw) )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame )
 
@@ -127,7 +127,7 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
       case mc of
         Nothing   -> return Nothing
         Just card
-              | (card ^. #cardType) == Action -> pure $ Just $ Ironworks card (DominionDraw [])
+              | (card ^. #cardType) == Action || (card ^. #cardType == Duration) -> pure $ Just $ Ironworks card (DominionDraw [])
               | card `elem` treasureCards             -> do
                 _ <- basicCardAction 0 (-1) 0 1 p
                 pure $ Just $ Ironworks card (DominionDraw [])

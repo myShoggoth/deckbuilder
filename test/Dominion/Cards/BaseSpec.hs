@@ -62,28 +62,8 @@ import System.Random ( mkStdGen )
 import Test.Hspec ( Spec, describe, it, shouldBe )
 import DeckBuilding.Dominion.Cards.Base (poacherCard)
 import DeckBuilding.Dominion.Pretty (witchResponse)
-
-defaultConfig :: DominionConfig
-defaultConfig = DominionConfig
-  [ ("Player 1", bigMoneyStrategy)
-  , ("Player 2", bigSmithyStrategy)
-  ]
-  firstGameKingdomCards
-
-initialState :: DominionConfig -> DominionState a -> (a, DominionBoard)
-initialState c f = runState f $ execState start $ configToGame c $ mkStdGen 45752345316
-
-p0 :: PlayerNumber
-p0 = PlayerNumber 0
-
-p1 :: PlayerNumber
-p1 = PlayerNumber 1
-
-setHand :: PlayerNumber -> [Card] -> DominionState ()
-setHand p xs = #players . ix (unPlayerNumber p) . #hand .= xs
-
-setDeck :: PlayerNumber -> [Card] -> DominionState ()
-setDeck p xs = #players . ix (unPlayerNumber p) . #deck .= xs
+import Dominion.Utils
+    ( defaultConfig, initialState, p0, p1, setHand, setDeck )
 
 spec :: Spec
 spec = do
