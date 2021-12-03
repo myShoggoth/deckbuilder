@@ -32,7 +32,9 @@ import DeckBuilding.Dominion.Cards
       treasureMapCard,
       silverCard,
       provinceCard,
-      goldCard, treasureCards
+      goldCard,
+      treasureCards,
+      wharfCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -68,7 +70,7 @@ import qualified Data.Map as Map
 import Safe (headMay, lastMay)
 import Data.Generics.Product ( HasField(field) )
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
-import DeckBuilding.Dominion.Cards.Seaside (ambassadorCard)
+import DeckBuilding.Dominion.Cards.Seaside (ambassadorCard, wharfCard)
 import DeckBuilding.Dominion.Cards.Base (provinceCard)
 
 spec :: Spec
@@ -300,3 +302,17 @@ spec = do
         it "draws and then discards three" $ do
             length (p1AfterCard ^. #hand) `shouldBe` 5
             length (p1AfterCard ^. #discard) `shouldBe` 3
+
+    describe "Wharf action" $ do
+        let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
+                wharfCard ^. #action $ p0
+                p0' <- findPlayer p0
+                head (p0' ^. #duration) p0
+                p0'' <- findPlayer p0
+                return (p0', p0'')
+        it "draws two cards when played" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 7
+            length (p1AfterCard ^. #deck) `shouldBe` 3
+        it "draws two more in the next turn" $ do
+            length (p1AfterCard' ^. #hand) `shouldBe` 9
+            length (p1AfterCard' ^. #deck) `shouldBe` 1

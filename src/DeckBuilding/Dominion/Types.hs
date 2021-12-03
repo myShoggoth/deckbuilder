@@ -117,6 +117,8 @@ data DominionAction =
       Village DominionDraw |
       Witch DominionDraw (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Warehouse DominionDraw [Card] |
+      Wharf DominionDraw |
+      WharfDuration DominionDraw |
       Workshop Card
   deriving stock (Show, Generic)
   deriving Arbitrary via GenericArbitrary DominionAction

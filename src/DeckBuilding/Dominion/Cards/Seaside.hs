@@ -23,10 +23,11 @@ module DeckBuilding.Dominion.Cards.Seaside
     salvagerCard,
     seaHagCard,
     treasureMapCard,
-    warehouseCard
+    warehouseCard,
+    wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck)
@@ -497,3 +498,18 @@ warehouseCard = Card "Warehouse" 3 warehouseCardAction Action (simpleVictory 0)
             let discards = (thePlayer ^. #strategy . #discardStrategy) aig (3, 3)
             discardCards p discards
             pure $ Just $ Warehouse drawn discards
+
+-- | Now and at the start of your next turn: +2 Cards and +1 Buy.
+wharfCard :: Card
+wharfCard = Card "Wharf" 5 wharfCardAction Duration (simpleVictory 0)
+    where
+        wharfCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        wharfCardAction p = do
+            drawn <- basicCardAction 2 (-1) 1 0 p
+            #players . ix (unPlayerNumber p) . #duration %= (wharfCardActionDuration:)
+            pure $ Just $ Wharf drawn
+        wharfCardActionDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        wharfCardActionDuration p = do
+            drawn <- basicCardAction 2 0 1 0 p
+            #players . ix (unPlayerNumber p) . #played %= (wharfCard:)
+            pure $ Just $ WharfDuration drawn
