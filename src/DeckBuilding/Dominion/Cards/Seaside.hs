@@ -17,6 +17,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     lookoutCard,
     merchantShipCard,
     nativeVillageCard,
+    outpostCard,
     pearlDiverCard,
     pirateShipCard,
     salvagerCard,
@@ -28,7 +29,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck)
@@ -362,6 +363,17 @@ navigatorCard = Card "Navigator" 4 navigatorCardAction Action (simpleVictory 0)
                 [] -> #players . ix (unPlayerNumber p) . #discard %= (reorder++)
                 xs -> #players . ix (unPlayerNumber p) . #deck .= xs ++ thePlayer' ^. #hand
             pure $ Just $ Navigator reorder
+
+-- | If this is the first time you played an Outpost this turn, and the previous
+-- turn wasn’t yours, then take an extra turn after this one, and you only draw
+-- 3 cards for your next hand.
+outpostCard :: Card
+outpostCard = Card "Outpost" 5 outpostCardAction Action (simpleVictory 0)
+    where
+        outpostCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        outpostCardAction p = do
+            #players . ix (unPlayerNumber p) . #outpost .= True
+            pure $ Just Outpost
 
 -- | +1 Card
 -- +1 Action

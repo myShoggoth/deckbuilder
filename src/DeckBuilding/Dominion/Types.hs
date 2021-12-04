@@ -52,7 +52,7 @@ data DominionPlayerTurn = DominionPlayerTurn
   deriving Arbitrary via GenericArbitrary DominionPlayerTurn
 
 data DominionBuy = DominionBuy Int Card
-  deriving stock (Show, Generic)
+  deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionBuy
 
 data DominionAction =
@@ -99,6 +99,8 @@ data DominionAction =
       MoneyLender |
       NativeVillage (Either Card [Card]) |
       Navigator [Card] |
+      Outpost |
+      OutpostDuration DominionDraw [DominionBuy] |
       PearlDiver DominionDraw Card Bool |
       PirateShip (Either Int (Map.Map PlayerNumber (Either Card (Maybe Card)))) |
       Poacher DominionDraw [Card] |
@@ -112,6 +114,7 @@ data DominionAction =
       ThroneRoom Card DominionAction DominionAction |
       TreasureMap [Card] |
       Treasury DominionDraw |
+      TreasuryDuration |
       Vassal (Maybe DominionAction) |
       Village DominionDraw |
       Witch DominionDraw (Map.Map PlayerNumber (Either Card (Maybe Card))) |
@@ -119,11 +122,11 @@ data DominionAction =
       Wharf DominionDraw |
       WharfDuration DominionDraw |
       Workshop Card
-  deriving stock (Show, Generic)
+  deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 
 newtype DominionDraw = DominionDraw [Card]
-  deriving stock (Show, Generic)
+  deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionDraw
 
 type DominionState a = State DominionBoard a
@@ -423,6 +426,8 @@ data DominionPlayer = DominionPlayer {
   lighthouse :: Int,
   -- | Coin tokens on the pirate ship mat
   pirateShip :: Int,
+  -- | Has the player played an Outpost this turn?
+  outpost :: Bool,
   -- NOTE: Add new items above the strategy
   -- | The Strategy used by this player.
   strategy   :: Strategy

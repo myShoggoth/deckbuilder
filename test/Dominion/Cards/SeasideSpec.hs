@@ -6,7 +6,7 @@ module Dominion.Cards.SeasideSpec
     ( spec
     ) where
 
-import Test.Hspec ( shouldBe, it, describe, Spec )
+import Test.Hspec ( shouldBe, shouldNotBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
 import DeckBuilding.Dominion.Cards
     ( ambassadorCard,
@@ -36,7 +36,10 @@ import DeckBuilding.Dominion.Cards
       goldCard,
       treasureCards,
       wharfCard,
-      treasuryCard
+      treasuryCard,
+      outpostCard,
+      estateCard,
+      copperCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -47,6 +50,8 @@ import DeckBuilding.Dominion.Types
     ( Card (action),
       DominionPlayer(DominionPlayer, nativeVillage),
       DominionConfig(DominionConfig),
+      DominionDraw(DominionDraw),
+      DominionAction(OutpostDuration, Copper, Estate),
       Strategy(Strategy),
       DominionState,
       CardType(Action),
@@ -242,6 +247,15 @@ spec = do
                 findPlayer p0
         it "gives two money" $ do
             (p1AfterCard ^. #money) `shouldBe` 2
+
+    describe "Outpost action" $ do
+        let ((p1AfterCard, das), _) = initialState defaultConfig $ do
+                outpostCard ^. #action $ p0
+                das <- resetTurn p0
+                p0' <- findPlayer p0
+                return (p0', das)
+        it "returns the actions for the turn" $ do
+            das `shouldBe` [OutpostDuration (DominionDraw [copperCard, copperCard, estateCard]) [], Copper, Copper, Estate]
 
     describe "Pearl Diver action" $ do
         let ((p1AfterDeal, p1AfterCard), _) = initialState defaultConfig $ do

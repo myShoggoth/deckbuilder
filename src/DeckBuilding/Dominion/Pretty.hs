@@ -27,7 +27,7 @@ import DeckBuilding.Dominion.Types
                      Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
                      PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
-                     TacticianDuration, Tactician),
+                     TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -135,6 +135,8 @@ instance Pretty DominionAction where
     pretty (NativeVillage (Right xs)) = "Native Village" <+> hsep (map pretty xs) <+> "into hand"
     pretty (Navigator []) = pretty ("Navigator discards all." :: Text.Text)
     pretty (Navigator xs) = "Navigator puts cards back on the deck in the order" <+> hsep (map pretty xs)
+    pretty Outpost = pretty ("Outpost" :: Text.Text)
+    pretty (OutpostDuration (DominionDraw xs) ys) = "Outpost (Duration) draws" <+> hsep (map pretty xs) <+> "and buys" <+> hsep (map pretty ys) <+> "for the bonus turn."
     pretty (PearlDiver (DominionDraw xs) c True) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> pretty c <> " on the bottom of the deck and moves it to the top."
     pretty (PearlDiver (DominionDraw xs) c False) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> pretty c <> " on the bottom of the deck leaves it."
     pretty (PirateShip (Left n)) = "Pirate gains " <> viaShow n <> " money from pirate mat Coin tokens."
@@ -153,6 +155,7 @@ instance Pretty DominionAction where
     pretty (ThroneRoom c da1 da2) = "Throne Rooms " <> pretty c <> " for" <+> align (vsep $ map pretty [da1, da2])
     pretty (TreasureMap xs) = "Treasure Map trashed two Treasure Maps for" <+> hsep (map pretty xs)
     pretty (Treasury (DominionDraw xs)) = "Treasury draws" <+> hsep (map pretty xs)
+    pretty TreasuryDuration = "Treasury card put on top of the deck."
     pretty (Vassal Nothing) = pretty ("Vassal" :: Text.Text)
     pretty (Vassal (Just c)) = "Vassal plays " <> pretty c
     pretty (Village (DominionDraw xs)) = "Village draws" <+> hsep (map pretty xs)
