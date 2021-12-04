@@ -6,7 +6,7 @@ game.
 
 First game is Dominion (https://boardgamegeek.com/boardgame/36218/dominion),
 the creator of the genre. So far I've implemented the cards of the 2nd edition
-of the basic game.
+of the basic game, the Seaside expansion, and parts of Intrigue.
 
 How to get it up and running:
 
