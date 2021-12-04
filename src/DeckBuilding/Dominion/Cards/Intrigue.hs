@@ -27,7 +27,7 @@ import DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
 import DeckBuilding.Dominion.Types
-    ( Card(Card), CardType(Value, Action), DominionState, DominionAction (Courtyard, Lurker, ShantyTown, Conspirator, Ironworks, Duke, Harem), DominionDraw(DominionDraw) )
+    ( Card(Card), CardType(Value, Action, Duration), DominionState, DominionAction (Courtyard, Lurker, ShantyTown, Conspirator, Ironworks, Duke, Harem), DominionDraw(DominionDraw) )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame )
 
@@ -66,16 +66,16 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
       icip <- isCardInPlay c
       if icip
         then do
-          field @"trash" %= (c:)
-          field @"decks" %= Map.mapWithKey (decreaseCards c)
+          #trash %= (c:)
+          #decks %= Map.mapWithKey (decreaseCards c)
           return $ Just e
         else return Nothing
     lurk e@(Right c@(Card _ _ _ Action _)) p = do
       trsh <- use #trash
       if c `elem` trsh
         then do
-          field @"trash" %= delete c
-          (field @"players" . ix (unPlayerNumber p) . #discard) %= (c:)
+          #trash %= delete c
+          (#players . ix (unPlayerNumber p) . #discard) %= (c:)
           return $ Just e
         else return Nothing
     lurk (Right _) _ = return Nothing
@@ -127,7 +127,7 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
       case mc of
         Nothing   -> return Nothing
         Just card
-              | (card ^. #cardType) == Action -> pure $ Just $ Ironworks card (DominionDraw [])
+              | (card ^. #cardType) == Action || (card ^. #cardType == Duration) -> pure $ Just $ Ironworks card (DominionDraw [])
               | card `elem` treasureCards             -> do
                 _ <- basicCardAction 0 (-1) 0 1 p
                 pure $ Just $ Ironworks card (DominionDraw [])
@@ -138,10 +138,10 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
 
 -- | Worth 1VP per Duchy you have.
 dukeCard :: Card
-dukeCard        = Card "Duke"         5 (valueCardAction 0 Duke) Action dukeCardAction
+dukeCard        = Card "Duke"         5 (valueCardAction 0 Duke) Action dukeCardValue
   where
-    dukeCardAction :: PlayerNumber -> DominionState Int
-    dukeCardAction p = do
+    dukeCardValue :: PlayerNumber -> DominionState Int
+    dukeCardValue p = do
       thePlayer <- findPlayer p
       let points = length $ filter (== duchyCard) ( (thePlayer ^. #hand) ++ (thePlayer ^. #discard) ++ (thePlayer ^. #played) ++ (thePlayer ^. #deck) )
       return points

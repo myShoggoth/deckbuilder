@@ -20,10 +20,11 @@ module DeckBuilding.Dominion.Strategies.Utils
     , buyIfLowerThanTerminalActions
     , cardWeightCompare
     , sortByWeight
+    , gainWhichCard
     ) where
 
 import Control.Lens ( folded, sumOf, (^.) )
-import Data.List (sortBy)
+import Data.List (sortBy, find)
 import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards ( actionTerminatorCards )
@@ -100,3 +101,10 @@ sortByWeight weights = sortBy (cardWeightCompare weights)
 
 cardWeightCompare :: (Card -> Int) -> Card -> Card -> Ordering
 cardWeightCompare cardWeight c1 c2 = cardWeight c2 `compare` cardWeight c1
+
+-- | Given a list of cards in descending priorty order to gain and a max price,
+--  gain the first card in the list that's available that is under the max
+--  price.
+--  TODO: same structure as buying cards (Card,Card->Player->State Game Bool)
+gainWhichCard :: [Card] -> Int -> Maybe Card
+gainWhichCard cards highestPrice = find (\c -> (c ^. #cost) <= highestPrice) cards

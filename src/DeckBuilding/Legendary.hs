@@ -91,12 +91,12 @@ evaluateHand pnum = do
 resetTurn :: PlayerNumber -> LegendaryState PlayerNumber
 resetTurn p = do
   player <- findPlayer p
-  (field @"players" . ix (unPlayerNumber p) . #discard) %= ( ((player ^. #hand) ++ (player ^. #played) ) ++)
-  (field @"players" . ix (unPlayerNumber p) . #played) .= []
-  (field @"players" . ix (unPlayerNumber p) . #hand) .= []
-  (field @"players" . ix (unPlayerNumber p) . #unusedMoney) .= 0
-  (field @"players" . ix (unPlayerNumber p) . #victory) .= 0
-  (field @"players" . ix (unPlayerNumber p) . #turns) += 1
+  (#players . ix (unPlayerNumber p) . #discard) %= ( ((player ^. #hand) ++ (player ^. #played) ) ++)
+  (#players . ix (unPlayerNumber p) . #played) .= []
+  (#players . ix (unPlayerNumber p) . #hand) .= []
+  (#players . ix (unPlayerNumber p) . #unusedMoney) .= 0
+  (#players . ix (unPlayerNumber p) . #victory) .= 0
+  (#players . ix (unPlayerNumber p) . #turns) += 1
   return p
 
 -- | Returns the list of players in total points order, highest first.
@@ -107,9 +107,9 @@ sortByPoints = do
 
 configToGame :: LegendaryConfig -> StdGen -> LegendaryGame
 configToGame c = LegendaryGame
-                  (map (\p -> uncurry newPlayer p) (c ^. #playerDefs))
+                  (map (uncurry newPlayer) (c ^. #playerDefs))
                   (c ^. #scheme)
-                  [(theMastermind c)]
+                  [theMastermind c]
                   30 -- starting number of Wounds
                   (genBystanders nPlayers) -- starting number of Bystanders
                   30 -- starting number of SHIELD Offciers
@@ -117,14 +117,14 @@ configToGame c = LegendaryGame
                   (genHeroDeck nPlayers (c ^. #heroDeck))
                   [] -- Escapees
                   (c ^. #entrance)
-                  (take 5 $ repeat Nothing) -- Start w/ empty HQ
+                  (replicate 5 Nothing) -- Start w/ empty HQ
                   [] -- KO pile
   where nPlayers = length $ playerDefs c
         genBystanders n = take (30 - bystandersInVillainDeck n) $ c ^. #bystanders
-        genVillainDeck n vs =    (concat vs)
-                              <> (take (bystandersInVillainDeck n) $ reverse $  c ^. #bystanders)
-                              <> (take 5 $ repeat masterStrike)
-                              <> (take (twists $ c ^. #scheme) $ repeat schemeTwist)
+        genVillainDeck n vs =    concat vs
+                              <> take (bystandersInVillainDeck n) (reverse $  c ^. #bystanders)
+                              <> replicate 5 masterStrike
+                              <> replicate (twists $ c ^. #scheme) schemeTwist
         genHeroDeck n hs = concat $ take (numHeros n) hs
         numHeros n = case n of
             5 -> 6
@@ -139,25 +139,24 @@ configToGame c = LegendaryGame
 
 instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
   start = do
-    r <- use $ #random
+    r <- use #random
     gs <- get
 
-    (field @"heroDeck") .= shuffle' (gs ^. #heroDeck) (length $ gs ^. #heroDeck) r
-    (field @"villainDeck") .= shuffle' (gs ^. #villainDeck) (length $ gs ^. #villainDeck) (snd (split r))
-    (field @"bystanders") .= shuffle' (gs ^. #bystanders) (length $ gs ^. #bystanders) (snd (split $ snd $ split r))
+    #heroDeck .= shuffle' (gs ^. #heroDeck) (length $ gs ^. #heroDeck) r
+    #villainDeck .= shuffle' (gs ^. #villainDeck) (length $ gs ^. #villainDeck) (snd (split r))
+    #bystanders .= shuffle' (gs ^. #bystanders) (length $ gs ^. #bystanders) (snd (split $ snd $ split r))
 
-    (field @"random") .= (snd $ split $ snd $ split $ snd $ split r)
+    #random .= snd $ split $ snd $ split $ snd $ split r
     order <- turnOrder
-    void $ sequence $ (deal 6) <$> order
-    pure ()
-    
+    sequence_ $ deal 6 <$> order
+
 
   finished    = do
     gs <- get
     mmEvilWins' <- sequence $ gs ^.. #masterminds . traverse . #mmEvilWins
     sEvilWins' <- gs ^. #scheme . #evilWins
     villainDeck' <- use #villainDeck
-    return $ (any (== True) mmEvilWins') && sEvilWins' && L.null villainDeck'
+    return $ or mmEvilWins' && sEvilWins' && L.null villainDeck'
 
   runTurn p = do
     thePlayer <- findPlayer p
@@ -169,7 +168,7 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
       >>= resetTurn
       >>= deal (thePlayer ^. #nextTurnCards)
 
-    (field @"players" . ix (unPlayerNumber p) . #nextTurnCards) .= 6
+    (#players . ix (unPlayerNumber p) . #nextTurnCards) .= 6
     finished
 
   result      = do
@@ -178,7 +177,7 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
       players' <- sortByPoints
       let grouped = L.groupBy (\p1 p2 -> (p1 ^. #victory) == (p2 ^. #victory) && (p1 ^. #turns) == (p2 ^. #turns)) players'
       return $ result' ((length . head) grouped) players'
-    where result' 1 l = Left $ (playerName $ head l, victory $ head l)
+    where result' 1 l = Left (playerName $ head l, victory $ head l)
           result' n _ = Right n
 
   turnOrder  = do
@@ -188,4 +187,4 @@ instance Game LegendaryConfig (DL.DList LegendaryMove) LegendaryGame where
   tallyPoints p = do
     player <- findPlayer p
     vpts <- mapM (\c -> (c ^. #victoryPoints) c p) $ player ^. #victoryPile
-    (field @"players" . ix (unPlayerNumber p) . #victory) .= foldr (+) 0 vpts
+    (#players . ix (unPlayerNumber p) . #victory) .= sum vpts

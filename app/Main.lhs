@@ -172,7 +172,7 @@ but that often makes the code harder to read.
 >          Nothing -> newStdGen
 >          Just n -> return $ mkStdGen n
 
-  Get the number of runs from the command line --}
+  Get the number of runs from the command line
 
 >  let n = times args'
 
@@ -199,6 +199,11 @@ but that often makes the code harder to read.
 
   It returns a list of Doc ann, which is the pretty
   printed results. It then vertically separates them.
+
+  If the user has selected --prettytest, we will use
+  Arbitrary instances to generate a random DominionGame.
+  This is primarily used to test the prettyprinter output
+  and debug pretty instances.
 
 >  arbs :: [DominionGame] <- generate arbitrary
 >  let res = if prettyTest args'

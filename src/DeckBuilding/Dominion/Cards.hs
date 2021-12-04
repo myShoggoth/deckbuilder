@@ -4,7 +4,8 @@ module DeckBuilding.Dominion.Cards
     ) where
 
 import DeckBuilding.Dominion.Cards.Base as X
---import DeckBuilding.Dominion.Cards.Intrigue as X
+import DeckBuilding.Dominion.Cards.Intrigue as X
+import DeckBuilding.Dominion.Cards.Seaside as X
 import DeckBuilding.Dominion.Types ( Card )
 
 actionTerminatorCards :: [Card]

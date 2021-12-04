@@ -26,10 +26,21 @@ module DeckBuilding.Dominion.Strategies.Basic
     , villageSmithyEngine4
     , nextCardByWeight
     , bigMoneyCardWeight
+    , bigMoneyIsland
+    , bigMoneyAmbassador
+    , bigMoneyEmbargo
+    , bigMoneyHaven
+    , bigMoneyNativeVillage
+    , bigMoneyPearlDiver
+    , bigMoneyLookout
+    , bigMoneyNavigator
+    , bigMoneyPirateShip
+    , bigMoneyPirateShipDecision
+    , bigMoneySalvage
     ) where
 
 import Control.Lens ( (^.) )
-import Data.List ( intersect, (\\), elemIndex, sortBy )
+import Data.List ( intersect, (\\), elemIndex, sortBy, findIndices, elemIndices )
 import Safe (headMay)
 import DeckBuilding.Dominion.Cards
     ( goldCard,
@@ -48,22 +59,25 @@ import DeckBuilding.Dominion.Cards
       laboratoryCard,
       cellarCard,
       militiaCard,
-      remodelCard )
-import DeckBuilding.Dominion.Cards.Utils ( gainCard )
+      remodelCard,
+      throneRoomCard,
+      treasureCards )
 import DeckBuilding.Dominion.Strategies.Utils
     ( alwaysBuy,
       buyIfLowerThanTerminalActions,
       buyIfNumberOfCardIsBelow,
       buyN,
-      sortByWeight )
+      sortByWeight, gainWhichCard )
 import DeckBuilding.Dominion.Types
     ( Card(Card)
     , DominionState
     , Strategy(Strategy)
     , DominionAIGame(..)
-    , DominionBuy )
+    , DominionBuy, DominionPlayer (nativeVillage), CardType (Value), DominionAction (Estate) )
 import DeckBuilding.Dominion.Utils ( findPlayer )
 import DeckBuilding.Types (PlayerNumber)
+import qualified Data.Map as Map
+import DeckBuilding.Dominion.Cards.Base (estateCard)
 
 -- Strategies
 
@@ -84,6 +98,18 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneySentry
                             bigMoneyHandToDeck
                             bigMoneyLurker
+                            bigMoneyIsland
+                            bigMoneyAmbassador
+                            bigMoneyEmbargo
+                            bigMoneyHaven
+                            bigMoneyNativeVillage
+                            bigMoneyPearlDiver
+                            bigMoneyLookout
+                            bigMoneyNavigator
+                            bigMoneyPirateShip
+                            bigMoneyPirateShipDecision
+                            bigMoneySalvage
+                            bigMoneyTreasury
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -129,7 +155,7 @@ bigMoneyRetrieve aig rng = doRetrieveDiscard aig rng retrieveCards
 -- | When you're given the opportunity to gain a card, the is the list in
 --  descending cost order. Would be good to make this better ala buy.
 bigMoneyGain :: DominionAIGame -> Int -> Maybe Card
-bigMoneyGain _ = gainCard gainCards
+bigMoneyGain _ = gainWhichCard gainCards
   where gainCards = [ provinceCard
                     , goldCard
                     , duchyCard
@@ -137,6 +163,7 @@ bigMoneyGain _ = gainCard gainCards
                     ]
 
 bigMoneyCardWeight :: Card -> Int
+bigMoneyCardWeight (Card _ _ _ Value _) = 2
 bigMoneyCardWeight _ = 1
 
 -- | We don't buy throne rooms in big money.
@@ -168,6 +195,85 @@ bigMoneyHandToDeck g n = take n $ (g ^. #hand) `intersect` handToDeckCards
 bigMoneyLurker :: DominionAIGame -> Either Card Card
 bigMoneyLurker _ = Left cellarCard
 
+-- | Pick the biggest VP by preferences, otherwise whatevs
+bigMoneyIsland :: DominionAIGame -> Maybe Card
+bigMoneyIsland g =
+  case take 1 $ (g ^. #hand) `intersect` islandCards of
+    [] -> headMay $ g ^. #hand
+    [c] -> Just c
+  where
+    islandCards = reverse victoryCards -- Ideally we would not island curses
+
+-- | If there are trash cards in the hand, give up the trashiest card
+-- first, two if we got 'em.
+bigMoneyAmbassador :: DominionAIGame -> [Card]
+bigMoneyAmbassador g =
+  let matches = take 1 $ (g ^. #hand) `intersect` trashCards
+  in case matches of
+        [] -> []
+        (x:_) -> if length (elemIndices x matches) > 1
+                    then [x, x]
+                    else [x]
+
+-- | Just pile the embargo tokens on the first card
+bigMoneyEmbargo :: DominionAIGame -> Card
+bigMoneyEmbargo g = fst . head $ Map.toList (g ^. #embargoes)
+
+-- | I dunno, I guess have an ordered list and do that?
+-- This is not great, since it is possible to not find
+-- one of these cards in the hand, which would bottom out.
+bigMoneyHaven :: DominionAIGame -> Card
+bigMoneyHaven g = head $ take 1 $ (g ^. #hand) `intersect` havenCards
+  where havenCards = [ goldCard
+                     , silverCard
+                     , smithyCard
+                     , throneRoomCard
+                     , copperCard
+                     , estateCard
+                     ]
+
+-- | Dumb implementation: if the mat is empty, add to it,
+-- otherwise pull its contents
+bigMoneyNativeVillage :: DominionAIGame -> Bool
+bigMoneyNativeVillage g = null $ g ^. #nativeVillages
+
+-- | Just have a simple list of good cards
+bigMoneyPearlDiver :: DominionAIGame -> Card -> Bool
+bigMoneyPearlDiver g c = c `elem` pearls
+  where
+    pearls = [goldCard, silverCard, copperCard]
+
+-- | No logic, just give them back in order
+bigMoneyLookout :: DominionAIGame -> [Card] -> (Card, Card, Card)
+bigMoneyLookout _ [x, y, z] = (x, y, z)
+bigMoneyLookout _ _ = error "bigMoneyLookout called with anything other than three cards?!"
+
+-- | No logic, just give  it back in the same order
+bigMoneyNavigator :: DominionAIGame -> [Card] -> [Card]
+bigMoneyNavigator _ xs = xs
+
+-- | If I can afford a province, do it
+bigMoneyPirateShip :: DominionAIGame -> Bool
+bigMoneyPirateShip g = g ^. #pirateShip + g ^. #money < 8
+
+-- | If they show a treasure card, have them trash it. No nuance.
+bigMoneyPirateShipDecision :: DominionAIGame -> [Card] -> Maybe Card
+bigMoneyPirateShipDecision _ [] = Nothing
+bigMoneyPirateShipDecision _ [x] =
+    if x `elem` treasureCards
+      then Just x
+      else Nothing
+bigMoneyPirateShipDecision g xs@[x, y] = headMay $ treasureCards `intersect` xs
+bigMoneyPirateShipDecision _ _ = error "More than two cards for pirate ship decision!"
+
+-- | Pick Estate so we can test it
+bigMoneySalvage :: DominionAIGame -> Maybe Card
+bigMoneySalvage g = headMay $ [estateCard] `intersect` (g ^. #hand)
+
+-- | Uh, sure, yes, let's do.
+bigMoneyTreasury :: DominionAIGame -> Bool
+bigMoneyTreasury _ = True
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -185,6 +291,18 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneySentry
                              bigMoneyHandToDeck
                              bigMoneyLurker
+                             bigMoneyIsland
+                             bigMoneyAmbassador
+                             bigMoneyEmbargo
+                             bigMoneyHaven
+                             bigMoneyNativeVillage
+                             bigMoneyPearlDiver
+                             bigMoneyLookout
+                             bigMoneyNavigator
+                             bigMoneyPirateShip
+                             bigMoneyPirateShipDecision
+                             bigMoneySalvage
+                             bigMoneyTreasury
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -205,13 +323,14 @@ nextCardByWeight weights p = do
   return $ headMay $ sortByWeight weights $ thePlayer ^. #hand
 
 bigSmithyCardWeight :: Card -> Int
+bigSmithyCardWeight (Card _ _ _ Value _)         = 12
 bigSmithyCardWeight (Card "Throne Room" _ _ _ _) = 11 -- This is for the Throne Room test
 bigSmithyCardWeight (Card "Smithy" _ _ _ _)      = 10
 bigSmithyCardWeight _                            = 1
 
 -- | Just like big money buy we also gain smithy cards.
 bigSmithyGain :: DominionAIGame -> Int -> Maybe Card
-bigSmithyGain _ = gainCard gainCards
+bigSmithyGain _ = gainWhichCard gainCards
   where gainCards = [ provinceCard
                     , goldCard
                     , smithyCard
@@ -240,6 +359,18 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneySentry
                                 bigMoneyHandToDeck
                                 bigMoneyLurker
+                                bigMoneyIsland
+                                bigMoneyAmbassador
+                                bigMoneyEmbargo
+                                bigMoneyHaven
+                                bigMoneyNativeVillage
+                                bigMoneyPearlDiver
+                                bigMoneyLookout
+                                bigMoneyNavigator
+                                bigMoneyPirateShip
+                                bigMoneyPirateShipDecision
+                                bigMoneySalvage
+                                bigMoneyTreasury
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
@@ -261,6 +392,7 @@ villageSmithyEngine4Buy g = doBuys g bigVillageSmithyEngine4Cards
 
 
 villageSmithyEngine4CardWeight :: Card -> Int
+villageSmithyEngine4CardWeight (Card _ _ _ Value _)     = 11
 villageSmithyEngine4CardWeight (Card "Village" _ _ _ _) = 10
 villageSmithyEngine4CardWeight (Card "Market" _ _ _ _)  = 9
 villageSmithyEngine4CardWeight (Card "Militia" _ _ _ _) = 8
@@ -286,11 +418,11 @@ prefPlusCards (min', max') cs h
         h' = sortBy (definedOrderSort cs) h
 
 -- | Ordering based on the ordering of the same values in an input list.
-definedOrderSort :: Eq a => [a] -> a -> a -> Ordering 
+definedOrderSort :: Eq a => [a] -> a -> a -> Ordering
 definedOrderSort order x y | x == y = EQ
                            | x `elemIndex` order < y `elemIndex` order = LT
                            | otherwise = GT
- 
+
 -- | Core for a simple discarding logic. (min, max) and the list of
 --  preferred cards to discard.
 doDiscard :: DominionAIGame -> (Int, Int) -> [Card] -> [Card]
@@ -337,6 +469,9 @@ doBuys g ((x, f):xs) =
                                 , cards = g ^. #cards -- TODO include the new card in this
                                 , trash = g ^. #trash
                                 , decks = g ^. #decks -- TODO should remove bought card
+                                , embargoes = g ^. #embargoes
+                                , nativeVillages = g ^. #nativeVillages
+                                , pirateShip = g ^. #pirateShip
                                 }
                       in dm : doBuys g' xs
     else []

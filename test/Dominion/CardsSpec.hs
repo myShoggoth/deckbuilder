@@ -61,31 +61,6 @@ spec = do
       let (Just p1AfterCard) = afterCard ^? #players . ix 0
       (p1AfterCard ^. #money) `shouldBe` 3
 
-  -- Changed how scoring works, only happens at the end of the game now, and only for
-  -- cards in hand.  More correct, harder to test, need to rethink this section.
-  {-
-    it "gives victory for an estate" $ do
-      let afterCard = execState ((estateCard ^. #action) 0) afterDeal
-      let (Just p1AfterCard) = afterCard ^? #players . ix 0
-      (p1AfterCard ^. field @"victory") `shouldBe` 1
-
-    it "gives victory for a duchy" $ do
-      let afterCard = execState ((duchyCard ^. #action) 0) afterDeal
-      let (Just p1AfterCard) = afterCard ^? #players . ix 0
-      (p1AfterCard ^. field @"victory") `shouldBe` 3
-
-    it "gives victory for a province" $ do
-      let afterCard = execState ((provinceCard ^. #action) 0) afterDeal
-      let (Just p1AfterCard) = afterCard ^? #players . ix 0
-      (p1AfterCard  ^. field @"victory") `shouldBe` 6
-
-    it "takes victory for a curse" $ do
-      let afterCard = execState ((curseCard ^. #action) 0) afterDeal
-      let afterCardDone = execState ((tallyPoints 0) :: DominionState ()) afterCard
-      let (Just p1AfterCard) = afterCardDone ^? #players . ix 0
-      (p1AfterCard ^. field @"victory") `shouldBe` (-1)
-      -}
-
   describe "Utils.basicCardAction" $ do
     it "it works with market" $ do
       let afterCard = execState ((marketCard ^. #action) p0) afterDeal
