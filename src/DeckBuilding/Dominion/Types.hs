@@ -107,6 +107,8 @@ data DominionAction =
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
       Smithy DominionDraw |
+      Tactician [Card] |
+      TacticianDuration DominionDraw |
       ThroneRoom Card DominionAction DominionAction |
       TreasureMap [Card] |
       Treasury DominionDraw |

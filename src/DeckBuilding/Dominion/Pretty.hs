@@ -26,7 +26,8 @@ import DeckBuilding.Dominion.Types
                      Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard,
                      Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
                      PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
-                     MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury),
+                     MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
+                     TacticianDuration, Tactician),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -147,6 +148,8 @@ instance Pretty DominionAction where
     pretty (ShantyTown (DominionDraw []) hnd) = "Shanty Town reveals a hand with no actions:" <+> hsep (map pretty hnd)
     pretty (ShantyTown (DominionDraw xs) hnd) = "Shanty Town draws" <+> hsep (map pretty xs) <+> "after revealing a hand with actions:" <+> hsep (map pretty hnd)
     pretty (Smithy (DominionDraw xs)) = "Smithy draws" <+> hsep (map pretty xs)
+    pretty (Tactician xs) = "Tactician discards" <+> hsep (map pretty xs)
+    pretty (TacticianDuration (DominionDraw xs)) = "Tactician (Duration) draws" <+> hsep (map pretty xs)
     pretty (ThroneRoom c da1 da2) = "Throne Rooms " <> pretty c <> " for" <+> align (vsep $ map pretty [da1, da2])
     pretty (TreasureMap xs) = "Treasure Map trashed two Treasure Maps for" <+> hsep (map pretty xs)
     pretty (Treasury (DominionDraw xs)) = "Treasury draws" <+> hsep (map pretty xs)

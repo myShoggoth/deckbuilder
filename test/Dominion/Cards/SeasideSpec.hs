@@ -29,6 +29,7 @@ import DeckBuilding.Dominion.Cards
       salvagerCard,
       seaHagCard,
       curseCard,
+      tacticianCard,
       treasureMapCard,
       silverCard,
       provinceCard,
@@ -279,6 +280,17 @@ spec = do
         it "causes other players to discard the top card of their deck" $ do
             length (p2AfterCard ^. #discard) `shouldBe` 2
             length (p2AfterCard ^. #deck) `shouldBe` 4
+
+    describe "Tactician action" $ do
+        let (p1AfterCard, _) = initialState defaultConfig $ do
+                tacticianCard ^. #action $ p0
+                p0' <- findPlayer p0
+                head (p0' ^. #duration) p0
+                findPlayer p0
+        it "draws 5 cards, adds one action and one buy when played with cards in hand" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 5
+            p1AfterCard ^. #actions `shouldBe` 1
+            p1AfterCard ^. #buys `shouldBe` 2
 
     describe "Treasure Map action" $ do
         it "does nothing if there aren't two treasure maps" $ do

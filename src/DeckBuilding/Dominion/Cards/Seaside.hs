@@ -21,13 +21,14 @@ module DeckBuilding.Dominion.Cards.Seaside
     pirateShipCard,
     salvagerCard,
     seaHagCard,
+    tacticianCard,
     treasureMapCard,
     treasuryCard,
     warehouseCard,
     wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck)
@@ -443,6 +444,27 @@ salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
                     _ <- basicCardAction 0 (-1) 1 (c ^. #cost) p
                     trashCards p [c]
                     pure $ Just $ Salvager c
+
+-- | If you have at least one card in hand, discard your hand, and at the start of your next turn, +5 Cards, +1 Action, and +1 Buy.
+tacticianCard :: Card
+tacticianCard = Card "Tactician" 5 tacticianCardAction Duration (simpleVictory 0)
+    where
+        tacticianCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        tacticianCardAction p = do
+            _ <- basicCardAction 0 (-1) 0 0 p
+            thePlayer <- findPlayer p
+            if not (null (thePlayer ^. #hand))
+                then do
+                    let hand = thePlayer ^. #hand
+                    discardCards p hand
+                    #players . ix (unPlayerNumber p) . #duration %= (tacticianCardActionDuration:)
+                    pure $ Just $ Tactician hand
+                else pure Nothing
+        tacticianCardActionDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        tacticianCardActionDuration p = do
+            drawn <- basicCardAction 5 1 1 0 p
+            #players . ix (unPlayerNumber p) . #played %= (tacticianCard:)
+            pure $ Just $ TacticianDuration drawn
 
 -- | Trash this and a Treasure Map from your hand. If you trashed two Treasure Maps, gain 4 Golds onto your deck.
 treasureMapCard :: Card
