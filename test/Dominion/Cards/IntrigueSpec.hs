@@ -2,10 +2,8 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
-{-# LANGUAGE DisambiguateRecordFields  #-}
 
 module Dominion.Cards.IntrigueSpec
     ( spec
@@ -62,7 +60,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, shantyTownCard, conspiratorCard, ironworksCard, dukeCard)
+import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, conspiratorCard, ironworksCard, dukeCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -88,6 +86,29 @@ spec = do
     it "trashes an action card from supply" $ do
       length (afterCard ^. #trash) `shouldBe` 1
       head (afterCard ^. #trash) ^. #cardType `shouldBe` Action
+
+  describe "pawnCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          pawnCard ^. #action $ p0
+          findPlayer p0
+    it "draws a card and adds an action" $ do
+      length (p1AfterCard ^. #hand) `shouldBe` 6
+      p1AfterCard ^. #actions `shouldBe` 1
+
+  describe "masqueradeCardAction" $ do
+    let (p1AfterCard, afterCard) = initialState defaultConfig $ do
+          masqueradeCard ^. #action $ p0
+          findPlayer p0
+    it "draws two cards, passing one to the left, then trashes a card" $ do
+      length (p1AfterCard ^. #hand) `shouldBe` 6
+      length (afterCard ^. #trash) `shouldBe` 1
+
+  describe "stewardCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          stewardCard ^. #action $ p0
+          findPlayer p0
+    it "draws two cards" $
+      length (p1AfterCard ^. #hand) `shouldBe` 7
 
   describe "shantyTownCardAction" $ do
     let (p1AfterCard, _) = initialState defaultConfig $ do

@@ -3,13 +3,16 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module DeckBuilding.Dominion.Cards.Intrigue
     ( courtyardCard
     , lurkerCard
+    , pawnCard
+    , masqueradeCard
+    , stewardCard
     , shantyTownCard
     , conspiratorCard
     , ironworksCard
@@ -17,19 +20,23 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , haremCard
     ) where
 
-import Control.Lens ( (^.), use, (%=), Ixed(ix) )
+import Control.Lens ( (^.), use, (%=), Ixed(ix), prism', (.=) )
 import Data.Generics.Product ( HasField(field) )
 import Data.List (delete)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base
     ( treasureCards, duchyCard, victoryCards )
 import DeckBuilding.Dominion.Cards.Utils
-    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction )
-import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
+    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards )
+import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
 import DeckBuilding.Dominion.Types
-    ( Card(Card), CardType(Value, Action, Duration), DominionState, DominionAction (Courtyard, Lurker, ShantyTown, Conspirator, Ironworks, Duke, Harem), DominionDraw(DominionDraw) )
+    ( Card(Card), CardType(Value, Action, Duration), DominionState, DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade, Steward), DominionDraw(DominionDraw), Strategy (trashStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
-    ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame )
+    ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards )
+import Data.Traversable (for)
+import Control.Monad (forM)
+import Safe (headMay)
+import Data.Foldable (for_)
 
 -- | +3 Cards
 --
@@ -80,6 +87,70 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
         else return Nothing
     lurk (Right _) _ = return Nothing
 
+-- | Choose two: +1 Card, +1 Action, +1 Buy, +1 Money
+--
+-- The choices must be different.
+pawnCard :: Card
+pawnCard        = Card "Pawn"         2 pawnCardAction Action (simpleVictory 0)
+  where
+    pawnCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    pawnCardAction p = do
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let (cards, actions, buys, monies) = (thePlayer ^. #strategy . #pawnStrategy) aig
+      theDeal <- basicCardAction cards (actions - 1) buys monies p
+      pure $ Just $ Pawn theDeal
+
+-- | +2 Cards
+-- Each player with any cards in hand passes one to the next such player to their left, at once. Then you may trash a card from your hand.
+masqueradeCard :: Card
+masqueradeCard  = Card "Masquerade"   3 masqueradeCardAction Action (simpleVictory 0)
+  where
+    masqueradeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    masqueradeCardAction p = do
+      -- I hate that I can't figure out how to use @turnOrder@ here.
+      players' <- use #players
+      let pns = PlayerNumber <$> [0 .. length players' - 1]
+
+      -- First draw the two cards
+      drawn <- basicCardAction 2 (-1) 0 0 p
+
+      -- Next the players simultaneously pick a card to pass to the left.
+      passed :: [Maybe Card] <- for pns $ \p' -> do
+        pl <- findPlayer p'
+        aig <- mkDominionAIGame p'
+        case (pl ^. #strategy . #masqueradePassStrategy) aig of
+          Nothing -> pure Nothing
+          Just ca -> do
+            #players . ix (unPlayerNumber p') . #hand .= removeFromCards (pl ^. #hand) [ca]
+            pure $ Just ca
+
+      -- Next pass them to the next eligible player to the left
+      for_ (zip pns passed) $ \(p', pass) -> do
+        case passedToMe (unPlayerNumber p') passed of
+          Nothing -> pure ()
+          Just ca -> #players . ix (unPlayerNumber p') . #hand %= (ca :)
+
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      -- Pick 0 or 1 card(s) to trash
+      let trashed = (thePlayer ^. #strategy . #trashStrategy) aig (0,1) (thePlayer ^. #hand)
+      trashCards p trashed
+      pure $ Just $ Masquerade drawn passed (headMay trashed)
+
+    passedToMe :: Int -> [Maybe Card] -> Maybe Card
+    passedToMe p cs = go p (p - 1) cs
+
+    go :: Int -> Int -> [Maybe Card] -> Maybe Card
+    go p p' cs =
+      if p == p'
+        then Nothing
+        else do
+          let p'' = p' `mod` length cs
+          case cs !! p'' of
+            Nothing -> go p (p'' + 1) cs
+            Just ca -> Just ca
+
 -- | +2 Actions
 --
 -- Reveal your hand. If you have no Action cards in hand, +2 Cards.
@@ -94,6 +165,19 @@ shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action (simpleVicto
         then basicCardAction 0 1 0 0 p
         else basicCardAction 2 1 0 0 p
       pure $ Just $ ShantyTown theDeal h
+
+-- | Choose one: +2 Cards; or +2 money; or trash 2 cards from your hand.
+stewardCard :: Card
+stewardCard     = Card "Steward"      3 stewardCardAction Action (simpleVictory 0)
+  where
+    stewardCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    stewardCardAction p = do
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let (toDraw, moreMoney, toTrash) = (thePlayer ^. #strategy . #stewardStrategy) aig
+      theDeal <- basicCardAction toDraw (-1) moreMoney 0 p
+      trashCards p toTrash
+      pure $ Just $ Steward theDeal moreMoney toTrash
 
 -- | +$2
 --

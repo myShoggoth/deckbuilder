@@ -2,7 +2,6 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedLabels          #-}
 {-# LANGUAGE GADTs                     #-}
 
@@ -45,6 +44,7 @@ valueCardAction m a p = do
   (#players . ix (unPlayerNumber p) . #money) += m
   pure $ Just a
 
+-- | @basicCardAction draws actions buys money playernumber@
 basicCardAction :: Int -- ^ Number of cards to draw
   -> Int -- ^ Number of actions (minus the one being used now)
   -> Int -- ^ Number of additional buys

@@ -6,6 +6,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
@@ -18,10 +20,11 @@ import qualified Data.Semigroup as Semi
 import Data.Text ( unpack, Text )
 import GHC.Generics ( Generic )
 import System.Random ( StdGen, mkStdGen )
-import DeckBuilding.Types ( PlayerNumber )
+import DeckBuilding.Types ( PlayerNumber, Game )
 import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..), Arbitrary (arbitrary))
 import Test.QuickCheck.Arbitrary (Arbitrary)
 import Test.QuickCheck.Instances ()
+import Data.Map (Map)
 
 data DominionGame = DominionGame
   { players :: [(Text, Strategy)]
@@ -90,6 +93,7 @@ data DominionAction =
       Lookout Card Card Card |
       Lurker (Either Card Card) |
       Market DominionDraw |
+      Masquerade DominionDraw [Maybe Card] (Maybe Card) |
       Merchant DominionDraw |
       MerchantShip |
       MerchantShipDuration |
@@ -101,6 +105,7 @@ data DominionAction =
       Navigator [Card] |
       Outpost |
       OutpostDuration DominionDraw [DominionBuy] |
+      Pawn DominionDraw |
       PearlDiver DominionDraw Card Bool |
       PirateShip (Either Int (Map.Map PlayerNumber (Either Card (Maybe Card)))) |
       Poacher DominionDraw [Card] |
@@ -109,6 +114,7 @@ data DominionAction =
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
       Smithy DominionDraw |
+      Steward DominionDraw Int [Card] |
       Tactician [Card] |
       TacticianDuration DominionDraw |
       ThroneRoom Card DominionAction DominionAction |
@@ -352,7 +358,14 @@ data Strategy = Strategy {
   -- | Choose which card to trash, gaining its cost as +money
   salvagerStrategy :: DominionAIGame -> Maybe Card,
   -- | Do we want to return the Treasury card to the deck?
-  treasuryStrategy :: DominionAIGame -> Bool
+  treasuryStrategy :: DominionAIGame -> Bool,
+  -- | Choose two: +1 card, +1 action, +1 buy, +1 money
+  -- Choices must be different
+  pawnStrategy :: DominionAIGame -> (Int, Int, Int, Int),
+  -- | Choose a card to pass to the left (if possible)
+  masqueradePassStrategy :: DominionAIGame -> Maybe Card,
+  -- | Choose either draw 2 cards, gain two money, or trash two cards from hand
+  stewardStrategy :: DominionAIGame -> (Int, Int, [Card])
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -389,6 +402,9 @@ instance Arbitrary Strategy where
       , pirateShipDecisionStrategy = return mempty
       , salvagerStrategy = return mempty
       , treasuryStrategy = return True
+      , pawnStrategy = return (1, 1, 0, 0)
+      , masqueradePassStrategy = return mempty
+      , stewardStrategy = return (2, 0, [])
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

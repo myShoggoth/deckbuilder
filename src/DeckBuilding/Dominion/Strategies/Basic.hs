@@ -3,9 +3,10 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
+{-# LANGUAGE BlockArguments            #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyStrategy
@@ -40,7 +41,7 @@ module DeckBuilding.Dominion.Strategies.Basic
     ) where
 
 import Control.Lens ( (^.) )
-import Data.List ( intersect, (\\), elemIndex, sortBy, findIndices, elemIndices )
+import Data.List ( intersect, (\\), elemIndex, sortBy, findIndices, elemIndices, sort )
 import Safe (headMay)
 import DeckBuilding.Dominion.Cards
     ( goldCard,
@@ -110,6 +111,9 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyPirateShipDecision
                             bigMoneySalvage
                             bigMoneyTreasury
+                            bigMoneyPawn
+                            bigMoneyMasqueradePass
+                            bigMoneySteward
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -274,6 +278,29 @@ bigMoneySalvage g = headMay $ [estateCard] `intersect` (g ^. #hand)
 bigMoneyTreasury :: DominionAIGame -> Bool
 bigMoneyTreasury _ = True
 
+-- | Super basic pawn strategy - +1 card, +1 action
+bigMoneyPawn :: DominionAIGame -> (Int, Int, Int, Int)
+bigMoneyPawn _ = (1, 1, 0, 0)
+
+-- | Take either a prefered card to pass or the first of the cheapest cards in
+-- the hand if none are present.
+bigMoneyMasqueradePass :: DominionAIGame -> Maybe Card
+bigMoneyMasqueradePass g = case headMay $ passCards `intersect` (g ^. #hand) of
+  Nothing -> headMay $ flip sortBy (g ^. #hand) \a b ->
+    if a ^. #cost == b ^. #cost
+      then EQ
+      else if a ^. #cost < b ^. #cost
+        then LT
+        else GT
+  Just ca -> Just ca
+
+  where
+    passCards = [curseCard, estateCard, copperCard]
+
+-- | Just going to be real dumb here and always pick the two cards
+bigMoneySteward :: DominionAIGame -> (Int, Int, [Card])
+bigMoneySteward _ = (2, 0, [])
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -303,6 +330,9 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyPirateShipDecision
                              bigMoneySalvage
                              bigMoneyTreasury
+                             bigMoneyPawn
+                             bigMoneyMasqueradePass
+                             bigMoneySteward
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -371,6 +401,9 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyPirateShipDecision
                                 bigMoneySalvage
                                 bigMoneyTreasury
+                                bigMoneyPawn
+                                bigMoneyMasqueradePass
+                                bigMoneySteward
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
