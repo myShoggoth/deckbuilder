@@ -3,7 +3,6 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
 {-# LANGUAGE TypeFamilies              #-}
@@ -188,7 +187,7 @@ festivalCard    = Card "Festival"   5 festivalCardAction Action (simpleVictory 0
     festivalCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     festivalCardAction p = do
       _ <- basicCardAction 0 1 1 2 p
-      pure $ Just $ Festival
+      pure $ Just Festival
 
 -- | +2 Cards
 --
@@ -376,7 +375,7 @@ moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action (simpleVict
         then do
           trashCards p [copperCard]
           _ <- basicCardAction 0 (-1) 0 3 p
-          return $ Just $ MoneyLender
+          return $ Just MoneyLender
         else return Nothing
 
 -- | +1 Card

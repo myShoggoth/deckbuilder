@@ -115,6 +115,7 @@ data DominionAction =
       ShantyTown DominionDraw [Card] |
       Smithy DominionDraw |
       Steward DominionDraw Int [Card] |
+      Swindler (Map.Map PlayerNumber (Maybe Card, Maybe Card)) |
       Tactician [Card] |
       TacticianDuration DominionDraw |
       ThroneRoom Card DominionAction DominionAction |
@@ -365,7 +366,10 @@ data Strategy = Strategy {
   -- | Choose a card to pass to the left (if possible)
   masqueradePassStrategy :: DominionAIGame -> Maybe Card,
   -- | Choose either draw 2 cards, gain two money, or trash two cards from hand
-  stewardStrategy :: DominionAIGame -> (Int, Int, [Card])
+  stewardStrategy :: DominionAIGame -> (Int, Int, [Card]),
+  -- | Choose a supply card of a particular cost to replace the trashed card
+  -- for the other player.
+  swindlerStrategy :: DominionAIGame -> Int -> Maybe Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -405,6 +409,7 @@ instance Arbitrary Strategy where
       , pawnStrategy = return (1, 1, 0, 0)
       , masqueradePassStrategy = return mempty
       , stewardStrategy = return (2, 0, [])
+      , swindlerStrategy = return mempty
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

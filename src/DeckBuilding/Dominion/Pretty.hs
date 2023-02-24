@@ -27,7 +27,7 @@ import DeckBuilding.Dominion.Types
                      Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
                      PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
-                     TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration),
+                     TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration, Swindler, Steward, Masquerade, Pawn),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -124,6 +124,7 @@ instance Pretty DominionAction where
     pretty (Lurker (Left c)) = "Lurker trashes " <> pretty c
     pretty (Lurker (Right c)) = "Lurker gains " <> pretty c <> " from the trash."
     pretty (Market (DominionDraw xs)) = "Market draws" <+> hsep (map pretty xs)
+    pretty (Masquerade (DominionDraw xs) passed mtrashed) = "Masquerade draws" <+> hsep (map pretty xs) <+> "Passed cards" <+> hsep (map pretty passed) <+> "Trashed " <> pretty mtrashed
     pretty (Merchant (DominionDraw xs)) = "Merchant draws" <+> hsep (map pretty xs)
     pretty MerchantShip = pretty ("Merchant Ship" :: Text.Text)
     pretty MerchantShipDuration = pretty ("Merchant Ship (Duration)" :: Text.Text)
@@ -137,6 +138,7 @@ instance Pretty DominionAction where
     pretty (Navigator xs) = "Navigator puts cards back on the deck in the order" <+> hsep (map pretty xs)
     pretty Outpost = pretty ("Outpost" :: Text.Text)
     pretty (OutpostDuration (DominionDraw xs) ys) = "Outpost (Duration) draws" <+> hsep (map pretty xs) <+> "and buys" <+> hsep (map pretty ys) <+> "for the bonus turn."
+    pretty (Pawn (DominionDraw xs)) = "Pawn drew" <+> hsep (map pretty xs)
     pretty (PearlDiver (DominionDraw xs) c True) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> pretty c <> " on the bottom of the deck and moves it to the top."
     pretty (PearlDiver (DominionDraw xs) c False) = "PearlDiver draws " <+> hsep (map pretty xs) <+> " sees " <> pretty c <> " on the bottom of the deck leaves it."
     pretty (PirateShip (Left n)) = "Pirate gains " <> viaShow n <> " money from pirate mat Coin tokens."
@@ -150,6 +152,11 @@ instance Pretty DominionAction where
     pretty (ShantyTown (DominionDraw []) hnd) = "Shanty Town reveals a hand with no actions:" <+> hsep (map pretty hnd)
     pretty (ShantyTown (DominionDraw xs) hnd) = "Shanty Town draws" <+> hsep (map pretty xs) <+> "after revealing a hand with actions:" <+> hsep (map pretty hnd)
     pretty (Smithy (DominionDraw xs)) = "Smithy draws" <+> hsep (map pretty xs)
+    pretty (Steward (DominionDraw xs) 0 []) = "Steward draws" <+> hsep (map pretty xs)
+    pretty (Steward (DominionDraw []) n []) = "Steward gains " <> pretty n <> " money"
+    pretty (Steward (DominionDraw []) 0 xs) = "Steward trashes" <+> hsep (map pretty xs)
+    pretty (Steward _ _ _) = error "Steward card chose multiple options?"
+    pretty (Swindler responses) = "Swindler:" <+> align (vsep (map (\(k, (mc, mc2)) -> "Player " <> viaShow k <> " trashes " <> pretty mc <> " and gains " <> pretty mc2 <> "to discard.") (Map.toList responses)))
     pretty (Tactician xs) = "Tactician discards" <+> hsep (map pretty xs)
     pretty (TacticianDuration (DominionDraw xs)) = "Tactician (Duration) draws" <+> hsep (map pretty xs)
     pretty (ThroneRoom c da1 da2) = "Throne Rooms " <> pretty c <> " for" <+> align (vsep $ map pretty [da1, da2])

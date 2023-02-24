@@ -3,7 +3,6 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedLabels          #-}
 
 module DeckBuilding.Dominion.Utils
@@ -46,7 +45,7 @@ deal :: Int -> PlayerNumber -> DominionState [Card]
 deal 0   _    = return []
 deal num pnum = do
   p <- findPlayer pnum
-  r <- use $ #random
+  r <- use #random
   let (r', newCards, newDeck, newDiscard) = deal' r (p ^. #deck) (p ^. #discard) num
   #random .= r'
   (#players . ix (unPlayerNumber pnum) . #deck) .= newDeck
@@ -57,7 +56,7 @@ deal num pnum = do
 -- | How many of the game's decks have been emptied?
 numEmptyDecks :: DominionState Int
 numEmptyDecks = do
-  decks' <- use $ #decks
+  decks' <- use #decks
   return $ length $ Map.filter (== 0) decks'
 
 -- | Move a card from the player's hand to their played pile.
@@ -116,8 +115,7 @@ discardCard card p = do
   (#players . ix (unPlayerNumber p) . #hand) .= newHand
 
 -- | Take n cards from a Supply deck and put them in the
--- player's discard pile. Return how many were successfully
--- taken.
+-- player's discard pile.
 supplyToDiscard :: Card -> PlayerNumber -> Int -> DominionState ()
 supplyToDiscard _ _ 0 = return ()
 supplyToDiscard c p n = do
@@ -154,7 +152,7 @@ executeBuys ((DominionBuy _ c):xs) g = do
       ems <- use #embargoes
       ep <- use #embargoPenalty
       supplyToDiscard ep p (ems Map.! c)
-      #lastBuys %= Map.mapWithKey (addToBuys p c) 
+      #lastBuys %= Map.mapWithKey (addToBuys p c)
     addToBuys :: Eq a1 => a1 -> a2 -> a1 -> [a2] -> [a2]
     addToBuys p c p1 xs = if p == p1 then c : xs else xs
 

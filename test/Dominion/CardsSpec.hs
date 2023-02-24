@@ -2,7 +2,6 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
 

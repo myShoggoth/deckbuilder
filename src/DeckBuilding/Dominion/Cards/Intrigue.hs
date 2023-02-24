@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BlockArguments #-}
 
 module DeckBuilding.Dominion.Cards.Intrigue
     ( courtyardCard
@@ -14,6 +15,7 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , masqueradeCard
     , stewardCard
     , shantyTownCard
+    , swindlerCard
     , conspiratorCard
     , ironworksCard
     , dukeCard
@@ -27,12 +29,12 @@ import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base
     ( treasureCards, duchyCard, victoryCards )
 import DeckBuilding.Dominion.Cards.Utils
-    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards )
+    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
 import DeckBuilding.Dominion.Types
-    ( Card(Card), CardType(Value, Action, Duration), DominionState, DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade, Steward), DominionDraw(DominionDraw), Strategy (trashStrategy), DominionBoard )
+    ( Card(Card, cost), CardType(Value, Action, Duration), DominionState, DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade, Steward, Swindler), DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
-    ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards )
+    ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal )
 import Data.Traversable (for)
 import Control.Monad (forM)
 import Safe (headMay)
@@ -102,6 +104,7 @@ pawnCard        = Card "Pawn"         2 pawnCardAction Action (simpleVictory 0)
       pure $ Just $ Pawn theDeal
 
 -- | +2 Cards
+--
 -- Each player with any cards in hand passes one to the next such player to their left, at once. Then you may trash a card from your hand.
 masqueradeCard :: Card
 masqueradeCard  = Card "Masquerade"   3 masqueradeCardAction Action (simpleVictory 0)
@@ -178,6 +181,42 @@ stewardCard     = Card "Steward"      3 stewardCardAction Action (simpleVictory 
       theDeal <- basicCardAction toDraw (-1) moreMoney 0 p
       trashCards p toTrash
       pure $ Just $ Steward theDeal moreMoney toTrash
+
+-- | +$2
+--
+-- Each other player trashes the top card of their deck and gains a card with the same cost that you choose.
+swindlerCard :: Card
+swindlerCard =    Card "Swindler"     3 swindlerCardAction Action (simpleVictory 0)
+  where
+    swindlerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    swindlerCardAction p = do
+      _ <- basicCardAction 0 (-1) 0 2 p
+      -- I hate that I can't figure out how to use @turnOrder@ here.
+      players' <- use #players
+      let pns = PlayerNumber <$> [0 .. length players' - 1]
+      thePlayer <- findPlayer p
+
+      responses :: [(PlayerNumber, (Maybe Card, Maybe Card))] <- forM pns $ \p' ->
+        if p' == p
+          then pure (p', (Nothing, Nothing))
+          else do
+            -- Trash the top of their deck
+            theDraw <- deal 1 p'
+            aig <- mkDominionAIGame p'
+            trashCards p' theDraw
+            -- Choose a card for them to gain based on the cost of the trashed card
+            mgain <- case headMay theDraw of
+                        Nothing -> pure Nothing
+                        Just ca -> do
+                          let cost = ca ^. #cost
+                          let mc = (thePlayer ^. #strategy . #swindlerStrategy) aig cost
+                          case mc of
+                            Nothing -> pure Nothing
+                            Just c -> do
+                              gained <- gainCardsToDiscard p' [c]
+                              pure $ headMay gained
+            pure (p', (headMay theDraw, mgain))
+      pure $ Just $ Swindler $ Map.fromList responses
 
 -- | +$2
 --

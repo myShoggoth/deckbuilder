@@ -16,6 +16,7 @@ module DeckBuilding.Dominion.Cards.Utils
     , discardToDeck
     , gainCardsToDeck
     , gainCardsToHand
+    , gainCardsToDiscard
     ) where
 
 import Control.Lens ( (^.), (%=), (+=), Ixed(ix), (.=), use )
@@ -108,3 +109,15 @@ gainCardsToHand p (x:xs) = do
       theRest <- gainCardsToHand p xs
       return $ x : theRest
     else gainCardsToHand p xs
+
+gainCardsToDiscard :: PlayerNumber -> [Card] -> DominionState [Card]
+gainCardsToDiscard _ [] = return []
+gainCardsToDiscard p (x:xs) = do
+  hasCard <- isCardInPlay x
+  if hasCard
+    then do
+      #decks %= Map.mapWithKey (decreaseCards x)
+      #players . ix (unPlayerNumber p) . #discard %= (x:)
+      theRest <- gainCardsToDiscard p xs
+      return $ x : theRest
+    else gainCardsToDiscard p xs

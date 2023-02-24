@@ -60,7 +60,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, conspiratorCard, ironworksCard, dukeCard)
+import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -117,6 +117,18 @@ spec = do
     it "gets two cards and two actions with no action cards in hand" $ do
       length (p1AfterCard ^. #hand) `shouldBe` 7
       (p1AfterCard ^. #actions) `shouldBe` 2
+
+  describe "swindlerAction" $ do
+    let (p1AfterCard, afterCard) = initialState defaultConfig $ do
+          swindlerCard ^. #action $ p0
+          findPlayer p0
+
+    it "gives two money" $
+      (p1AfterCard ^. #money) `shouldBe` 2
+    
+    it "trashes the top of the deck of the other player and replaces with a card of the same cost" $ do
+      length (afterCard ^. #players . ix 1 . #deck) `shouldBe` 4
+      length (afterCard ^. #players . ix 1 . #discard) `shouldBe` 1
 
   describe "conspiratorCardAction" $ do
     it "gets only two money when fewer than two actions have been played" $ do
