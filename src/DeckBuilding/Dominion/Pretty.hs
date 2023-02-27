@@ -28,7 +28,7 @@ import DeckBuilding.Dominion.Types
                      PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
                      TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
-                     Swindler, Steward, Masquerade, Pawn, WishingWell),
+                     Swindler, Steward, Masquerade, Pawn, WishingWell, Baron),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -92,6 +92,8 @@ instance Pretty DominionAction where
     pretty (Ambassador xs ys) = "Ambassador:" <+> align (vsep $ "Returns " <> hsep (map pretty xs) <> " to the supply." : map ambassadorResponse (Map.toList ys))
     pretty (Artisan gc ctd) = "Artisan gains" <+> pretty gc <> "," <+> pretty ctd <+> "put on deck"
     pretty (Bandit resps) = "Bandit:" <+> align (vsep (map pretty $ Map.toList resps))
+    pretty (Baron True) = "Baron discarded an estate for four money"
+    pretty (Baron False) = "Baron did not discard an estate"
     pretty (Bazaar (DominionDraw xs)) = "Bazaar draws" <+> hsep (map pretty xs)
     pretty (Bureaucrat xs) = "Bureaucrat:" <+> align (vsep $ map bureaucratResponse $ Map.toList xs)
     pretty (Caravan (DominionDraw xs)) = "Caravan draws" <+> hsep (map pretty xs)

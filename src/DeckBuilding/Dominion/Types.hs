@@ -64,6 +64,7 @@ data DominionAction =
       Ambassador [Card] (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Artisan Card Card |
       Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
+      Baron Bool |
       Bazaar DominionDraw |
       Bureaucrat (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Caravan DominionDraw |

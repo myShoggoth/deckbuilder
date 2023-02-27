@@ -9,7 +9,8 @@
 {-# LANGUAGE BlockArguments #-}
 
 module DeckBuilding.Dominion.Cards.Intrigue
-    ( courtyardCard
+    ( baronCard
+    , courtyardCard
     , lurkerCard
     , pawnCard
     , masqueradeCard
@@ -28,7 +29,7 @@ import Data.Generics.Product ( HasField(field) )
 import Data.List (delete)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base
-    ( treasureCards, duchyCard, victoryCards )
+    ( treasureCards, duchyCard, victoryCards, estateCard )
 import DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
@@ -36,15 +37,32 @@ import DeckBuilding.Dominion.Types
     ( Card(Card, cost),
       CardType(Value, Action, Duration), DominionState,
         DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade,
-          Steward, Swindler, WishingWell),
+          Steward, Swindler, WishingWell, Baron),
         DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
-    ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal )
+    ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal, discardCard )
 import Data.Traversable (for)
 import Control.Monad (forM)
 import Safe (headMay)
 import Data.Foldable (for_)
 import GHC.Base (VecElem(Int16ElemRep))
+
+-- | +1 Buy
+--
+-- You may discard an Estate for +4 Money. If you don't, gain an Estate.
+baronCard :: Card
+baronCard       = Card "Baron"        4 baronCardAction Action (simpleVictory 0)
+  where
+    baronCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    baronCardAction p = do
+      thePlayer <- findPlayer p
+      let canDiscardEstate = estateCard `elem` (thePlayer ^. #hand)
+      let moneys = if canDiscardEstate
+                    then 4
+                    else 0
+      discardCard estateCard p
+      _ <- basicCardAction 0 (-1) 1 moneys p
+      pure $ Just $ Baron canDiscardEstate
 
 -- | +3 Cards
 --

@@ -60,7 +60,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard)
+import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -72,6 +72,16 @@ gainVictory _ = gainWhichCard (delete curseCard victoryCards)
 
 spec :: Spec
 spec = do
+  describe "baronCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          baronCard ^. #action $ p0
+          findPlayer p0
+    it "adds a buy and four moneys for discarding an estate" $ do
+      length (p1AfterCard ^. #hand) `shouldBe` 4
+      length (p1AfterCard ^. #discard) `shouldBe` 1
+      p1AfterCard ^. #buys `shouldBe` 2
+      p1AfterCard ^. #money `shouldBe` 4
+
   describe "courtyardCardAction" $ do
     let (p1AfterCard, _) = initialState defaultConfig $ do
           courtyardCard ^. #action $ p0
