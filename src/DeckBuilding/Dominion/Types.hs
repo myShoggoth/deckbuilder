@@ -128,6 +128,7 @@ data DominionAction =
       Warehouse DominionDraw [Card] |
       Wharf DominionDraw |
       WharfDuration DominionDraw |
+      WishingWell DominionDraw (Maybe Card) Bool |
       Workshop Card
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
@@ -369,7 +370,9 @@ data Strategy = Strategy {
   stewardStrategy :: DominionAIGame -> (Int, Int, [Card]),
   -- | Choose a supply card of a particular cost to replace the trashed card
   -- for the other player.
-  swindlerStrategy :: DominionAIGame -> Int -> Maybe Card
+  swindlerStrategy :: DominionAIGame -> Int -> Maybe Card,
+  -- | Guess which card is on the top of the deck, get it in hand if right.
+  wishingWellStrategy :: DominionAIGame -> Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -410,6 +413,7 @@ instance Arbitrary Strategy where
       , masqueradePassStrategy = return mempty
       , stewardStrategy = return (2, 0, [])
       , swindlerStrategy = return mempty
+      , wishingWellStrategy = return $ Card "Copper" 0 (\_ -> pure Nothing) Value (\_ -> pure 0)
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

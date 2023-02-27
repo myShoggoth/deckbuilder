@@ -115,6 +115,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyMasqueradePass
                             bigMoneySteward
                             bigMoneySwindler
+                            bigMoneyWishingWell
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -310,6 +311,14 @@ bigMoneySwindler aig cost = case headMay $ Map.toList correctCostCards of
   where
     correctCostCards = Map.filterWithKey (\c n -> c ^. #cost == cost && n > 0) (aig ^. #decks)
 
+
+-- | Guess which card is on the top of the deck. Simple algorithm, pick
+-- one of the cards we have the most of.
+bigMoneyWishingWell :: DominionAIGame -> Card
+bigMoneyWishingWell aig  = head $ Map.keys $ Map.filter (mostCards ==) $ aig ^. #cards
+  where
+    mostCards = maximum $ Map.elems (aig ^. #cards)
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -343,6 +352,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyMasqueradePass
                              bigMoneySteward
                              bigMoneySwindler
+                             bigMoneyWishingWell
 
 
 -- | Just like big money buy also buy up to two smithy cards.
@@ -416,6 +426,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyMasqueradePass
                                 bigMoneySteward
                                 bigMoneySwindler
+                                bigMoneyWishingWell
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]

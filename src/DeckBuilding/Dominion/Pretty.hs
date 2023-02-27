@@ -27,7 +27,8 @@ import DeckBuilding.Dominion.Types
                      Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
                      PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
-                     TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration, Swindler, Steward, Masquerade, Pawn),
+                     TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
+                     Swindler, Steward, Masquerade, Pawn, WishingWell),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -169,6 +170,8 @@ instance Pretty DominionAction where
     pretty (Warehouse (DominionDraw xs) ys) = "Warehouse draws" <+> hsep (map pretty xs) <+> "and discards" <+> hsep (map pretty ys)
     pretty (Wharf (DominionDraw xs)) = "Wharf draws" <+> hsep (map pretty xs)
     pretty (WharfDuration (DominionDraw xs)) = "Wharf (Duration) draws" <+> hsep (map pretty xs)
+    pretty (WishingWell (DominionDraw xs) mc True) = "Wishing well draws" <+> hsep (map pretty xs) <+> "and correctly guessed the top of deck is " <> pretty mc
+    pretty (WishingWell (DominionDraw xs) mc False) = "Wishing well draws" <+> hsep (map pretty xs) <+> "and dd not guess" <+> pretty mc
     pretty (Witch (DominionDraw xs) ys) = "Witch:" <+> align (vsep $ "Draws " <> hsep (map pretty xs) : map witchResponse (Map.toList ys))
     pretty (Workshop c) = "Workshop gains " <> pretty c
 

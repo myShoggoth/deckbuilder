@@ -60,7 +60,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard)
+import DeckBuilding.Dominion.Cards.Intrigue (courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -188,3 +188,10 @@ spec = do
             findPlayer p0
       (p1AfterCard ^. #actions) `shouldBe` 1
       (p1AfterCard ^. #victory) `shouldBe` 0
+
+  describe "wishingWellCardAction" $ do
+    it "draws a card, looks at top of deck and guesses" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            wishingWellCard ^. #action $ p0
+            findPlayer p0
+      length (p1AfterCard ^. #hand) `shouldBe` 6

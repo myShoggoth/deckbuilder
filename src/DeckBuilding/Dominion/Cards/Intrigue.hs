@@ -20,6 +20,7 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , ironworksCard
     , dukeCard
     , haremCard
+    , wishingWellCard
     ) where
 
 import Control.Lens ( (^.), use, (%=), Ixed(ix), prism', (.=) )
@@ -32,13 +33,18 @@ import DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
 import DeckBuilding.Dominion.Types
-    ( Card(Card, cost), CardType(Value, Action, Duration), DominionState, DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade, Steward, Swindler), DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy), DominionBoard )
+    ( Card(Card, cost),
+      CardType(Value, Action, Duration), DominionState,
+        DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade,
+          Steward, Swindler, WishingWell),
+        DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal )
 import Data.Traversable (for)
 import Control.Monad (forM)
 import Safe (headMay)
 import Data.Foldable (for_)
+import GHC.Base (VecElem(Int16ElemRep))
 
 -- | +3 Cards
 --
@@ -274,3 +280,27 @@ dukeCard        = Card "Duke"         5 (valueCardAction 0 Duke) Action dukeCard
 -- 2VP
 haremCard :: Card
 haremCard       = Card "Harem"        6 (valueCardAction 2 Harem) Value (simpleVictory 2)
+
+-- | +1 Card
+-- +1 Action
+--
+-- Name a card, then reveal the top card of your deck. If you named it, put it into your hand.
+wishingWellCard :: Card
+wishingWellCard = Card "Wishing Well" 3 wishingWellCardAction Action (simpleVictory 0)
+  where
+    wishingWellCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    wishingWellCardAction p = do
+      drawn <- basicCardAction 1 0 0 0 p
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      case drawn of
+        DominionDraw [] -> pure $ Just $ WishingWell (DominionDraw []) Nothing False
+        DominionDraw [c] -> pure $ Just $ WishingWell (DominionDraw [c]) Nothing False
+        DominionDraw (d:topOfDeck) -> do
+          let mtod = headMay topOfDeck
+          let c = (thePlayer ^. #strategy . #wishingWellStrategy) aig
+          let guessed = Just c == mtod
+          if guessed
+            then pure ()
+            else handToDeck p [c]
+          pure $ Just $ WishingWell (DominionDraw [d]) mtod guessed
