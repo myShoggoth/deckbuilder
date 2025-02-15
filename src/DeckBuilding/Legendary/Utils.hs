@@ -1,11 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
-{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
-{-# LANGUAGE LambdaCase                #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE OverloadedLabels          #-}
 
 module DeckBuilding.Legendary.Utils where

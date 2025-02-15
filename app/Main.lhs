@@ -19,12 +19,6 @@ project can be configured in Stack or Cabal's configuration
 file, so this list isn't necessarily all the active extensions
 being used for the file).
 
-DeriveDataTypeable (https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/deriving_extra.html)
-We use the deriving functionality for command line argument parsing
-using System.Console.CmdArgs.
-
-> {-# LANGUAGE DeriveDataTypeable        #-}
-
 OverloadedStrings (https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/overloaded_strings.html)
 There are multiple representations of strings of characters in
 Haskell (I know, I know, we're working on it, but some of it
@@ -39,8 +33,6 @@ context and you, the __Haskell Programmer_, don't have to
 constantly write conversion code.
 
 > {-# LANGUAGE OverloadedStrings         #-}
-> {-# LANGUAGE StandaloneDeriving #-}
-> {-# LANGUAGE ScopedTypeVariables #-}
 
 Module declaration
 ------------------

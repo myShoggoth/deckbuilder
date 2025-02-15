@@ -1,13 +1,9 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# OPTIONS_GHC -fconstraint-solver-iterations=0 #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedLabels          #-}
 
 module DeckBuilding.Dominion.Types
     ( module DeckBuilding.Dominion.Types
@@ -25,6 +21,9 @@ import Test.QuickCheck.Arbitrary.Generic (GenericArbitrary(..), Arbitrary (arbit
 import Test.QuickCheck.Arbitrary (Arbitrary)
 import Test.QuickCheck.Instances ()
 import Data.Map (Map)
+import Data.Generics.Labels ()
+import Control.Lens ( (^.), use, (%=), (.=), Ixed(ix) )
+import Data.Generics.Product ( HasField(field) )
 
 data DominionGame = DominionGame
   { players :: [(Text, Strategy)]
@@ -464,7 +463,7 @@ instance Eq DominionPlayer where
 
 instance Ord DominionPlayer where
   compare p1 p2
-    | victory p1 == victory p2  = turns (p1 :: DominionPlayer) `compare` turns (p2 :: DominionPlayer)
+    | victory p1 == victory p2  = (p1 ^. #turns) `compare` (p2 ^. #turns)
     | otherwise                 = victory p2 `compare` victory p1
 
 data CardPlay = Standard Card | PlayThroneRoom Card | PlayRemodel Card Card | PlayCellar [Card]

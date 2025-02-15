@@ -1,14 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
-{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE BlockArguments            #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Dominion.Cards.BaseSpec
     ( spec

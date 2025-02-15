@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE DataKinds                 #-}
+
 module Dominion.Cards.SeasideSpec
     ( spec
     ) where

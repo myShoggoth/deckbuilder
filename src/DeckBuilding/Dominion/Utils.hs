@@ -1,7 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
-{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedLabels          #-}
 
@@ -38,7 +36,7 @@ import DeckBuilding.Dominion.Types
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
 import DeckBuilding (deal')
-import Control.Monad.List (unless)
+import Control.Monad (unless)
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> PlayerNumber -> DominionState [Card]

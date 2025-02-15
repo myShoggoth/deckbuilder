@@ -1,9 +1,6 @@
-{-# LANGUAGE StandaloneDeriving        #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE OverloadedLabels          #-}
-{-# LANGUAGE DerivingStrategies        #-}
 
 module DeckBuilding.Legendary.Types
     ( module DeckBuilding.Legendary.Types

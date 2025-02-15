@@ -1,9 +1,6 @@
-{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
-{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedLabels          #-}
-{-# LANGUAGE GADTs                     #-}
 
 module DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory

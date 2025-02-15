@@ -49,10 +49,10 @@ library
                      , parallel
                      , safe
                      , text
-                     , generic-arbitrary >= 0.2.0
+                     , generic-arbitrary
                      , QuickCheck >= 2.14
                      , quickcheck-instances
-  default-language:    Haskell2010
+  default-language:    GHC2021
 
 executable deckbuilder-exe
   hs-source-dirs:      app
@@ -72,7 +72,7 @@ executable deckbuilder-exe
                      , mtl
                      , extra
                      , QuickCheck >= 2.14
-  default-language:    Haskell2010
+  default-language:    GHC2021
 
 test-suite deckbuilder-test
   type:                exitcode-stdio-1.0
@@ -95,7 +95,7 @@ test-suite deckbuilder-test
                      , Dominion.Cards.IntrigueSpec
                      , Dominion.Cards.SeasideSpec
 --                     , LegendarySpec
-  default-language:    Haskell2010
+  default-language:    GHC2021
 
 source-repository head
   type:     git

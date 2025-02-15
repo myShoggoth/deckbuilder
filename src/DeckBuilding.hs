@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-|
 Module      : DeckBuilding
 Description : A deck-building game engine and simulator

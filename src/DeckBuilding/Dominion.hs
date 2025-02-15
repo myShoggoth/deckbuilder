@@ -1,13 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans      #-}
 {-# LANGUAGE AllowAmbiguousTypes       #-}
-{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE OverloadedLabels          #-}
 
 {-|
@@ -72,7 +66,7 @@ import DeckBuilding.Dominion.Utils
     ( deal, numEmptyDecks, findPlayer, discardCard, mkDominionAIGame, executeBuys, cardPlayed, removeFromCards )
 import System.Random (StdGen, RandomGen(split))
 import System.Random.Shuffle (shuffle')
-import Control.Monad.List ( forM_ )
+import Control.Monad ( forM_ )
 import Control.Parallel.Strategies ( rseq, rpar, runEval )
 import Prettyprinter ( Doc, pretty )
 import DeckBuilding.Dominion.Pretty ()
