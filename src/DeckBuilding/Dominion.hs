@@ -81,7 +81,7 @@ import GHC.RTS.Flags (ProfFlags(descrSelector))
 
 -- | Creates a new player with a name and strategy and the default starter deck.
 newPlayer :: Text.Text -> Strategy -> DominionPlayer
-newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 1 [] [] [] 0 0 False
+newPlayer n = DominionPlayer n [] (replicate 7 copperCard ++ replicate 3 estateCard) [] [] 1 1 0 0 1 [] [] [] 0 0 False []
 
 {- |
   Evaluates the cards in the deck. Since cards can cause more to be drawn,
@@ -110,7 +110,7 @@ evaluateHand pnum = do
 -- remaining action points.
 evaluateCard :: Card -> PlayerNumber -> DominionPlayer -> DominionState (Maybe DominionAction)
 evaluateCard c@(Card _ _ _ Value _) pnum _ = evaluateCard' c pnum
-evaluateCard c pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _ _ _ _ _ _ _) = do
+evaluateCard c pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _ _ _ _ _ _ _ _) = do
   discardCard c pnum
   pure Nothing
 evaluateCard c pnum _ = evaluateCard' c pnum
@@ -297,6 +297,7 @@ runPlayerTurn p = do
           bys
           (catMaybes durations ++ actns ++ das)
           (DominionDraw dealt)
+          (thePlayer ^. #gained)
 
 zeroBuys :: Eq a1 => a1 -> a1 -> [a2] -> [a2]
 zeroBuys p p1 xs = if p == p1 then [] else xs

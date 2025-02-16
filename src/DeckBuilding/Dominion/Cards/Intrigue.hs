@@ -28,7 +28,7 @@ import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base
     ( treasureCards, duchyCard, victoryCards, estateCard )
 import DeckBuilding.Dominion.Cards.Utils
-    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard )
+    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard, gainCardsToDeck )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
 import DeckBuilding.Dominion.Types
     ( Card(Card, cost),
@@ -43,6 +43,9 @@ import Control.Monad (forM)
 import Safe (headMay)
 import Data.Foldable (for_)
 import GHC.Base (VecElem(Int16ElemRep))
+import GHC.List (product)
+import Control.Monad.Extra (ifM)
+import Data.Functor (($>))
 
 -- | +1 Buy
 --
@@ -57,7 +60,7 @@ baronCard       = Card "Baron"        4 baronCardAction Action (simpleVictory 0)
       let moneys = if canDiscardEstate
                     then 4
                     else 0
-      discardCard estateCard p
+      ifM (pure canDiscardEstate) (discardCard estateCard p) (gainCardsToDeck p [estateCard] $> ())
       _ <- basicCardAction 0 (-1) 1 moneys p
       pure $ Just $ Baron canDiscardEstate
 
@@ -105,7 +108,8 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
       if c `elem` trsh
         then do
           #trash %= delete c
-          (#players . ix (unPlayerNumber p) . #discard) %= (c:)
+          #players . ix (unPlayerNumber p) . #discard %= (c:)
+          #players . ix (unPlayerNumber p) . #gained %= (c:)
           return $ Just e
         else return Nothing
     lurk (Right _) _ = return Nothing
@@ -271,11 +275,15 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
       case mc of
         Nothing   -> return Nothing
         Just card
-              | (card ^. #cardType) == Action || (card ^. #cardType == Duration) -> pure $ Just $ Ironworks card (DominionDraw [])
+              | (card ^. #cardType) == Action || (card ^. #cardType == Duration) -> do
+                gainCardsToDiscard p [card]
+                pure $ Just $ Ironworks card (DominionDraw [])
               | card `elem` treasureCards             -> do
+                gainCardsToDiscard p [card]
                 _ <- basicCardAction 0 (-1) 0 1 p
                 pure $ Just $ Ironworks card (DominionDraw [])
               | card `elem` victoryCards              -> do
+                gainCardsToDiscard p [card]
                 theDeal <- basicCardAction 1 (-1) 0 0 p
                 pure $ Just $ Ironworks card theDeal
         Just _ -> error "Ironworks: this should never happen."

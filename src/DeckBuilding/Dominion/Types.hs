@@ -30,7 +30,6 @@ data DominionGame = DominionGame
   , kingdoms :: [Card]
   , seed :: StdGen
   , turns :: [DominionTurn]
-  -- | [(Player Name, Score)]
   , result :: [(Text, Int)]
   }
   deriving stock (Generic, Show)
@@ -49,6 +48,7 @@ data DominionPlayerTurn = DominionPlayerTurn
   , buys :: [DominionBuy]
   , actions :: [DominionAction]
   , draws :: DominionDraw
+  , gained :: [Card]
   }
   deriving stock (Show, Generic)
   deriving Arbitrary via GenericArbitrary DominionPlayerTurn
@@ -114,6 +114,7 @@ data DominionAction =
       Sentry DominionDraw [Card] [Card] [Card] |
       ShantyTown DominionDraw [Card] |
       Smithy DominionDraw |
+      Smuggler Card |
       Steward DominionDraw Int [Card] |
       Swindler (Map.Map PlayerNumber (Maybe Card, Maybe Card)) |
       Tactician [Card] |
@@ -372,7 +373,10 @@ data Strategy = Strategy {
   -- for the other player.
   swindlerStrategy :: DominionAIGame -> Int -> Maybe Card,
   -- | Guess which card is on the top of the deck, get it in hand if right.
-  wishingWellStrategy :: DominionAIGame -> Card
+  wishingWellStrategy :: DominionAIGame -> Card,
+  -- | Pick a card to gain that costs up to 6 that the player to this
+  -- player's right gained last turn. The lists of gained cards is passed in. 
+  smugglerStrategy :: DominionAIGame -> [Card] -> Maybe Card
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -414,6 +418,7 @@ instance Arbitrary Strategy where
       , stewardStrategy = return (2, 0, [])
       , swindlerStrategy = return mempty
       , wishingWellStrategy = return $ Card "Copper" 0 (\_ -> pure Nothing) Value (\_ -> pure 0)
+      , smugglerStrategy = return mempty
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)
@@ -453,6 +458,8 @@ data DominionPlayer = DominionPlayer {
   pirateShip :: Int,
   -- | Has the player played an Outpost this turn?
   outpost :: Bool,
+  -- | All cards gained this turn, needed for Smuggler
+  gained :: [Card],
   -- NOTE: Add new items above the strategy
   -- | The Strategy used by this player.
   strategy   :: Strategy

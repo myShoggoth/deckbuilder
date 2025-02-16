@@ -52,6 +52,7 @@ library
                      , generic-arbitrary
                      , QuickCheck >= 2.14
                      , quickcheck-instances
+                     , extra
   default-language:    GHC2021
 
 executable deckbuilder-exe
@@ -90,6 +91,7 @@ test-suite deckbuilder-test
                      , safe
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   other-modules:       DominionSpec
+                     , Dominion.Utils
                      , Dominion.CardsSpec
                      , Dominion.Cards.BaseSpec
                      , Dominion.Cards.IntrigueSpec

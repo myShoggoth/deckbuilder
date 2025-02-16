@@ -28,7 +28,7 @@ import DeckBuilding.Dominion.Types
                      PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
                      TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
-                     Swindler, Steward, Masquerade, Pawn, WishingWell, Baron),
+                     Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -68,11 +68,12 @@ instance Pretty DominionTurn where
     pretty (DominionTurn xs) = vsep $ map pretty xs
 
 instance Pretty DominionPlayerTurn where
-    pretty (DominionPlayerTurn p t b a (DominionDraw d)) =
+    pretty (DominionPlayerTurn p t b a (DominionDraw d) g) =
         vsep [ "Player " <> viaShow p <> " turn " <> viaShow t
              , indent 2 "Buys", indent 4 $ align $ hsep $ map pretty b
              , indent 2 "Actions", indent 4 $ align $ vsep $ map pretty a
              , indent 2 "Draws", indent 4 $ align $ hsep $ map pretty d
+             , indent 2 "Ganied", indent 4 $ align $ hsep $ map pretty g
              ]
 
 instance Pretty DominionBuy where
@@ -155,6 +156,7 @@ instance Pretty DominionAction where
     pretty (ShantyTown (DominionDraw []) hnd) = "Shanty Town reveals a hand with no actions:" <+> hsep (map pretty hnd)
     pretty (ShantyTown (DominionDraw xs) hnd) = "Shanty Town draws" <+> hsep (map pretty xs) <+> "after revealing a hand with actions:" <+> hsep (map pretty hnd)
     pretty (Smithy (DominionDraw xs)) = "Smithy draws" <+> hsep (map pretty xs)
+    pretty (Smuggler c) = "Smuggler gains " <> pretty c
     pretty (Steward (DominionDraw xs) 0 []) = "Steward draws" <+> hsep (map pretty xs)
     pretty (Steward (DominionDraw []) n []) = "Steward gains " <> pretty n <> " money"
     pretty (Steward (DominionDraw []) 0 xs) = "Steward trashes" <+> hsep (map pretty xs)

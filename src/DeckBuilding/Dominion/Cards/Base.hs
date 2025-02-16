@@ -57,7 +57,7 @@ import Data.Generics.Labels ()
 import Data.List (delete, find, intersect, (\\), partition)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Utils
-    ( simpleVictory, valueCardAction, basicCardAction, trashCards, discardCards, handToDeck, discardToDeck )
+    ( simpleVictory, valueCardAction, basicCardAction, trashCards, discardCards, handToDeck, discardToDeck, gainCardsToDeck, gainCardsToDiscard, gainCardsToHand )
 import DeckBuilding.Types ( PlayerNumber(..) )
 import DeckBuilding.Dominion.Types
     ( DominionPlayer,
@@ -308,7 +308,7 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
   where
     bureaucratCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     bureaucratCardAction p = do
-      #players . ix (unPlayerNumber p) . #deck %= (silverCard:)
+      gainCardsToDeck p [silverCard]
       players' <- use #players
       discards <- mapM (discardVictory p) $ PlayerNumber <$> [0.. length players' - 1]
       #decks %= Map.mapWithKey (decreaseCards silverCard)
@@ -412,7 +412,7 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
             Nothing -> pure Nothing
             Just card -> do
               _ <- basicCardAction 0 (-1) 0 0 p
-              #players . ix (unPlayerNumber p) . #discard %= (card:)
+              gainCardsToDiscard p [card]
               pure $ Just $ Remodel (head moves) card
         else
           return Nothing
@@ -454,7 +454,7 @@ banditCard      = Card "Bandit"       5 banditCardAction Action (simpleVictory 0
     banditCardAction p = do
       ps <- use #players
       decisions <- mapM (banditDiscard p) $ PlayerNumber <$> [0.. length ps - 1]
-      #players . ix (unPlayerNumber p) . #discard %= (goldCard:)
+      gainCardsToDiscard p [goldCard]
       #decks %= Map.mapWithKey (decreaseCards goldCard)
       _ <- basicCardAction 0 (-1) 0 0 p
       let oppDecisions = filter (\(_, x) -> isRight x) decisions
@@ -528,7 +528,7 @@ gainCurse p = do
   haveCurses <- isCardInPlay curseCard
   if haveCurses
     then do
-      #players . ix (unPlayerNumber p) . #discard %= (curseCard:)
+      gainCardsToDiscard p [curseCard]
       #decks %= Map.mapWithKey (decreaseCards curseCard)
       return $ Just curseCard
     else return Nothing
@@ -551,8 +551,7 @@ mineCard          = Card "Mine"       5 mineCardAction Action (simpleVictory 0)
     exch :: Card -> Card -> PlayerNumber -> DominionState (Maybe DominionAction)
     exch c1 c2 p = do
       trashCards p [c1]
-      #decks %= Map.mapWithKey (decreaseCards c2)
-      #players . ix (unPlayerNumber p) . #hand %= (c2:)
+      gainCardsToHand p [c2]
       _ <- basicCardAction 0 (-1) 0 0 p
       return $ Just $ Mine c1 c2
 
@@ -629,6 +628,7 @@ artisanCard   = Card "Artisan"      6 artisanCardAction Action (simpleVictory 0)
           _ <- basicCardAction 0 (-1) 0 0 p
           #decks %= Map.mapWithKey (decreaseCards card)
           #players . ix (unPlayerNumber p) . #hand %= (card:)
+          #players . ix (unPlayerNumber p) . #gained %= (card:)
           aig' <- mkDominionAIGame p
           let putOnDeck = (thePlayer ^. #strategy . #handToDeckStrategy) aig' 1
           if length putOnDeck == 1
@@ -651,6 +651,7 @@ workshopCard  = Card "Workshop"     3 workshopCardAction Action (simpleVictory 0
         Just card -> do
           #decks %= Map.mapWithKey (decreaseCards card)
           #players . ix (unPlayerNumber p) . #hand %= (card:)
+          #players . ix (unPlayerNumber p) . #gained %= (card:)
           return $ Just $ Workshop card
 
 -- | The kingdom cards from Dominion 2nd edition.

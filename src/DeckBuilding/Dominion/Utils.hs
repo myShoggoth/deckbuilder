@@ -19,7 +19,7 @@ module DeckBuilding.Dominion.Utils
     ) where
 
 import Control.Lens ( preuse, (^.), use, (%=), (.=), Ixed(ix), (-=), (<>=))
-import Control.Monad ( filterM, when )
+import Control.Monad ( filterM, when, unless )
 import Control.Monad.RWS
     ( MonadState(get) )
 import Data.Generics.Product ( HasField(field) )
@@ -36,7 +36,6 @@ import DeckBuilding.Dominion.Types
 import System.Random (split)
 import System.Random.Shuffle ( shuffle' )
 import DeckBuilding (deal')
-import Control.Monad (unless)
 
 -- | Deal n cards, reshuffling the player's deck if needed.
 deal :: Int -> PlayerNumber -> DominionState [Card]

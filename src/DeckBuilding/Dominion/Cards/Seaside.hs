@@ -21,6 +21,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     pirateShipCard,
     salvagerCard,
     seaHagCard,
+    smugglersCard,
     tacticianCard,
     treasureMapCard,
     treasuryCard,
@@ -28,10 +29,10 @@ module DeckBuilding.Dominion.Cards.Seaside
     wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
-import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber), turnOrder)
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
-import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck, gainCardsToDiscard)
 import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
@@ -81,8 +82,7 @@ ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 
                     if ds Map.! c <= 0
                         then return (p, Right Nothing)
                         else do
-                            #decks %= Map.mapWithKey (decreaseCards c)
-                            #players . ix (unPlayerNumber p) . #discard %= (c:)
+                            gainCardsToDiscard p [c]
                             return (p, Right $ Just c)
 
 -- | +1 Card
@@ -455,6 +455,29 @@ salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
                     _ <- basicCardAction 0 (-1) 1 (c ^. #cost) p
                     trashCards p [c]
                     pure $ Just $ Salvager c
+
+-- | Gain a copy of a card costing up to 6 that the player to your right gained on their last turn.
+smugglersCard :: Card
+smugglersCard = Card "Smugglers" 3 smugglersCardAction Action (simpleVictory 0)
+    where
+        smugglersCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        smugglersCardAction p = do
+            players' <- use #players
+            let numPlayers = length players'
+            thePlayer <- findPlayer p
+            pRight <- findPlayer $ playerToRight players' p
+            let gained = pRight ^. #gained
+            aig <- mkDominionAIGame p
+            let mc = (thePlayer ^. #strategy . #smugglerStrategy) aig gained
+            case mc of
+                Nothing -> pure Nothing
+                Just c -> do
+                    gainCardsToDiscard p [c]
+                    pure $ Just $ Smuggler c
+        playerToRight :: [DominionPlayer] -> PlayerNumber -> PlayerNumber
+        playerToRight ps (PlayerNumber p) = if p == 0
+            then PlayerNumber ((length ps) - 1)
+            else PlayerNumber (p - 1)
 
 -- | If you have at least one card in hand, discard your hand, and at the start of your next turn, +5 Cards, +1 Action, and +1 Buy.
 tacticianCard :: Card

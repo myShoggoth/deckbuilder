@@ -91,6 +91,7 @@ gainCardsToDeck p (x:xs) = do
     then do
       #decks %= Map.mapWithKey (decreaseCards x)
       #players . ix (unPlayerNumber p) . #deck %= (x:)
+      #players . ix (unPlayerNumber p) . #gained %= (x:)
       theRest <- gainCardsToDeck p xs
       return $ x : theRest
     else gainCardsToDeck p xs
@@ -103,6 +104,7 @@ gainCardsToHand p (x:xs) = do
     then do
       #decks %= Map.mapWithKey (decreaseCards x)
       #players . ix (unPlayerNumber p) . #hand %= (x:)
+      #players . ix (unPlayerNumber p) . #gained %= (x:)
       theRest <- gainCardsToHand p xs
       return $ x : theRest
     else gainCardsToHand p xs
@@ -115,6 +117,7 @@ gainCardsToDiscard p (x:xs) = do
     then do
       #decks %= Map.mapWithKey (decreaseCards x)
       #players . ix (unPlayerNumber p) . #discard %= (x:)
+      #players . ix (unPlayerNumber p) . #gained %= (x:)
       theRest <- gainCardsToDiscard p xs
       return $ x : theRest
     else gainCardsToDiscard p xs
