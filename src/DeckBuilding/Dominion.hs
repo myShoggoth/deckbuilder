@@ -274,7 +274,9 @@ runPlayerTurns (x:xs) = do
 -- | Run the 'DominionPlayerTurn' for a specified player.
 runPlayerTurn :: PlayerNumber -> DominionState DominionPlayerTurn
 runPlayerTurn p = do
+  #players . ix (unPlayerNumber p) . #gained .= []
   thePlayer <- findPlayer p
+
   -- Duration cards register their second turn's action as a function,
   -- which we run at the beginning of the next turn (and then empty
   -- the list).

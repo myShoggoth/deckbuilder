@@ -6,7 +6,7 @@ module Dominion.Cards.SeasideSpec
     ) where
 
 import Test.Hspec ( shouldBe, shouldNotBe, it, describe, Spec )
-import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix) )
+import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix), (.=) )
 import DeckBuilding.Dominion.Cards
     ( ambassadorCard,
       caravanCard,
@@ -38,7 +38,8 @@ import DeckBuilding.Dominion.Cards
       treasuryCard,
       outpostCard,
       estateCard,
-      copperCard
+      copperCard,
+      smugglersCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -293,6 +294,16 @@ spec = do
         it "causes other players to discard the top card of their deck" $ do
             length (p2AfterCard ^. #discard) `shouldBe` 2
             length (p2AfterCard ^. #deck) `shouldBe` 4
+
+    describe "Smugglers action" $ do
+        let ((p1AfterCard, p2AfterCard), afterCard) = initialState defaultConfig $ do
+                #players . ix (unPlayerNumber p1) . #gained .= [goldCard]
+                smugglersCard ^. #action $ p0
+                p0' <- findPlayer p0
+                p1' <- findPlayer p1
+                return (p0', p1')
+        it "gains a card that costs 6 or less that the previous player gained in their last turn" $ do
+            p1AfterCard ^. #discard `shouldBe` [goldCard]
 
     describe "Tactician action" $ do
         let (p1AfterCard, _) = initialState defaultConfig $ do

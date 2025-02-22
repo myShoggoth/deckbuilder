@@ -44,6 +44,8 @@ import Data.List ((\\), intersect)
 import Data.Maybe (isJust)
 import Control.Conditional (unless)
 
+import Debug.Trace
+
 -- | Reveal a card from your hand. Return up to 2 copies
 -- of it from your hand to the Supply. Then each other player
 -- gains a copy of it.
