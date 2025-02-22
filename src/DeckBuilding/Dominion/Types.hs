@@ -62,6 +62,8 @@ data DominionAction =
       Curse | Estate | Duchy | Province | Gardens | Duke |
       Ambassador [Card] (Map.Map PlayerNumber (Either Card (Maybe Card))) |
       Artisan Card Card |
+      Astrolabe |
+      AstrolabeDuration |
       Bandit (Map.Map PlayerNumber (Either Card BanditDecision)) |
       Baron Bool |
       Bazaar DominionDraw |

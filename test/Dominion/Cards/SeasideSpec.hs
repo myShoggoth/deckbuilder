@@ -9,6 +9,7 @@ import Test.Hspec ( shouldBe, shouldNotBe, it, describe, Spec )
 import Control.Lens ( (^?), (^.), (%=), set, Ixed(ix), (.=) )
 import DeckBuilding.Dominion.Cards
     ( ambassadorCard,
+      astrolabeCard,
       caravanCard,
       cutpurseCard,
       embargoCard,
@@ -91,6 +92,22 @@ spec = do
             length (p1AfterCard ^. #hand) `shouldBe` 4
         it "gives the other player a copy" $ do
             length (p2AfterCard ^. #discard) `shouldBe` 1
+
+    describe "Astrolabe action" $ do
+        let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
+                astrolabeCard ^. #action $ p0
+                p0' <- findPlayer p0
+                head (p0' ^. #duration) p0
+                p0'' <- findPlayer p0
+                return (p0', p0'')
+        it "adds a duration entry" $ do
+            length (p1AfterCard ^. #duration) `shouldBe` 1
+        it "adds one buy and one money" $ do
+            p1AfterCard ^. #money `shouldBe` 1
+            p1AfterCard ^. #buys `shouldBe` 2
+        it "adds one action and one money the next turn" $ do
+            p1AfterCard' ^. #money `shouldBe` 2
+            p1AfterCard' ^. #buys `shouldBe` 3
 
     describe "Caravan action" $ do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do

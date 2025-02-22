@@ -16,7 +16,7 @@ import DeckBuilding.Dominion.Types
     ( BanditDecision(BanditDecision),
       DominionDraw(..),
       DominionAction(Workshop, Copper, Silver, Gold, Curse, Estate,
-                     Duchy, Province, Gardens, Artisan, Bandit, Chapel, Cellar,
+                     Duchy, Province, Gardens, Artisan, Astrolabe, Bandit, Chapel, Cellar,
                      Festival, Harbinger, Island, Remodel, Laboratory, Library, Market,
                      Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
                      ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration,
@@ -28,7 +28,8 @@ import DeckBuilding.Dominion.Types
                      PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
                      TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
-                     Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler),
+                     Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler,
+                     AstrolabeDuration),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -92,6 +93,8 @@ instance Pretty DominionAction where
     pretty Duke = pretty ("Duke" :: Text.Text)
     pretty (Ambassador xs ys) = "Ambassador:" <+> align (vsep $ "Returns " <> hsep (map pretty xs) <> " to the supply." : map ambassadorResponse (Map.toList ys))
     pretty (Artisan gc ctd) = "Artisan gains" <+> pretty gc <> "," <+> pretty ctd <+> "put on deck"
+    pretty Astrolabe = pretty ("Astrolabe" :: Text.Text)
+    pretty AstrolabeDuration = pretty ("Astrolabe (Duration)" :: Text.Text)
     pretty (Bandit resps) = "Bandit:" <+> align (vsep (map pretty $ Map.toList resps))
     pretty (Baron True) = "Baron discarded an estate for four money"
     pretty (Baron False) = "Baron did not discard an estate"

@@ -4,6 +4,7 @@
 module DeckBuilding.Dominion.Cards.Seaside
 (
     ambassadorCard,
+    astrolabeCard,
     caravanCard,
     cutpurseCard,
     embargoCard,
@@ -29,7 +30,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber), turnOrder)
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck, gainCardsToDiscard)
@@ -43,8 +44,6 @@ import Safe (lastMay, headMay)
 import Data.List ((\\), intersect)
 import Data.Maybe (isJust)
 import Control.Conditional (unless)
-
-import Debug.Trace
 
 -- | Reveal a card from your hand. Return up to 2 copies
 -- of it from your hand to the Supply. Then each other player
@@ -86,6 +85,23 @@ ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 
                         else do
                             gainCardsToDiscard p [c]
                             return (p, Right $ Just c)
+
+-- | Now and at the start of your next turn
+-- +$1
+-- +1 Buy
+astrolabeCard :: Card
+astrolabeCard = Card "Astrolab" 3 astrolabeCardAction Duration (simpleVictory 0)
+    where
+        astrolabeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        astrolabeCardAction p = do
+            basicCardAction 0 (-1) 1 1 p
+            #players . ix (unPlayerNumber p) . #duration %= (astrolabeCardDuration:)
+            pure $ Just $ Astrolabe
+        astrolabeCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        astrolabeCardDuration p = do
+            basicCardAction 0 (-1) 1 1 p
+            #players . ix (unPlayerNumber p) . #played %= (astrolabeCard:)
+            pure $ Just $ AstrolabeDuration
 
 -- | +1 Card
 -- +2 Actions
