@@ -29,7 +29,7 @@ import DeckBuilding.Dominion.Types
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
                      TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
                      Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler,
-                     AstrolabeDuration, TidePools, TidePoolsDuration),
+                     AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -183,6 +183,8 @@ instance Pretty DominionAction where
     pretty (Workshop c) = "Workshop gains " <> pretty c
     pretty (TidePools (DominionDraw cards)) = "Tide Pools draws" <+> hsep (map pretty cards)
     pretty (TidePoolsDuration discarded) = "Tide Pools (Duration) discards" <+> hsep (map pretty discarded)
+    pretty (SeaChart (DominionDraw cards) Nothing) = "Sea Chart draws" <+> pretty cards
+    pretty (SeaChart (DominionDraw cards) (Just revealed)) = "Sea Chart draws" <+> pretty cards <+> "and reveals" <+> pretty revealed
 
 militiaResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
 militiaResponse (k, Left c) = "Player " <> viaShow k <> " defends with " <> pretty c

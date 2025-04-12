@@ -145,7 +145,7 @@ resetTurn p = do
   bonusActions <- if thePlayer ^. #outpost
     then do
       dealt <- deal 3 p
-      durations <- mapM (\f -> f p) (thePlayer ^. #duration)
+      durations <- mapM (\(_, f) -> f p) (thePlayer ^. #duration)
       #players . ix (unPlayerNumber p) . #duration .= []
 
       actns <- evaluateHand p
@@ -280,7 +280,7 @@ runPlayerTurn p = do
   -- Duration cards register their second turn's action as a function,
   -- which we run at the beginning of the next turn (and then empty
   -- the list).
-  durations <- mapM (\f -> f p) (thePlayer ^. #duration)
+  durations <- mapM (\(_, f) -> f p) (thePlayer ^. #duration)
   #players . ix (unPlayerNumber p) . #duration .= []
 
   actns <- evaluateHand p

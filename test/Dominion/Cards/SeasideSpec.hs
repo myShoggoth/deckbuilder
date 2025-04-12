@@ -41,7 +41,8 @@ import DeckBuilding.Dominion.Cards
       estateCard,
       copperCard,
       smugglersCard,
-      tidePoolsCard
+      tidePoolsCard,
+      seaChartCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -98,11 +99,11 @@ spec = do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
                 astrolabeCard ^. #action $ p0
                 p0' <- findPlayer p0
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 p0'' <- findPlayer p0
                 return (p0', p0'')
         it "adds a duration entry" $ do
-            length (p1AfterCard ^. #duration) `shouldBe` 1
+            length (map snd (p1AfterCard ^. #duration)) `shouldBe` 1
         it "adds one buy and one money" $ do
             p1AfterCard ^. #money `shouldBe` 1
             p1AfterCard ^. #buys `shouldBe` 2
@@ -114,11 +115,11 @@ spec = do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
                 caravanCard ^. #action $ p0
                 p0' <- findPlayer p0
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 p0'' <- findPlayer p0
                 return (p0', p0'')
         it "adds a duration entry" $ do
-            length (p1AfterCard ^. #duration) `shouldBe` 1
+            length (map snd (p1AfterCard ^. #duration)) `shouldBe` 1
         it "draws a card, does not use an action" $ do
             length (p1AfterCard ^. #hand) `shouldBe` 6
             p1AfterCard ^. #actions `shouldBe` 1
@@ -166,11 +167,11 @@ spec = do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
                 fishingVillageCard ^. #action $ p0
                 p0' <- findPlayer p0
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 p0'' <- findPlayer p0
                 return (p0', p0'')
         it "adds a duration entry" $ do
-            length (p1AfterCard ^. #duration) `shouldBe` 1
+            length (map snd (p1AfterCard ^. #duration)) `shouldBe` 1
         it "adds two actions and one money" $ do
             p1AfterCard ^. #money `shouldBe` 1
             p1AfterCard ^. #actions `shouldBe` 2
@@ -195,7 +196,7 @@ spec = do
                 havenCard ^. #action $ p0
                 findPlayer p0
         it "adds a duration entry" $ do
-            length (p1AfterCard ^. #duration) `shouldBe` 1
+            length (map snd (p1AfterCard ^. #duration)) `shouldBe` 1
         it "draws a card, but removes the Haven and the selected card to haven" $ do
             length (p1AfterCard ^. #hand) `shouldBe` 4
         it "adds and uses an action" $ do
@@ -216,7 +217,7 @@ spec = do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
                 lighthouseCard ^. #action $ p0
                 p0' <- findPlayer p0
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 p0'' <- findPlayer p0
                 return (p0', p0'')
         it "increments the lighthouse counter" $ do
@@ -237,7 +238,7 @@ spec = do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
                 merchantShipCard ^. #action $ p0
                 p0' <- findPlayer p0
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 p0'' <- findPlayer p0
                 return (p0', p0'')
         it "adds two money this turn" $ do
@@ -313,6 +314,32 @@ spec = do
             length (p2AfterCard ^. #discard) `shouldBe` 2
             length (p2AfterCard ^. #deck) `shouldBe` 4
 
+    describe "Sea Chart action" $ do
+        let (p1AfterCard, afterCard) = initialState defaultConfig $ do
+                seaChartCard ^. #action $ p0
+                findPlayer p0
+
+        it "provides +1 Card and +1 Action when played" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 6 -- 5 initial + 1 drawn
+            p1AfterCard ^. #actions `shouldBe` 1
+
+        it "reveals the top card and adds it to hand if a copy is in play" $ do
+            let (p1AfterRevealWithCopy, _) = initialState defaultConfig $ do
+                    #players . ix (unPlayerNumber p0) . #played .= [seaChartCard]
+                    #players . ix (unPlayerNumber p0) . #deck %= ([goldCard, seaChartCard]++)
+                    seaChartCard ^. #action $ p0
+                    findPlayer p0
+            length (p1AfterRevealWithCopy ^. #hand) `shouldBe` 7 -- 5 initial + 1 drawn + 1 revealed
+            headMay (p1AfterRevealWithCopy ^. #deck) `shouldNotBe` Just seaChartCard
+
+        it "reveals the top card and leaves it on the deck if it is not in play" $ do
+            let (p1AfterRevealWithoutCopy, _) = initialState defaultConfig $ do
+                    #players . ix (unPlayerNumber p0) . #deck %= ([goldCard, seaChartCard]++)
+                    seaChartCard ^. #action $ p0
+                    findPlayer p0
+            length (p1AfterRevealWithoutCopy ^. #hand) `shouldBe` 6 -- 5 initial + 1 drawn, no revealed card added
+            headMay (p1AfterRevealWithoutCopy ^. #deck) `shouldBe` Just seaChartCard
+
     describe "Smugglers action" $ do
         let ((p1AfterCard, p2AfterCard), afterCard) = initialState defaultConfig $ do
                 #players . ix (unPlayerNumber p1) . #gained .= [goldCard]
@@ -327,7 +354,7 @@ spec = do
         let (p1AfterCard, _) = initialState defaultConfig $ do
                 tacticianCard ^. #action $ p0
                 p0' <- findPlayer p0
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 findPlayer p0
         it "draws 5 cards, adds one action and one buy when played with cards in hand" $ do
             length (p1AfterCard ^. #hand) `shouldBe` 5
@@ -371,7 +398,7 @@ spec = do
         let ((p1AfterCard, p1AfterCard'), _) = initialState defaultConfig $ do
                 wharfCard ^. #action $ p0
                 p0' <- findPlayer p0
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 p0'' <- findPlayer p0
                 return (p0', p0'')
         it "draws two cards when played" $ do
@@ -387,7 +414,7 @@ spec = do
                 p0' <- findPlayer p0
                 resetTurn p0 -- Reset the turn before invoking the duration action
                 deal 5 p0 -- Deal a new hand after resetting the turn
-                head (p0' ^. #duration) p0
+                head (map snd (p0' ^. #duration)) p0
                 p0'' <- findPlayer p0
                 return (p0', p0'')
 

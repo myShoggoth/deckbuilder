@@ -23,6 +23,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     pirateShipCard,
     salvagerCard,
     seaHagCard,
+    seaChartCard,
     smugglersCard,
     tacticianCard,
     tidePoolsCard,
@@ -32,7 +33,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration, TidePools, TidePoolsDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber), turnOrder)
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck, gainCardsToDiscard)
@@ -44,7 +45,7 @@ import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curse
 import Control.Monad (when)
 import Safe (lastMay, headMay)
 import Data.List ((\\), intersect)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, mapMaybe)
 import Control.Conditional (unless)
 
 -- | Reveal a card from your hand. Return up to 2 copies
@@ -97,7 +98,7 @@ astrolabeCard = Card "Astrolab" 3 astrolabeCardAction Duration (simpleVictory 0)
         astrolabeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         astrolabeCardAction p = do
             basicCardAction 0 (-1) 1 1 p
-            #players . ix (unPlayerNumber p) . #duration %= (astrolabeCardDuration:)
+            #players . ix (unPlayerNumber p) . #duration %= ((astrolabeCard, astrolabeCardDuration):)
             pure $ Just $ Astrolabe
         astrolabeCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         astrolabeCardDuration p = do
@@ -126,7 +127,7 @@ caravanCard = Card "Caravan" 4 caravanCardAction Duration (simpleVictory 0)
         caravanCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         caravanCardAction p = do
             drawn <- basicCardAction 1 0 0 0 p
-            #players . ix (unPlayerNumber p) . #duration %= (caravanCardDuration:)
+            #players . ix (unPlayerNumber p) . #duration %= ((caravanCard, caravanCardDuration):)
             pure $ Just $ Caravan drawn
         caravanCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         caravanCardDuration p = do
@@ -206,7 +207,7 @@ fishingVillageCard = Card "Fishing Village" 3 fishingVillageCardAction Duration 
         fishingVillageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         fishingVillageCardAction p = do
             _ <- basicCardAction 0 1 0 1 p
-            #players . ix (unPlayerNumber p) . #duration %= (fishingVillageCardDuration:)
+            #players . ix (unPlayerNumber p) . #duration %= ((fishingVillageCard, fishingVillageCardDuration):)
             pure $ Just FishingVillage
         fishingVillageCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         fishingVillageCardDuration p = do
@@ -255,7 +256,7 @@ havenCard = Card "Haven" 2 havenCardAction Duration (simpleVictory 0)
             drawn <- basicCardAction 1 0 0 0 p
             let havened = (thePlayer ^. #strategy . #havenStrategy) aig
             #players . ix (unPlayerNumber p) . #hand .= removeFromCards (thePlayer ^. #hand) [havenCard, havened]
-            #players . ix (unPlayerNumber p) . #duration %= (havenCardDuration havened:)
+            #players . ix (unPlayerNumber p) . #duration %= ((havenCard, havenCardDuration havened):)
             pure $ Just $ Haven drawn havened
         havenCardDuration :: Card -> PlayerNumber -> DominionState (Maybe DominionAction)
         havenCardDuration c p = do
@@ -294,7 +295,7 @@ lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Duration (simpleVictor
         lighthouseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         lighthouseCardAction p = do
             _ <- basicCardAction 0 0 0 1 p
-            #players . ix (unPlayerNumber p) . #duration %= (lighthouseCardDuration:)
+            #players . ix (unPlayerNumber p) . #duration %= ((lighthouseCard, lighthouseCardDuration):)
             #players . ix (unPlayerNumber p) . #lighthouse += 1
             pure $ Just Lighthouse
         lighthouseCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
@@ -330,7 +331,7 @@ merchantShipCard = Card "Merchant Ship" 5 merchantShipCardAction Duration (simpl
         merchantShipCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         merchantShipCardAction p = do
             _ <- basicCardAction 0 (-1) 0 2 p
-            #players . ix (unPlayerNumber p) . #duration %= (merchantShipCardDuration:)
+            #players . ix (unPlayerNumber p) . #duration %= ((merchantShipCard, merchantShipCardDuration):)
             pure $ Just MerchantShip
         merchantShipCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         merchantShipCardDuration p = do
@@ -511,7 +512,7 @@ tacticianCard = Card "Tactician" 5 tacticianCardAction Duration (simpleVictory 0
                 then do
                     let hand = thePlayer ^. #hand
                     discardCards p hand
-                    #players . ix (unPlayerNumber p) . #duration %= (tacticianCardActionDuration:)
+                    #players . ix (unPlayerNumber p) . #duration %= ((tacticianCard, tacticianCardActionDuration):)
                     pure $ Just $ Tactician hand
                 else pure Nothing
         tacticianCardActionDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
@@ -572,6 +573,28 @@ seaHagCard = Card "Sea Hag" 4 seaHagCardAction Action (simpleVictory 0)
                     mc <- gainCurse p
                     return (p, Right (headMay topCard, mc))
 
+-- | +1 Card
+-- +1 Action
+-- Reveal the top card of your deck. If you have a copy of it in play, put it into your hand.
+seaChartCard :: Card
+seaChartCard = Card "Sea Chart" 3 seaChartCardAction Action (simpleVictory 0)
+    where
+        seaChartCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        seaChartCardAction p = do
+            drawn <- basicCardAction 1 0 0 0 p
+            thePlayer <- findPlayer p
+            let topCard = headMay (thePlayer ^. #deck)
+            let inPlay = thePlayer ^. #played ++ map fst (thePlayer ^. #duration)
+            case topCard of
+                Just c -> do
+                    if c `elem` inPlay
+                        then do
+                            #players . ix (unPlayerNumber p) . #hand %= (c:)
+                            #players . ix (unPlayerNumber p) . #deck %= tail
+                            pure $ Just $ SeaChart drawn (Just c)
+                        else pure $ Just $ SeaChart drawn Nothing
+                Nothing -> pure $ Just $ SeaChart drawn Nothing
+
 -- | +3 Cards
 -- +1 Action
 --
@@ -582,7 +605,7 @@ tidePoolsCard = Card "Tide Pools" 4 tidePoolsCardAction Duration (simpleVictory 
         tidePoolsCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         tidePoolsCardAction p = do
             drawn <- basicCardAction 3 0 0 0 p
-            #players . ix (unPlayerNumber p) . #duration %= (tidePoolsCardDuration:)
+            #players . ix (unPlayerNumber p) . #duration %= ((tidePoolsCard, tidePoolsCardDuration):)
             pure $ Just $ TidePools drawn
         tidePoolsCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         tidePoolsCardDuration p = do
@@ -617,7 +640,7 @@ wharfCard = Card "Wharf" 5 wharfCardAction Duration (simpleVictory 0)
         wharfCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         wharfCardAction p = do
             drawn <- basicCardAction 2 (-1) 1 0 p
-            #players . ix (unPlayerNumber p) . #duration %= (wharfCardActionDuration:)
+            #players . ix (unPlayerNumber p) . #duration %= ((wharfCard, wharfCardActionDuration):)
             pure $ Just $ Wharf drawn
         wharfCardActionDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
         wharfCardActionDuration p = do

@@ -134,7 +134,8 @@ data DominionAction =
       WishingWell DominionDraw (Maybe Card) Bool |
       Workshop Card |
       TidePools DominionDraw |
-      TidePoolsDuration [Card]
+      TidePoolsDuration [Card] |
+      SeaChart DominionDraw (Maybe Card)
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 
@@ -452,8 +453,8 @@ data DominionPlayer = DominionPlayer {
   -- | The Island mat contents (Seaside Expansion)
   island     :: [Card],
   -- | Duration cards' duration actions to be run at the
-  -- start of the following turn.
-  duration   :: [PlayerNumber -> DominionState (Maybe DominionAction)],
+  -- start of the following turn, along with the associated card.
+  duration   :: [(Card, PlayerNumber -> DominionState (Maybe DominionAction))],
   -- | Native Village mat contents
   nativeVillage :: [Card],
   -- | How many Lighthouses are protecting this player?
