@@ -40,7 +40,8 @@ import DeckBuilding.Dominion.Cards
       outpostCard,
       estateCard,
       copperCard,
-      smugglersCard
+      smugglersCard,
+      tidePoolsCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -379,3 +380,20 @@ spec = do
         it "draws two more in the next turn" $ do
             length (p1AfterCard' ^. #hand) `shouldBe` 9
             length (p1AfterCard' ^. #deck) `shouldBe` 1
+
+    describe "Tide Pools action" $ do
+        let ((p1AfterCard, p1AfterDuration), _) = initialState defaultConfig $ do
+                tidePoolsCard ^. #action $ p0
+                p0' <- findPlayer p0
+                resetTurn p0 -- Reset the turn before invoking the duration action
+                deal 5 p0 -- Deal a new hand after resetting the turn
+                head (p0' ^. #duration) p0
+                p0'' <- findPlayer p0
+                return (p0', p0'')
+
+        it "provides +3 Cards and +1 Action when played" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 8 -- 5 initial + 3 drawn
+            p1AfterCard ^. #actions `shouldBe` 1
+
+        it "discards 2 cards at the start of the next turn" $ do
+            length (p1AfterDuration ^. #hand) `shouldBe` 3 -- 5 initial - 2 discarded

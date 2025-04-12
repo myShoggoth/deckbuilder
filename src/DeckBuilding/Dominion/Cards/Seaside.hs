@@ -5,6 +5,7 @@ module DeckBuilding.Dominion.Cards.Seaside
 (
     ambassadorCard,
     astrolabeCard,
+    bazaarCard,
     caravanCard,
     cutpurseCard,
     embargoCard,
@@ -24,13 +25,14 @@ module DeckBuilding.Dominion.Cards.Seaside
     seaHagCard,
     smugglersCard,
     tacticianCard,
+    tidePoolsCard,
     treasureMapCard,
     treasuryCard,
     warehouseCard,
     wharfCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration, TidePools, TidePoolsDuration), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber), turnOrder)
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck, gainCardsToDiscard)
@@ -569,6 +571,28 @@ seaHagCard = Card "Sea Hag" 4 seaHagCardAction Action (simpleVictory 0)
                     discardCards p topCard
                     mc <- gainCurse p
                     return (p, Right (headMay topCard, mc))
+
+-- | +3 Cards
+-- +1 Action
+--
+-- At the start of your next turn, discard 2 cards.
+tidePoolsCard :: Card
+tidePoolsCard = Card "Tide Pools" 4 tidePoolsCardAction Duration (simpleVictory 0)
+    where
+        tidePoolsCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        tidePoolsCardAction p = do
+            drawn <- basicCardAction 3 0 0 0 p
+            #players . ix (unPlayerNumber p) . #duration %= (tidePoolsCardDuration:)
+            pure $ Just $ TidePools drawn
+        tidePoolsCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        tidePoolsCardDuration p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let hand = thePlayer ^. #hand
+            let toDiscard = (thePlayer ^. #strategy . #discardStrategy) aig (length hand, 2)
+            discardCards p toDiscard
+            #players . ix (unPlayerNumber p) . #played %= (tidePoolsCard:)
+            pure $ Just $ TidePoolsDuration toDiscard
 
 -- | +3 Cards
 -- +1 Action

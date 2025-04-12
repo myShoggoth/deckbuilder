@@ -21,3 +21,4 @@ cabal.project.local
 stack.yaml.lock
 deckgames.txt
 *.swp
+.vs/

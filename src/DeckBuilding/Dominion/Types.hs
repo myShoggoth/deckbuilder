@@ -132,7 +132,9 @@ data DominionAction =
       Wharf DominionDraw |
       WharfDuration DominionDraw |
       WishingWell DominionDraw (Maybe Card) Bool |
-      Workshop Card
+      Workshop Card |
+      TidePools DominionDraw |
+      TidePoolsDuration [Card]
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 
