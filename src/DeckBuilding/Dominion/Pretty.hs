@@ -29,7 +29,8 @@ import DeckBuilding.Dominion.Types
                      MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
                      TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
                      Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler,
-                     AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart),
+                     AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade,
+                     Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -185,6 +186,17 @@ instance Pretty DominionAction where
     pretty (TidePoolsDuration discarded) = "Tide Pools (Duration) discards" <+> hsep (map pretty discarded)
     pretty (SeaChart (DominionDraw cards) Nothing) = "Sea Chart draws" <+> pretty cards
     pretty (SeaChart (DominionDraw cards) (Just revealed)) = "Sea Chart draws" <+> pretty cards <+> "and reveals" <+> pretty revealed
+    pretty (Blockade c) = "Blockade places a token on" <+> pretty c
+    pretty (Monkey (DominionDraw xs)) = "Monkey draws" <+> hsep (map pretty xs)
+    pretty (MonkeyDuration (DominionDraw xs)) = "Monkey (Duration) draws" <+> hsep (map pretty xs)
+    pretty (Corsair xs) = "Corsair:" <+> align (vsep $ map corsairResponse $ Map.toList xs)
+    pretty (Sailor True) = "Sailor gains +$2 for gaining a card this turn"
+    pretty (Sailor False) = "Sailor does not gain +$2"
+    pretty (SeaWitch xs) = "Sea Witch:" <+> align (vsep $ map seaWitchResponse $ Map.toList xs)
+      where
+        seaWitchResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+        seaWitchResponse (k, Right Nothing) = "Player " <> viaShow k <> " gains no curse."
+        seaWitchResponse (k, Right (Just c)) = "Player " <> viaShow k <> " gains " <> pretty c
 
 militiaResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
 militiaResponse (k, Left c) = "Player " <> viaShow k <> " defends with " <> pretty c
@@ -225,6 +237,18 @@ seaHagResponse (k, Right (Just c, Just c1)) = "Player " <> viaShow k <> " discar
 ghostShipResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
 ghostShipResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
 ghostShipResponse (k, Right xs) = "Player " <> viaShow k <> " puts" <+> hsep (map pretty xs) <+> "on their deck"
+
+corsairResponse :: (PlayerNumber, Either Card (Maybe Card)) -> Doc ann
+corsairResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+corsairResponse (k, Right Nothing) = "Player " <> viaShow k <> " does not trash a treasure card."
+corsairResponse (k, Right (Just c)) = "Player " <> viaShow k <> " trashes" <+> pretty c
+
+seaWitchResponse :: (PlayerNumber, Either Card (Maybe Card, Maybe Card)) -> Doc ann
+seaWitchResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+seaWitchResponse (k, Right (Nothing, Nothing)) = "Player " <> viaShow k <> " has nothing to discard, and there are no more curse cards."
+seaWitchResponse (k, Right (Nothing, Just c)) = "Player " <> viaShow k <> " has nothing to discard, and gains" <+> pretty c
+seaWitchResponse (k, Right (Just c, Nothing)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and there are no more curse cards."
+seaWitchResponse (k, Right (Just c, Just c1)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and gains" <+> pretty c1
 
 instance {-# OVERLAPS #-} Pretty (PlayerNumber, Either Card BanditDecision) where
     pretty (n, Left c) = "Player #" <> viaShow n <> " showed " <> pretty c

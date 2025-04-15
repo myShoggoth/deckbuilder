@@ -30,10 +30,15 @@ module DeckBuilding.Dominion.Cards.Seaside
     treasureMapCard,
     treasuryCard,
     warehouseCard,
-    wharfCard
+    wharfCard,
+    blockadeCard,
+    monkeyCard,
+    corsairCard,
+    sailorCard,
+    seaWitchCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart), CardType (Action, Duration), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade, Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch), CardType (Action, Duration, Value), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber), turnOrder)
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck, gainCardsToDiscard)
@@ -41,7 +46,7 @@ import DeckBuilding.Dominion.Utils
     ( findPlayer, removeFromCards, mkDominionAIGame, increaseCards, decreaseCards, deal )
 import Data.Generics.Product (HasField(field))
 import qualified Data.Map as Map
-import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curseCard, gainCurse, goldCard, provinceCard, silverCard)
+import DeckBuilding.Dominion.Cards.Base (defendsAgainstAttack, copperCard, curseCard, gainCurse, goldCard, provinceCard, silverCard, treasureCards)
 import Control.Monad (when)
 import Safe (lastMay, headMay)
 import Data.List ((\\), intersect)
@@ -647,3 +652,96 @@ wharfCard = Card "Wharf" 5 wharfCardAction Duration (simpleVictory 0)
             drawn <- basicCardAction 2 0 1 0 p
             #players . ix (unPlayerNumber p) . #played %= (wharfCard:)
             pure $ Just $ WharfDuration drawn
+
+-- | Blockade: Gain a card costing up to $4. At the start of your next turn, +$2 and each other player gains a Curse.
+blockadeCard :: Card
+blockadeCard = Card "Blockade" 4 blockadeCardAction Duration (simpleVictory 0)
+    where
+        blockadeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        blockadeCardAction p = do
+            thePlayer <- findPlayer p
+            aig <- mkDominionAIGame p
+            let mc = (thePlayer ^. #strategy . #gainCardStrategy) aig 4
+            case mc of
+                Nothing -> pure Nothing
+                Just c -> do
+                    gainCardsToDiscard p [c]
+                    #players . ix (unPlayerNumber p) . #duration %= ((blockadeCard, blockadeCardDuration (Just c)) :)
+                    pure $ Just $ Blockade c
+        blockadeCardDuration :: Maybe Card -> PlayerNumber -> DominionState (Maybe DominionAction)
+        blockadeCardDuration Nothing _ = pure Nothing
+        blockadeCardDuration (Just c) p = do
+            #players . ix (unPlayerNumber p) . #money += 2
+            #embargoes %= Map.mapWithKey (increaseCards c 1)
+            #players . ix (unPlayerNumber p) . #played %= (blockadeCard :)
+            pure $ Just $ Blockade c
+
+-- | Monkey: Until your next turn, when the player to your right gains a card, +1 Card. At the start of your next turn, +1 Card.
+monkeyCard :: Card
+monkeyCard = Card "Monkey" 3 monkeyCardAction Duration (simpleVictory 0)
+    where
+        monkeyCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        monkeyCardAction p = do
+            #players . ix (unPlayerNumber p) . #duration %= ((monkeyCard, monkeyCardDuration):)
+            pure $ Just $ Monkey (DominionDraw [])
+
+        monkeyCardDuration :: PlayerNumber -> DominionState (Maybe DominionAction)
+        monkeyCardDuration p = do
+            drawn <- basicCardAction 1 0 0 0 p
+            #players . ix (unPlayerNumber p) . #played %= (monkeyCard:)
+            pure $ Just $ MonkeyDuration drawn
+
+-- | Corsair: Each other player trashes a Treasure from their hand (or reveals a hand with no Treasures). Gain a Silver to your hand.
+corsairCard :: Card
+corsairCard = Card "Corsair" 4 corsairCardAction Action (simpleVictory 0)
+    where
+        corsairCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        corsairCardAction p = do
+            players' <- use #players
+            playerResponses <- mapM (corsairTrashTreasure p) $ PlayerNumber <$> [0.. length players' - 1]
+            gainCardsToHand p [silverCard]
+            pure $ Just $ Corsair $ Map.fromList playerResponses
+        corsairTrashTreasure :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
+        corsairTrashTreasure e p | e == p = return (e, Right Nothing)
+        corsairTrashTreasure _ p = do
+            thePlayer <- findPlayer p
+            let treasures = filter (`elem` treasureCards) (thePlayer ^. #hand)
+            case treasures of
+                [] -> return (p, Right Nothing)
+                (t:_) -> do
+                    trashCards p [t]
+                    return (p, Right $ Just t)
+
+-- | Sailor: +2 Actions. If you gained a card this turn, +$2.
+sailorCard :: Card
+sailorCard = Card "Sailor" 4 sailorCardAction Action (simpleVictory 0)
+    where
+        sailorCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        sailorCardAction p = do
+            _ <- basicCardAction 0 1 0 0 p
+            thePlayer <- findPlayer p
+            if not (null (thePlayer ^. #gained))
+                then do
+                    #players . ix (unPlayerNumber p) . #money += 2
+                    pure $ Just $ Sailor True
+                else pure $ Just $ Sailor False
+
+-- | Sea Witch: +2 Cards. Each other player gains a Curse.
+seaWitchCard :: Card
+seaWitchCard = Card "Sea Witch" 5 seaWitchCardAction Action (simpleVictory 0)
+    where
+        seaWitchCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+        seaWitchCardAction p = do
+            _ <- basicCardAction 2 (-1) 0 0 p
+            players' <- use #players
+            playerResponses <- mapM (seaWitchGiveCurse p) $ PlayerNumber <$> [0.. length players' - 1]
+            pure $ Just $ SeaWitch $ Map.fromList playerResponses
+        seaWitchGiveCurse :: PlayerNumber -> PlayerNumber -> DominionState (PlayerNumber, Either Card (Maybe Card))
+        seaWitchGiveCurse e p | e == p = return (e, Right Nothing)
+        seaWitchGiveCurse _ p = do
+            thePlayer <- findPlayer p
+            case defendsAgainstAttack seaWitchCard thePlayer of
+                Just defender -> return (p, Left defender)
+                Nothing -> do
+                    mc <- gainCurse p
+                    return (p, Right mc)

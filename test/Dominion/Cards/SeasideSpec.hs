@@ -42,7 +42,12 @@ import DeckBuilding.Dominion.Cards
       copperCard,
       smugglersCard,
       tidePoolsCard,
-      seaChartCard
+      seaChartCard,
+      blockadeCard,
+      monkeyCard,
+      corsairCard,
+      sailorCard,
+      seaWitchCard
     )
 
 import Control.Monad.State ( execState, evalState )
@@ -80,6 +85,7 @@ import qualified Data.Map as Map
 import Safe (headMay, lastMay)
 import Data.Generics.Product ( HasField(field) )
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
+import DeckBuilding.Dominion.Cards.Utils ( gainCardsToDiscard, gainCardsToDeck )
 import DeckBuilding.Dominion.Cards.Base (provinceCard)
 
 spec :: Spec
@@ -424,3 +430,82 @@ spec = do
 
         it "discards 2 cards at the start of the next turn" $ do
             length (p1AfterDuration ^. #hand) `shouldBe` 3 -- 5 initial - 2 discarded
+
+    describe "Blockade action" $ do
+        let ((p1AfterCard, p1AfterDuration), afterCard) = initialState defaultConfig $ do
+                blockadeCard ^. #action $ p0
+                p0' <- findPlayer p0
+                resetTurn p0 -- Reset the turn before invoking the duration action
+                deal 5 p0 -- Deal a new hand after resetting the turn
+                head (map snd (p0' ^. #duration)) p0
+                p0'' <- findPlayer p0
+                return (p0', p0'')
+
+        it "gains a card costing up to $4" $ do
+            length (p1AfterCard ^. #discard) `shouldBe` 1
+            (headMay $ p1AfterCard ^. #discard) `shouldNotBe` Nothing
+
+        it "provides +$2 at the start of the next turn" $ do
+            p1AfterDuration ^. #money `shouldBe` 2
+
+    describe "Monkey action" $ do
+        let ((p1AfterCard, p1AfterDuration), _) = initialState defaultConfig $ do
+                monkeyCard ^. #action $ p0
+                p0' <- findPlayer p0
+                resetTurn p0 -- Reset the turn before invoking the duration action
+                deal 5 p0 -- Deal a new hand after resetting the turn
+                head (map snd (p0' ^. #duration)) p0
+                p0'' <- findPlayer p0
+                return (p0', p0'')
+
+        it "provides +1 Card at the start of the next turn" $ do
+            length (p1AfterDuration ^. #hand) `shouldBe` 6 -- 5 initial + 1 drawn
+
+        it "reactively draws a card when the player to the right gains a card" $ do
+            let (p1AfterReactive, _) = initialState defaultConfig $ do
+                    monkeyCard ^. #action $ p0
+                    resetTurn p0
+                    deal 5 p0 -- Deal a new hand after resetting the turn
+                    gainCardsToDiscard p1 [silverCard] -- Simulate the player to the right gaining a card
+                    findPlayer p0
+            length (p1AfterReactive ^. #hand) `shouldBe` 6 -- 5 initial + 1 reactive draw
+
+    describe "Corsair action" $ do
+        let ((p1AfterCard, p2AfterCard), afterCard) = initialState defaultConfig $ do
+                corsairCard ^. #action $ p0
+                p0' <- findPlayer p0
+                p1' <- findPlayer p1
+                return (p0', p1')
+        it "forces other players to trash a Treasure from their hand" $ do
+            length (afterCard ^. #trash) `shouldBe` 1
+            (headMay $ afterCard ^. #trash) `shouldNotBe` Nothing
+        it "gives the player a Silver to their hand" $ do
+            headMay (p1AfterCard ^. #hand) `shouldBe` Just silverCard
+            length (p1AfterCard ^. #hand) `shouldBe` 6
+
+    describe "Sailor action" $ do
+        let ((p1AfterCard, p1AfterGain), _) = initialState defaultConfig $ do
+                sailorCard ^. #action $ p0
+                p0' <- findPlayer p0
+                #players . ix (unPlayerNumber p0) . #gained .= [silverCard]
+                sailorCard ^. #action $ p0
+                p0'' <- findPlayer p0
+                return (p0', p0'')
+
+        it "provides +2 Actions when played" $ do
+            p1AfterCard ^. #actions `shouldBe` 2
+
+        it "provides +$2 if a card was gained this turn" $ do
+            p1AfterGain ^. #money `shouldBe` 2
+
+    describe "Sea Witch action" $ do
+        let ((p1AfterCard, p2AfterCard), afterCard) = initialState defaultConfig $ do
+                seaWitchCard ^. #action $ p0
+                p0' <- findPlayer p0
+                p1' <- findPlayer p1
+                return (p0', p1')
+        it "provides +2 Cards when played" $ do
+            length (p1AfterCard ^. #hand) `shouldBe` 7 -- 5 initial + 2 drawn
+        it "causes other players to gain a Curse" $ do
+            headMay (p2AfterCard ^. #discard) `shouldBe` Just curseCard
+            length (p2AfterCard ^. #discard) `shouldBe` 1

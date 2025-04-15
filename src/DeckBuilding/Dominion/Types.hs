@@ -135,7 +135,13 @@ data DominionAction =
       Workshop Card |
       TidePools DominionDraw |
       TidePoolsDuration [Card] |
-      SeaChart DominionDraw (Maybe Card)
+      SeaChart DominionDraw (Maybe Card) |
+      Blockade Card |
+      Monkey DominionDraw |
+      MonkeyDuration DominionDraw |
+      Corsair (Map PlayerNumber (Either Card (Maybe Card))) |
+      Sailor Bool |
+      SeaWitch (Map PlayerNumber (Either Card (Maybe Card)))
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 

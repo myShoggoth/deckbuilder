@@ -14,19 +14,22 @@ module DeckBuilding.Dominion.Cards.Utils
     , gainCardsToDeck
     , gainCardsToHand
     , gainCardsToDiscard
+    , monkeyReactiveDraw
     ) where
 
 import Control.Lens ( (^.), (%=), (+=), Ixed(ix), (.=), use )
+import Control.Monad (when)
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
 import Data.List ( find )
-import DeckBuilding.Types ( PlayerNumber(unPlayerNumber) )
+import DeckBuilding.Types (PlayerNumber(..))
 import DeckBuilding.Dominion.Types
     ( Card, CardType(Action), DominionState, DominionAction,
-      DominionDraw(DominionDraw) )
+      DominionDraw(DominionDraw), cardName )
 import DeckBuilding.Dominion.Utils
     ( deal, findPlayer, removeFromCards, decreaseCards, isCardInPlay )
 import qualified Data.Map as Map
+import Data.Text (unpack)
 
 -- | A simple points-only Victory card
 -- | Victory Points
@@ -112,12 +115,22 @@ gainCardsToHand p (x:xs) = do
 gainCardsToDiscard :: PlayerNumber -> [Card] -> DominionState [Card]
 gainCardsToDiscard _ [] = return []
 gainCardsToDiscard p (x:xs) = do
-  hasCard <- isCardInPlay x
-  if hasCard
-    then do
-      #decks %= Map.mapWithKey (decreaseCards x)
-      #players . ix (unPlayerNumber p) . #discard %= (x:)
-      #players . ix (unPlayerNumber p) . #gained %= (x:)
-      theRest <- gainCardsToDiscard p xs
-      return $ x : theRest
-    else gainCardsToDiscard p xs
+    hasCard <- isCardInPlay x
+    if hasCard
+        then do
+            #decks %= Map.mapWithKey (decreaseCards x)
+            #players . ix (unPlayerNumber p) . #discard %= (x:)
+            #players . ix (unPlayerNumber p) . #gained %= (x:)
+            players <- use #players
+            let leftPlayer = PlayerNumber $ (unPlayerNumber p - 1 + length players) `mod` length players
+            lp <- findPlayer leftPlayer
+            when (any ((== "Monkey") . unpack . cardName . fst) (lp ^. #duration)) $ do
+                monkeyReactiveDraw leftPlayer x
+            theRest <- gainCardsToDiscard p xs
+            return $ x : theRest
+        else gainCardsToDiscard p xs
+
+monkeyReactiveDraw :: PlayerNumber -> Card -> DominionState ()
+monkeyReactiveDraw p _ = do
+    _ <- basicCardAction 1 0 0 0 p
+    pure ()
