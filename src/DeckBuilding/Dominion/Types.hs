@@ -141,7 +141,10 @@ data DominionAction =
       MonkeyDuration DominionDraw |
       Corsair (Map PlayerNumber (Either Card (Maybe Card))) |
       Sailor Bool |
-      SeaWitch (Map PlayerNumber (Either Card (Maybe Card)))
+      SeaWitch (Map PlayerNumber (Either Card (Maybe Card))) |
+      Bridge |
+      Diplomat DominionDraw Int |
+      Upgrade DominionDraw (Maybe Card) (Maybe Card)
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 

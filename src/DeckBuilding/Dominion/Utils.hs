@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedLabels          #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module DeckBuilding.Dominion.Utils
     ( deal
@@ -138,14 +139,16 @@ executeBuys ((DominionBuy _ c):xs) g = do
       thePlayer <- findPlayer p
       when (thePlayer ^. #buys <= 0) $
         error $ "Buy move requested by " <> show p <> " without buys.\n"
-      when ((c ^. #cost) > (thePlayer ^. #money)) $
-        error $ "Buy move requested by " <> show p <> " without enough money.\n"
+      let bridgeCardsPlayed = length $ filter (\card -> cardName card == "Bridge") (thePlayer ^. #played)
+      let adjustedCost = max 0 ((c ^. #cost) - bridgeCardsPlayed)
+      when (adjustedCost > (thePlayer ^. #money)) $
+        error $ "Buy move requested by " <> show p <> " without enough money after Bridge discount.\n"
       ds <- use #decks
       when (ds Map.! c <= 0) $ -- TODO: Couldn't make the lens version see the type instance, why not?
         error $ "Buy move requested by " <> show p <> " with empty deck of " <> show (cardName c) <> ".\n"
       supplyToDiscard c p 1
       (#players . ix (unPlayerNumber p) . #buys) -= 1
-      (#players . ix (unPlayerNumber p) . #money) -= (c ^. #cost)
+      (#players . ix (unPlayerNumber p) . #money) -= adjustedCost
       ems <- use #embargoes
       ep <- use #embargoPenalty
       supplyToDiscard ep p (ems Map.! c)

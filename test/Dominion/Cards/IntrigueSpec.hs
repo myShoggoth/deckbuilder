@@ -58,7 +58,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard)
+import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -203,3 +203,36 @@ spec = do
             wishingWellCard ^. #action $ p0
             findPlayer p0
       length (p1AfterCard ^. #hand) `shouldBe` 6
+
+  describe "bridgeCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          bridgeCard ^. #action $ p0
+          findPlayer p0
+    it "adds +1 Buy and +1 Money" $ do
+      p1AfterCard ^. #buys `shouldBe` 2
+      p1AfterCard ^. #money `shouldBe` 1
+
+  describe "diplomatCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          diplomatCard ^. #action $ p0
+          findPlayer p0
+    it "draws 2 cards and does not add +2 Actions if hand size > 5" $ do
+      length (p1AfterCard ^. #hand) `shouldBe` 7
+      p1AfterCard ^. #actions `shouldBe` 0
+
+    let (p1AfterCard', _) = initialState defaultConfig $ do
+          setHand p0 (replicate 3 copperCard)
+          diplomatCard ^. #action $ p0
+          findPlayer p0
+  
+    it "draws 2 cards and adds +2 Actions if hand size <= 5" $ do
+      length (p1AfterCard' ^. #hand) `shouldBe` 5
+      p1AfterCard' ^. #actions `shouldBe` 2
+
+  describe "upgradeCardAction" $ do
+    let (p1AfterCard, afterCard) = initialState defaultConfig $ do
+          upgradeCard ^. #action $ p0
+          findPlayer p0
+    it "trashes a card and gains a card costing up to $2 more" $ do
+      length (p1AfterCard ^. #hand) `shouldBe` 5
+      length (afterCard ^. #trash) `shouldBe` 1

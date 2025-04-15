@@ -30,7 +30,7 @@ import DeckBuilding.Dominion.Types
                      TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
                      Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler,
                      AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade,
-                     Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch),
+                     Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch, Bridge, Diplomat, Upgrade),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -197,6 +197,9 @@ instance Pretty DominionAction where
         seaWitchResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
         seaWitchResponse (k, Right Nothing) = "Player " <> viaShow k <> " gains no curse."
         seaWitchResponse (k, Right (Just c)) = "Player " <> viaShow k <> " gains " <> pretty c
+    pretty Bridge = pretty ("Bridge" :: Text.Text)
+    pretty (Diplomat draw handSize) = "Diplomat draws " <> pretty draw <> " and has " <> viaShow handSize <> " cards in hand."
+    pretty (Upgrade draw trashed gained) = "Upgrade draws " <> pretty draw <> ", trashes " <> pretty trashed <> ", and gains " <> pretty gained
 
 militiaResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
 militiaResponse (k, Left c) = "Player " <> viaShow k <> " defends with " <> pretty c

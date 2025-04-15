@@ -7,7 +7,9 @@
 
 module DeckBuilding.Dominion.Cards.Intrigue
     ( baronCard
+    , bridgeCard
     , courtyardCard
+    , diplomatCard
     , lurkerCard
     , pawnCard
     , masqueradeCard
@@ -19,6 +21,7 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , dukeCard
     , haremCard
     , wishingWellCard
+    , upgradeCard
     ) where
 
 import Control.Lens ( (^.), use, (%=), Ixed(ix), prism', (.=) )
@@ -34,7 +37,7 @@ import DeckBuilding.Dominion.Types
     ( Card(Card, cost),
       CardType(Value, Action, Duration), DominionState,
         DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade,
-          Steward, Swindler, WishingWell, Baron),
+          Steward, Swindler, WishingWell, Baron, Bridge, Diplomat, Upgrade),
         DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal, discardCard )
@@ -327,3 +330,54 @@ wishingWellCard = Card "Wishing Well" 3 wishingWellCardAction Action (simpleVict
             then pure ()
             else handToDeck p [c]
           pure $ Just $ WishingWell (DominionDraw [d]) mtod guessed
+
+-- | +1 Buy, +1 Money
+bridgeCard :: Card
+bridgeCard = Card "Bridge" 4 bridgeCardAction Action (simpleVictory 0)
+  where
+    bridgeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    bridgeCardAction p = do
+      thePlayer <- findPlayer p
+      let handSize = length (thePlayer ^. #hand)
+      _ <- basicCardAction 0 (-1) 1 1 p
+      pure $ Just Bridge
+
+-- | +2 Cards
+--
+-- If you have 5 or fewer cards in hand after drawing, +2 Actions.
+diplomatCard :: Card
+diplomatCard = Card "Diplomat" 4 diplomatCardAction Action (simpleVictory 0)
+  where
+    diplomatCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    diplomatCardAction p = do
+      theDeal <- basicCardAction 2 (-1) 0 0 p
+      thePlayer <- findPlayer p
+      let handSize = length (thePlayer ^. #hand)
+      if handSize <= 5
+        then basicCardAction 0 2 0 0 p >>= \draw -> pure draw
+        else pure $ DominionDraw []
+      pure $ Just $ Diplomat theDeal handSize
+
+-- | +1 Card, +1 Action
+--
+-- You may trash a card from your hand. Gain a card costing up to $2 more than it.
+upgradeCard :: Card
+upgradeCard = Card "Upgrade" 5 upgradeCardAction Action (simpleVictory 0)
+  where
+    upgradeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    upgradeCardAction p = do
+      theDeal <- basicCardAction 1 0 0 0 p
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let toTrash = (thePlayer ^. #strategy . #trashStrategy) aig (0, 1) (thePlayer ^. #hand)
+      trashCards p toTrash
+      case headMay toTrash of
+        Nothing -> pure $ Just $ Upgrade theDeal Nothing Nothing
+        Just c -> do
+          let costLimit = c ^. #cost + 2
+          let toGain = (thePlayer ^. #strategy . #gainCardStrategy) aig costLimit
+          case toGain of
+            Nothing -> pure $ Just $ Upgrade theDeal (Just c) Nothing
+            Just gainedCard -> do
+              gainCardsToDiscard p [gainedCard]
+              pure $ Just $ Upgrade theDeal (Just c) (Just gainedCard)
