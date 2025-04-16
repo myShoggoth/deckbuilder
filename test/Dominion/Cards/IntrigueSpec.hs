@@ -58,7 +58,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard)
+import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard, millCard, miningVillageCard, secretPassageCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -236,3 +236,27 @@ spec = do
     it "trashes a card and gains a card costing up to $2 more" $ do
       length (p1AfterCard ^. #hand) `shouldBe` 5
       length (afterCard ^. #trash) `shouldBe` 1
+
+  describe "millCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          millCard ^. #action $ p0
+          findPlayer p0
+    it "draws a card and optionally discards a treasure for +2 money" $ do
+      length (p1AfterCard ^. #hand) `shouldBe` 5
+      p1AfterCard ^. #money `shouldBe` 2
+
+  describe "miningVillageCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          miningVillageCard ^. #action $ p0
+          findPlayer p0
+    it "adds +2 actions and gains a card costing up to $4" $ do
+      p1AfterCard ^. #actions `shouldBe` 2
+      length (p1AfterCard ^. #discard) `shouldBe` 1
+
+  describe "secretPassageCardAction" $ do
+    let (p1AfterCard, _) = initialState defaultConfig $ do
+          secretPassageCard ^. #action $ p0
+          findPlayer p0
+    it "draws 2 cards, puts one into hand and one on top of the deck" $ do
+      length (p1AfterCard ^. #hand) `shouldBe` 6
+      length (p1AfterCard ^. #deck) `shouldBe` 4

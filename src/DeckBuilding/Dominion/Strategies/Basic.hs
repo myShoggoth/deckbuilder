@@ -115,6 +115,7 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneySwindler
                             bigMoneyWishingWell
                             bigMoneySmuggler
+                            bigMoneySecretPassage
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -323,6 +324,10 @@ bigMoneySmuggler :: DominionAIGame -> [Card] -> Maybe Card
 bigMoneySmuggler aig cs = headMay $ affordable cs
   where affordable = filter (\c -> c ^. #cost <= 6)
 
+-- | Just return them in the same order
+bigMoneySecretPassage :: DominionAIGame -> Maybe Card -> Maybe Card-> (Maybe Card, Maybe Card)
+bigMoneySecretPassage aig mc1 mc2 = (mc1, mc2)
+
 -- Big smithy
 
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
@@ -358,6 +363,7 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneySwindler
                              bigMoneyWishingWell
                              bigMoneySmuggler
+                             bigMoneySecretPassage
 
 
 -- | Just like big money buy also buy up to two smithy cards.
@@ -433,6 +439,7 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneySwindler
                                 bigMoneyWishingWell
                                 bigMoneySmuggler
+                                bigMoneySecretPassage
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]

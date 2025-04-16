@@ -144,7 +144,10 @@ data DominionAction =
       SeaWitch (Map PlayerNumber (Either Card (Maybe Card))) |
       Bridge |
       Diplomat DominionDraw Int |
-      Upgrade DominionDraw (Maybe Card) (Maybe Card)
+      Upgrade DominionDraw (Maybe Card) (Maybe Card) |
+      Mill [Card] |
+      MiningVillage Card |
+      SecretPassage (Maybe Card) (Maybe Card)
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 
@@ -390,7 +393,10 @@ data Strategy = Strategy {
   wishingWellStrategy :: DominionAIGame -> Card,
   -- | Pick a card to gain that costs up to 6 that the player to this
   -- player's right gained last turn. The lists of gained cards is passed in. 
-  smugglerStrategy :: DominionAIGame -> [Card] -> Maybe Card
+  smugglerStrategy :: DominionAIGame -> [Card] -> Maybe Card,
+  -- | Secret Passage, pick a card to put on top of the deck, and one to put in hand.
+  -- First card in the return tuple is the card to put on top of the deck, second is the card to put in hand.
+  secretPassageStrategy :: DominionAIGame -> Maybe Card -> Maybe Card -> (Maybe Card, Maybe Card)
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -433,6 +439,7 @@ instance Arbitrary Strategy where
       , swindlerStrategy = return mempty
       , wishingWellStrategy = return $ Card "Copper" 0 (\_ -> pure Nothing) Value (\_ -> pure 0)
       , smugglerStrategy = return mempty
+      , secretPassageStrategy = \_ _ -> return (Nothing, Nothing)
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

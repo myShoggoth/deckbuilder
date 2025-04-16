@@ -22,6 +22,9 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , haremCard
     , wishingWellCard
     , upgradeCard
+    , millCard
+    , miningVillageCard
+    , secretPassageCard
     ) where
 
 import Control.Lens ( (^.), use, (%=), Ixed(ix), prism', (.=) )
@@ -37,13 +40,13 @@ import DeckBuilding.Dominion.Types
     ( Card(Card, cost),
       CardType(Value, Action, Duration), DominionState,
         DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade,
-          Steward, Swindler, WishingWell, Baron, Bridge, Diplomat, Upgrade),
-        DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy), DominionBoard )
+          Steward, Swindler, WishingWell, Baron, Bridge, Diplomat, Upgrade, Mill, MiningVillage, SecretPassage),
+        DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy, discardStrategy, secretPassageStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal, discardCard )
 import Data.Traversable (for)
 import Control.Monad (forM)
-import Safe (headMay)
+import Safe (headMay, lastMay)
 import Data.Foldable (for_)
 import GHC.Base (VecElem(Int16ElemRep))
 import GHC.List (product)
@@ -381,3 +384,55 @@ upgradeCard = Card "Upgrade" 5 upgradeCardAction Action (simpleVictory 0)
             Just gainedCard -> do
               gainCardsToDiscard p [gainedCard]
               pure $ Just $ Upgrade theDeal (Just c) (Just gainedCard)
+
+-- | +1 Card, +1 Action
+-- You may discard a Treasure for +2 Money.
+millCard :: Card
+millCard = Card "Mill" 4 millCardAction Action (simpleVictory 0)
+  where
+    millCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    millCardAction p = do
+      thePlayer <- findPlayer p
+      let treasures = filter (\c -> c ^. #cardType == Value) (thePlayer ^. #hand)
+      aig <- mkDominionAIGame p
+      let toDiscard = (thePlayer ^. #strategy . #discardStrategy) aig (0, 1)
+      if null toDiscard
+        then basicCardAction 1 0 0 0 p
+        else do
+          discardCard (head toDiscard) p
+          basicCardAction 1 0 0 2 p
+      pure $ Just $ Mill toDiscard
+
+-- | +2 Actions
+-- Gain a card costing up to $4.
+miningVillageCard :: Card
+miningVillageCard = Card "Mining Village" 4 miningVillageCardAction Action (simpleVictory 0)
+  where
+    miningVillageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    miningVillageCardAction p = do
+      _ <- basicCardAction 0 1 0 0 p
+      aig <- mkDominionAIGame p
+      thePlayer <- findPlayer p
+      let mc = (thePlayer ^. #strategy . #gainCardStrategy) aig 4
+      case mc of
+        Nothing -> pure Nothing
+        Just c -> do
+          gainCardsToDiscard p [c]
+          pure $ Just $ MiningVillage c
+
+-- | +2 Cards
+-- Look at the top 2 cards of your deck. Put one into your hand and the other on top of your deck.
+secretPassageCard :: Card
+secretPassageCard = Card "Secret Passage" 4 secretPassageCardAction Action (simpleVictory 0)
+  where
+    secretPassageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    secretPassageCardAction p = do 
+      drawn <- deal 2 p
+      aig <- mkDominionAIGame p
+      thePlayer <- findPlayer p
+      let (toDeck, toHand) = (thePlayer ^. #strategy . #secretPassageStrategy) aig (headMay drawn) (lastMay drawn)
+      case toDeck of
+        Nothing -> pure Nothing
+        Just c -> do
+          handToDeck p [c]
+          pure $ Just $ SecretPassage toHand toDeck
