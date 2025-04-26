@@ -30,7 +30,8 @@ import DeckBuilding.Dominion.Types
                      TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
                      Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler,
                      AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade,
-                     Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch, Bridge, Diplomat, Upgrade),
+                     Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch, Bridge, Diplomat, Upgrade,
+                     Nobles, Patrol),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -198,6 +199,14 @@ instance Pretty DominionAction where
         seaWitchResponse (k, Right Nothing) = "Player " <> viaShow k <> " gains no curse."
         seaWitchResponse (k, Right (Just c)) = "Player " <> viaShow k <> " gains " <> pretty c
     pretty Bridge = pretty ("Bridge" :: Text.Text)
+    pretty (Nobles (DominionDraw xs) actions) = 
+      if actions > 0
+        then "Nobles chose +2 Actions"
+        else "Nobles drew" <+> hsep (map pretty xs)
+    pretty (Patrol (DominionDraw xs) victories others) = 
+      "Patrol drew" <+> hsep (map pretty xs) <+> 
+      "revealed victories:" <+> hsep (map pretty victories) <+>
+      "put back:" <+> hsep (map pretty others)
     pretty (Diplomat draw handSize) = "Diplomat draws " <> pretty draw <> " and has " <> viaShow handSize <> " cards in hand."
     pretty (Upgrade draw trashed gained) = "Upgrade draws " <> pretty draw <> ", trashes " <> pretty trashed <> ", and gains " <> pretty gained
 

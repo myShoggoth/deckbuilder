@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedLabels          #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory
@@ -15,13 +16,14 @@ module DeckBuilding.Dominion.Cards.Utils
     , gainCardsToHand
     , gainCardsToDiscard
     , monkeyReactiveDraw
-    ) where
+) where
 
 import Control.Lens ( (^.), (%=), (+=), Ixed(ix), (.=), use )
-import Control.Monad (when)
+import Control.Monad (when, forM_)
 import Data.Generics.Product ( HasField(field) )
 import Data.Generics.Labels ()
-import Data.List ( find )
+import Data.List ( find, findIndex )
+import Data.Maybe ( mapMaybe )
 import DeckBuilding.Types (PlayerNumber(..))
 import DeckBuilding.Dominion.Types
     ( Card, CardType(Action), DominionState, DominionAction,
@@ -29,7 +31,7 @@ import DeckBuilding.Dominion.Types
 import DeckBuilding.Dominion.Utils
     ( deal, findPlayer, removeFromCards, decreaseCards, isCardInPlay )
 import qualified Data.Map as Map
-import Data.Text (unpack)
+import Data.Text (Text, unpack)
 
 -- | A simple points-only Victory card
 -- | Victory Points
@@ -124,7 +126,7 @@ gainCardsToDiscard p (x:xs) = do
             players <- use #players
             let leftPlayer = PlayerNumber $ (unPlayerNumber p - 1 + length players) `mod` length players
             lp <- findPlayer leftPlayer
-            when (any ((== "Monkey") . unpack . cardName . fst) (lp ^. #duration)) $ do
+            when (any ((== ("Monkey" :: Text)) . cardName . fst) (lp ^. #duration)) $ do
                 monkeyReactiveDraw leftPlayer x
             theRest <- gainCardsToDiscard p xs
             return $ x : theRest

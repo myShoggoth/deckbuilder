@@ -25,22 +25,25 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , millCard
     , miningVillageCard
     , secretPassageCard
+    , noblesCard
+    , patrolCard
     ) where
 
 import Control.Lens ( (^.), use, (%=), Ixed(ix), prism', (.=) )
 import Data.Generics.Product ( HasField(field) )
-import Data.List (delete)
+import Data.List (delete, partition)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base
-    ( treasureCards, duchyCard, victoryCards, estateCard )
+    ( treasureCards, duchyCard, victoryCards, estateCard, curseCard )
 import DeckBuilding.Dominion.Cards.Utils
-    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard, gainCardsToDeck )
+    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard, gainCardsToDeck, discardCards )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
 import DeckBuilding.Dominion.Types
     ( Card(Card, cost),
       CardType(Value, Action, Duration), DominionState,
         DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade,
-          Steward, Swindler, WishingWell, Baron, Bridge, Diplomat, Upgrade, Mill, MiningVillage, SecretPassage),
+          Steward, Swindler, WishingWell, Baron, Bridge, Diplomat, Upgrade, Mill, MiningVillage, SecretPassage,
+          Nobles, Patrol),
         DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy, discardStrategy, secretPassageStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal, discardCard )
@@ -251,7 +254,7 @@ swindlerCard =    Card "Swindler"     3 swindlerCardAction Action (simpleVictory
 
 -- | +$2
 --
--- If you’ve played 3 or more Actions this turn (counting this), +1 Card and +1 Action.
+-- If you've played 3 or more Actions this turn (counting this), +1 Card and +1 Action.
 conspiratorCard :: Card
 conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action (simpleVictory 0)
   where
@@ -436,3 +439,46 @@ secretPassageCard = Card "Secret Passage" 4 secretPassageCardAction Action (simp
         Just c -> do
           handToDeck p [c]
           pure $ Just $ SecretPassage toHand toDeck
+
+-- | Choose one: +3 Cards; or +2 Actions
+-- Worth 2 Victory Points
+noblesCard :: Card
+noblesCard = Card "Nobles" 6 noblesCardAction Action (simpleVictory 2)
+  where
+    noblesCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    noblesCardAction p = do
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let drawCards = (thePlayer ^. #strategy . #noblesStrategy) aig
+      if drawCards
+        then do
+          theDeal <- basicCardAction 3 (-1) 0 0 p
+          pure $ Just $ Nobles theDeal 0
+        else do
+          theDeal <- basicCardAction 0 1 0 0 p
+          pure $ Just $ Nobles theDeal 2
+
+-- | +3 Cards
+-- Reveal the top 4 cards of your deck. Put the Victory cards and Curses into your hand. 
+-- Put the rest back in any order.
+patrolCard :: Card
+patrolCard = Card "Patrol" 5 patrolCardAction Action (simpleVictory 0)
+  where
+    patrolCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    patrolCardAction p = do
+      -- First draw 3 cards
+      theDeal <- basicCardAction 3 (-1) 0 0 p
+      -- Then look at top 4 cards
+      topFour <- deal 4 p
+      let (victories, others) = partition isVictoryOrCurse topFour
+      -- Add victories to hand
+      -- This happens in the call to 'deal' above
+      -- Put others back in any order
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let orderedCards = (thePlayer ^. #strategy . #patrolOrderStrategy) aig others
+      handToDeck p orderedCards
+      pure $ Just $ Patrol theDeal victories orderedCards
+    
+    isVictoryOrCurse :: Card -> Bool
+    isVictoryOrCurse card = card `elem` victoryCards || card == curseCard

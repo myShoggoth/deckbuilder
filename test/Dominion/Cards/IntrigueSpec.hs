@@ -18,6 +18,10 @@ import DeckBuilding.Dominion.Cards
     ( copperCard,
       curseCard,
       estateCard,
+      duchyCard,
+      provinceCard,
+      silverCard,
+      goldCard,
       firstGameKingdomCards,
       vassalCard,
       victoryCards, moatCard )
@@ -58,7 +62,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard, millCard, miningVillageCard, secretPassageCard)
+import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard, millCard, miningVillageCard, secretPassageCard, noblesCard, patrolCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -260,3 +264,40 @@ spec = do
     it "draws 2 cards, puts one into hand and one on top of the deck" $ do
       length (p1AfterCard ^. #hand) `shouldBe` 6
       length (p1AfterCard ^. #deck) `shouldBe` 4
+
+  describe "noblesCardAction" $ do
+    it "draws three cards when that option is chosen" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            setDeck p0 [copperCard, copperCard, copperCard, copperCard, copperCard]
+            noblesCard ^. #action $ p0
+            findPlayer p0
+      length (p1AfterCard ^. #hand) `shouldBe` 8  -- 5 starting + 3 drawn
+      p1AfterCard ^. #actions `shouldBe` 0
+
+    it "gets two actions when that option is chosen" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            #players . ix (unPlayerNumber p0) . #strategy . #noblesStrategy .= const False
+            noblesCard ^. #action $ p0
+            findPlayer p0
+      length (p1AfterCard ^. #hand) `shouldBe` 5  -- No cards drawn
+      p1AfterCard ^. #actions `shouldBe` 2
+
+  describe "patrolCardAction" $ do
+    it "draws three cards and puts victory cards in hand" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            setDeck p0 [estateCard, copperCard, duchyCard, copperCard, provinceCard, copperCard, copperCard]  -- Need 7 cards: 3 for draw + 4 to inspect
+            patrolCard ^. #action $ p0
+            findPlayer p0
+      (p1AfterCard ^. #deck) `shouldBe` [copperCard, copperCard, copperCard]
+      length (p1AfterCard ^. #hand) `shouldBe` 9  -- 5 starting + 3 drawn + 1 victory card from reveal
+      estateCard `elem` (p1AfterCard ^. #hand) `shouldBe` True
+      duchyCard `elem` (p1AfterCard ^. #hand) `shouldBe` True
+      provinceCard `elem` (p1AfterCard ^. #hand) `shouldBe` True
+
+    it "puts non-victory cards back in chosen order" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            setDeck p0 [copperCard, silverCard, goldCard, copperCard, copperCard, copperCard, copperCard]  -- Need 7 cards: 3 for draw + 4 to inspect
+            patrolCard ^. #action $ p0
+            findPlayer p0
+      length (p1AfterCard ^. #hand) `shouldBe` 8  -- 5 starting + 3 drawn (no victory cards in reveal)
+      length (p1AfterCard ^. #deck) `shouldBe` 4  -- The 4 non-victory cards put back on deck

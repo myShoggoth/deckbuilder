@@ -147,7 +147,9 @@ data DominionAction =
       Upgrade DominionDraw (Maybe Card) (Maybe Card) |
       Mill [Card] |
       MiningVillage Card |
-      SecretPassage (Maybe Card) (Maybe Card)
+      SecretPassage (Maybe Card) (Maybe Card) |
+      Nobles DominionDraw Int |
+      Patrol DominionDraw [Card] [Card]
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 
@@ -396,7 +398,11 @@ data Strategy = Strategy {
   smugglerStrategy :: DominionAIGame -> [Card] -> Maybe Card,
   -- | Secret Passage, pick a card to put on top of the deck, and one to put in hand.
   -- First card in the return tuple is the card to put on top of the deck, second is the card to put in hand.
-  secretPassageStrategy :: DominionAIGame -> Maybe Card -> Maybe Card -> (Maybe Card, Maybe Card)
+  secretPassageStrategy :: DominionAIGame -> Maybe Card -> Maybe Card -> (Maybe Card, Maybe Card),
+  -- | Choose one: +3 Cards; or +2 Actions
+  noblesStrategy :: DominionAIGame -> Bool,  -- True for +3 Cards, False for +2 Actions
+  -- | Put revealed Victory cards and Curses back in any order
+  patrolOrderStrategy :: DominionAIGame -> [Card] -> [Card]
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -440,6 +446,8 @@ instance Arbitrary Strategy where
       , wishingWellStrategy = return $ Card "Copper" 0 (\_ -> pure Nothing) Value (\_ -> pure 0)
       , smugglerStrategy = return mempty
       , secretPassageStrategy = \_ _ -> return (Nothing, Nothing)
+      , noblesStrategy = return False
+      , patrolOrderStrategy = return mempty
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

@@ -36,6 +36,8 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyPirateShip
     , bigMoneyPirateShipDecision
     , bigMoneySalvage
+    , bigMoneyNobles
+    , bigMoneyPatrolOrder
     ) where
 
 import Control.Lens ( (^.) )
@@ -82,6 +84,14 @@ import DeckBuilding.Dominion.Cards.Base (estateCard)
 
 -- Big money
 
+-- | For Nobles card, always choose to draw cards (+3 Cards) over actions
+bigMoneyNobles :: DominionAIGame -> Bool
+bigMoneyNobles _ = True  -- True means +3 Cards, False means +2 Actions
+
+-- | For Patrol card, put the non-Victory/Curse cards back in the same order they were revealed
+bigMoneyPatrolOrder :: DominionAIGame -> [Card] -> [Card]
+bigMoneyPatrolOrder _ cards = cards  -- Simple implementation: keep same order
+
 -- | The most basic Dominion strategy: buy the best money you can afford
 --  and provinces.
 bigMoneyStrategy :: Strategy
@@ -116,6 +126,8 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneyWishingWell
                             bigMoneySmuggler
                             bigMoneySecretPassage
+                            bigMoneyNobles
+                            bigMoneyPatrolOrder
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -364,6 +376,8 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneyWishingWell
                              bigMoneySmuggler
                              bigMoneySecretPassage
+                             bigMoneyNobles
+                             bigMoneyPatrolOrder
 
 
 -- | Just like big money buy also buy up to two smithy cards.
@@ -440,6 +454,8 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneyWishingWell
                                 bigMoneySmuggler
                                 bigMoneySecretPassage
+                                bigMoneyNobles
+                                bigMoneyPatrolOrder
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
