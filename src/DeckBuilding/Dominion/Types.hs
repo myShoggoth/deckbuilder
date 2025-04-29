@@ -101,6 +101,7 @@ data DominionAction =
       MerchantShipDuration |
       Militia (Map.Map PlayerNumber (Either Card [Card])) |
       Mine Card Card |
+      Minion Bool DominionDraw (Map.Map PlayerNumber (Either Card [Card])) |
       Moat DominionDraw |
       MoneyLender |
       NativeVillage (Either Card [Card]) |
@@ -122,6 +123,7 @@ data DominionAction =
       Tactician [Card] |
       TacticianDuration DominionDraw |
       ThroneRoom Card DominionAction DominionAction |
+      Torturer DominionDraw (Map.Map PlayerNumber (Either Card (Either [Card] Bool))) |
       TreasureMap [Card] |
       Treasury DominionDraw |
       TreasuryDuration |
@@ -402,7 +404,11 @@ data Strategy = Strategy {
   -- | Choose one: +3 Cards; or +2 Actions
   noblesStrategy :: DominionAIGame -> Bool,  -- True for +3 Cards, False for +2 Actions
   -- | Put revealed Victory cards and Curses back in any order
-  patrolOrderStrategy :: DominionAIGame -> [Card] -> [Card]
+  patrolOrderStrategy :: DominionAIGame -> [Card] -> [Card],
+  -- | Choose one: +$2; or discard your hand, +4 Cards
+  minionStrategy :: DominionAIGame -> Bool,  -- True for +$2, False for discard/draw
+  -- | Choose one: discard 2 cards; or gain a Curse to hand
+  torturerStrategy :: DominionAIGame -> Bool  -- True for discard, False for Curse
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -448,6 +454,8 @@ instance Arbitrary Strategy where
       , secretPassageStrategy = \_ _ -> return (Nothing, Nothing)
       , noblesStrategy = return False
       , patrolOrderStrategy = return mempty
+      , minionStrategy = return False
+      , torturerStrategy = return False
       }
       where
         arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)

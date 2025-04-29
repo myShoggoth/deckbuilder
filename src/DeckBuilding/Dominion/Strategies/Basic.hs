@@ -38,6 +38,8 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneySalvage
     , bigMoneyNobles
     , bigMoneyPatrolOrder
+    , bigMoneyMinion
+    , bigMoneyTorturer
     ) where
 
 import Control.Lens ( (^.) )
@@ -128,6 +130,8 @@ bigMoneyStrategy = Strategy "Big Money"
                             bigMoneySecretPassage
                             bigMoneyNobles
                             bigMoneyPatrolOrder
+                            bigMoneyMinion
+                            bigMoneyTorturer
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -143,8 +147,10 @@ bigMoneyBuy g = doBuys g bigMoneyCards
 
 -- | If you can discard a card, get rid of victory cards and coppers.
 bigMoneyDiscard :: DominionAIGame -> (Int, Int) -> [Card]
-bigMoneyDiscard g rng = doDiscard g rng discardCards
+bigMoneyDiscard g rng = doDiscard g rng (matchedDiscards ++ unmatchedDiscards)
   where discardCards = victoryCards ++ [copperCard]
+        matchedDiscards = discardCards `intersect` (g ^. #hand)
+        unmatchedDiscards = (g ^. #hand) \\ discardCards
 
 -- | If you can trash a card, get rid of curses, estates, and coppers.
 --  Note: this logic is dumb and could cause your strategy to not have any
@@ -378,6 +384,8 @@ bigSmithyStrategy = Strategy "Big Smithy"
                              bigMoneySecretPassage
                              bigMoneyNobles
                              bigMoneyPatrolOrder
+                             bigMoneyMinion
+                             bigMoneyTorturer
 
 
 -- | Just like big money buy also buy up to two smithy cards.
@@ -456,6 +464,8 @@ villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
                                 bigMoneySecretPassage
                                 bigMoneyNobles
                                 bigMoneyPatrolOrder
+                                bigMoneyMinion
+                                bigMoneyTorturer
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
@@ -560,3 +570,11 @@ doBuys g ((x, f):xs) =
                                 }
                       in dm : doBuys g' xs
     else []
+
+-- | For Minion card, always choose +$2 over discarding/drawing
+bigMoneyMinion :: DominionAIGame -> Bool
+bigMoneyMinion _ = True  -- True means +$2, False means discard/draw
+
+-- | For Torturer card, always choose to discard 2 cards over gaining a Curse
+bigMoneyTorturer :: DominionAIGame -> Bool
+bigMoneyTorturer _ = True  -- True means discard, False means gain Curse

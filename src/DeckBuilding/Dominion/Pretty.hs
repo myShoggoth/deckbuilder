@@ -31,7 +31,7 @@ import DeckBuilding.Dominion.Types
                      Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler,
                      AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade,
                      Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch, Bridge, Diplomat, Upgrade,
-                     Nobles, Patrol),
+                     Nobles, Patrol, Minion, Torturer),
       DominionBuy(..),
       DominionPlayerTurn(DominionPlayerTurn),
       DominionTurn(..),
@@ -194,11 +194,6 @@ instance Pretty DominionAction where
     pretty (Sailor True) = "Sailor gains +$2 for gaining a card this turn"
     pretty (Sailor False) = "Sailor does not gain +$2"
     pretty (SeaWitch xs) = "Sea Witch:" <+> align (vsep $ map seaWitchResponse $ Map.toList xs)
-      where
-        seaWitchResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
-        seaWitchResponse (k, Right Nothing) = "Player " <> viaShow k <> " gains no curse."
-        seaWitchResponse (k, Right (Just c)) = "Player " <> viaShow k <> " gains " <> pretty c
-    pretty Bridge = pretty ("Bridge" :: Text.Text)
     pretty (Nobles (DominionDraw xs) actions) = 
       if actions > 0
         then "Nobles chose +2 Actions"
@@ -209,6 +204,9 @@ instance Pretty DominionAction where
       "put back:" <+> hsep (map pretty others)
     pretty (Diplomat draw handSize) = "Diplomat draws " <> pretty draw <> " and has " <> viaShow handSize <> " cards in hand."
     pretty (Upgrade draw trashed gained) = "Upgrade draws " <> pretty draw <> ", trashes " <> pretty trashed <> ", and gains " <> pretty gained
+    pretty (Minion True (DominionDraw xs) responses) = "Minion chose +$2 and drew" <+> hsep (map pretty xs)
+    pretty (Minion False (DominionDraw xs) responses) = "Minion discarded hand, drew" <+> hsep (map pretty xs) <+> "and caused others to:" <+> align (vsep $ map minionResponse $ Map.toList responses)
+    pretty (Torturer (DominionDraw xs) responses) = "Torturer drew" <+> hsep (map pretty xs) <+> "and caused others to:" <+> align (vsep $ map torturerResponse $ Map.toList responses)
 
 militiaResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
 militiaResponse (k, Left c) = "Player " <> viaShow k <> " defends with " <> pretty c
@@ -255,12 +253,20 @@ corsairResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pret
 corsairResponse (k, Right Nothing) = "Player " <> viaShow k <> " does not trash a treasure card."
 corsairResponse (k, Right (Just c)) = "Player " <> viaShow k <> " trashes" <+> pretty c
 
-seaWitchResponse :: (PlayerNumber, Either Card (Maybe Card, Maybe Card)) -> Doc ann
+seaWitchResponse :: (PlayerNumber, Either Card (Maybe Card)) -> Doc ann
 seaWitchResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
-seaWitchResponse (k, Right (Nothing, Nothing)) = "Player " <> viaShow k <> " has nothing to discard, and there are no more curse cards."
-seaWitchResponse (k, Right (Nothing, Just c)) = "Player " <> viaShow k <> " has nothing to discard, and gains" <+> pretty c
-seaWitchResponse (k, Right (Just c, Nothing)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and there are no more curse cards."
-seaWitchResponse (k, Right (Just c, Just c1)) = "Player " <> viaShow k <> " discards" <+> pretty c <+> "and gains" <+> pretty c1
+seaWitchResponse (k, Right Nothing) = "Player " <> viaShow k <> " would gain a curse, but none are left."
+seaWitchResponse (k, Right (Just c)) = "Player " <> viaShow k <> " gains" <+> pretty c
+
+minionResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
+minionResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+minionResponse (k, Right xs) = "Player " <> viaShow k <> " discards hand and draws" <+> hsep (map pretty xs)
+
+torturerResponse :: (PlayerNumber, Either Card (Either [Card] Bool)) -> Doc ann
+torturerResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
+torturerResponse (k, Right (Left xs)) = "Player " <> viaShow k <> " discards" <+> hsep (map pretty xs)
+torturerResponse (k, Right (Right True)) = "Player " <> viaShow k <> " gains a Curse"
+torturerResponse (k, Right (Right False)) = "Player " <> viaShow k <> " is not affected"
 
 instance {-# OVERLAPS #-} Pretty (PlayerNumber, Either Card BanditDecision) where
     pretty (n, Left c) = "Player #" <> viaShow n <> " showed " <> pretty c

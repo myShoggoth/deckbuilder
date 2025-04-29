@@ -617,7 +617,7 @@ tidePoolsCard = Card "Tide Pools" 4 tidePoolsCardAction Duration (simpleVictory 
             thePlayer <- findPlayer p
             aig <- mkDominionAIGame p
             let hand = thePlayer ^. #hand
-            let toDiscard = (thePlayer ^. #strategy . #discardStrategy) aig (length hand, 2)
+            let toDiscard = (thePlayer ^. #strategy . #discardStrategy) aig (min 2 (length hand), 2)
             discardCards p toDiscard
             #players . ix (unPlayerNumber p) . #played %= (tidePoolsCard:)
             pure $ Just $ TidePoolsDuration toDiscard

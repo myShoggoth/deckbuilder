@@ -62,7 +62,7 @@ import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
 import Test.Hspec ( shouldBe, it, describe, Spec )
-import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard, millCard, miningVillageCard, secretPassageCard, noblesCard, patrolCard)
+import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard, millCard, miningVillageCard, secretPassageCard, noblesCard, patrolCard, minionCard, torturerCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
 
@@ -301,3 +301,89 @@ spec = do
             findPlayer p0
       length (p1AfterCard ^. #hand) `shouldBe` 8  -- 5 starting + 3 drawn (no victory cards in reveal)
       length (p1AfterCard ^. #deck) `shouldBe` 4  -- The 4 non-victory cards put back on deck
+
+  describe "minionCardAction" $ do
+    it "gives +$2 when that option is chosen" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            setHand p0 [minionCard]
+            minionCard ^. #action $ p0
+            findPlayer p0
+      (p1AfterCard ^. #money) `shouldBe` 2
+
+    it "discards hand and draws 4 when that option is chosen" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            #players . ix (unPlayerNumber p0) . #strategy . #minionStrategy .= const False
+            setHand p0 [minionCard, copperCard, silverCard]
+            setDeck p0 [goldCard, goldCard, goldCard, goldCard]  -- Need 4 cards to draw
+            minionCard ^. #action $ p0
+            findPlayer p0
+      (p1AfterCard ^. #hand) `shouldBe` [goldCard, goldCard, goldCard, goldCard]
+      (p1AfterCard ^. #discard) `shouldBe` [minionCard, copperCard, silverCard]
+
+    it "makes other players with 5+ cards discard and draw 4" $ do
+      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
+            #players . ix (unPlayerNumber p0) . #strategy . #minionStrategy .= const False
+            setHand p0 [minionCard]
+            setHand p1 [copperCard, copperCard, copperCard, copperCard, copperCard]  -- 5 cards
+            setDeck p1 [goldCard, goldCard, goldCard, goldCard]  -- Need 4 cards to draw
+            minionCard ^. #action $ p0
+            p1' <- findPlayer p0
+            p2' <- findPlayer p1
+            return (p1', p2')
+      (p2AfterCard ^. #hand) `shouldBe` [goldCard, goldCard, goldCard, goldCard]
+      (p2AfterCard ^. #discard) `shouldBe` [copperCard, copperCard, copperCard, copperCard, copperCard]
+
+    it "doesn't affect players with less than 5 cards" $ do
+      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
+            setHand p0 [minionCard]
+            setHand p1 [copperCard, copperCard, copperCard]  -- Only 3 cards
+            minionCard ^. #action $ p0
+            p1' <- findPlayer p0
+            p2' <- findPlayer p1
+            return (p1', p2')
+      (p2AfterCard ^. #hand) `shouldBe` [copperCard, copperCard, copperCard]
+      (p2AfterCard ^. #discard) `shouldBe` []
+
+  describe "torturerCardAction" $ do
+    it "gives +3 Cards to the player" $ do
+      let (p1AfterCard, _) = initialState defaultConfig $ do
+            setHand p0 [torturerCard]
+            setDeck p0 [goldCard, goldCard, goldCard]  -- Need 3 cards to draw
+            torturerCard ^. #action $ p0
+            findPlayer p0
+      length (p1AfterCard ^. #hand) `shouldBe` 4
+
+    it "makes other players discard 2 cards when they choose that option" $ do
+      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
+            #players . ix (unPlayerNumber p1) . #strategy . #torturerStrategy .= const True
+            setHand p0 [torturerCard]
+            setHand p1 [copperCard, silverCard, goldCard]
+            torturerCard ^. #action $ p0
+            p1' <- findPlayer p0
+            p2' <- findPlayer p1
+            return (p1', p2')
+      (p2AfterCard ^. #hand) `shouldBe` [goldCard]
+      (p2AfterCard ^. #discard) `shouldBe` [copperCard, silverCard]
+
+    it "gives a Curse when players choose that option" $ do
+      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
+            #players . ix (unPlayerNumber p1) . #strategy . #torturerStrategy .= const False
+            setHand p0 [torturerCard]
+            setHand p1 [copperCard]
+            torturerCard ^. #action $ p0
+            p1' <- findPlayer p0
+            p2' <- findPlayer p1
+            return (p1', p2')
+      curseCard `elem` (p2AfterCard ^. #hand) `shouldBe` True
+
+    it "doesn't affect players with Moat" $ do
+      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
+            setHand p0 [torturerCard]
+            setHand p1 [moatCard, copperCard, silverCard]
+            torturerCard ^. #action $ p0
+            p1' <- findPlayer p0
+            p2' <- findPlayer p1
+            return (p1', p2')
+      (p2AfterCard ^. #hand) `shouldBe` [moatCard, copperCard, silverCard]
+      (p2AfterCard ^. #discard) `shouldBe` []
+      curseCard `elem` (p2AfterCard ^. #hand) `shouldBe` False

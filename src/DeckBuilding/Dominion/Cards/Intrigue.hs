@@ -27,23 +27,25 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , secretPassageCard
     , noblesCard
     , patrolCard
+    , minionCard
+    , torturerCard
     ) where
 
 import Control.Lens ( (^.), use, (%=), Ixed(ix), prism', (.=) )
 import Data.Generics.Product ( HasField(field) )
-import Data.List (delete, partition)
+import Data.List (delete, partition, union)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base
-    ( treasureCards, duchyCard, victoryCards, estateCard, curseCard )
+    ( treasureCards, duchyCard, victoryCards, estateCard, curseCard, moatCard, defendsAgainstAttack )
 import DeckBuilding.Dominion.Cards.Utils
-    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard, gainCardsToDeck, discardCards )
+    ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard, gainCardsToDeck, discardCards, gainCardsToHand )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
 import DeckBuilding.Dominion.Types
     ( Card(Card, cost),
       CardType(Value, Action, Duration), DominionState,
         DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade,
           Steward, Swindler, WishingWell, Baron, Bridge, Diplomat, Upgrade, Mill, MiningVillage, SecretPassage,
-          Nobles, Patrol),
+          Nobles, Patrol, Minion, Torturer),
         DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy, discardStrategy, secretPassageStrategy), DominionBoard )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal, discardCard )
@@ -56,6 +58,7 @@ import GHC.List (product)
 import Control.Monad.Extra (ifM)
 import Data.Functor (($>))
 
+import Debug.Trace (trace)
 -- | +1 Buy
 --
 -- You may discard an Estate for +4 Money. If you don't, gain an Estate.
@@ -482,3 +485,82 @@ patrolCard = Card "Patrol" 5 patrolCardAction Action (simpleVictory 0)
     
     isVictoryOrCurse :: Card -> Bool
     isVictoryOrCurse card = card `elem` victoryCards || card == curseCard
+
+-- | +1 Action
+--
+-- Choose one: +$2; or discard your hand, +4 Cards, and each other player with at least 5 cards in hand discards their hand and draws 4 cards.
+minionCard :: Card
+minionCard = Card "Minion" 5 minionCardAction Action (simpleVictory 0)
+  where
+    minionCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    minionCardAction p = do
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let chooseMoney = (thePlayer ^. #strategy . #minionStrategy) aig
+      if chooseMoney
+        then do
+          _ <- basicCardAction 0 0 0 2 p
+          pure $ Just $ Minion True (DominionDraw []) Map.empty
+        else do
+          -- First discard the entire hand
+          let handToDiscard = thePlayer ^. #hand
+          discardCards p handToDiscard
+          
+          -- Then draw 4 new cards
+          drawn <- deal 4 p
+          
+          -- Handle other players
+          players' <- use #players
+          let pns = PlayerNumber <$> [0 .. length players' - 1]
+          responses <- forM pns $ \p' -> do
+            if p' == p
+              then pure (p', Right [])  -- Active player already handled
+              else do
+                pl <- findPlayer p'
+                case defendsAgainstAttack minionCard pl of
+                  Just defender -> pure (p', Left defender)
+                  Nothing -> do
+                    if length (pl ^. #hand) >= 5
+                      then do
+                        let toDiscard = pl ^. #hand
+                        discardCards p' toDiscard
+                        drawn' <- deal 4 p'
+                        pure (p', Right drawn')
+                      else pure (p', Right [])  -- Less than 5 cards, not affected
+          
+          pure $ Just $ Minion False (DominionDraw drawn) (Map.fromList responses)
+
+-- | +3 Cards
+--
+-- Each other player chooses one: they discard 2 cards; or they gain a Curse to their hand.
+torturerCard :: Card
+torturerCard = Card "Torturer" 5 torturerCardAction Action (simpleVictory 0)
+  where
+    torturerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    torturerCardAction p = do
+      drawn <- basicCardAction 3 (-1) 0 0 p
+      
+      -- Handle other players' choices
+      players' <- use #players
+      let pns = PlayerNumber <$> [0 .. length players' - 1]
+      responses <- forM pns $ \p' -> do
+        if p' == p
+          then pure (p', Right (Right False))  -- Active player not affected
+          else do
+            pl <- findPlayer p'
+            case defendsAgainstAttack torturerCard pl of
+              Just defender -> pure (p', Left defender)
+              Nothing -> do
+                aig <- mkDominionAIGame p'
+                let chooseDiscard = (pl ^. #strategy . #torturerStrategy) aig
+                if chooseDiscard
+                  then do
+                    let toDiscard = (pl ^. #strategy . #discardStrategy) aig (2, 2)
+                    let toDiscard' = trace ("toDiscard: " ++ show toDiscard) toDiscard
+                    discardCards p' toDiscard'
+                    pure (p', Right (Left toDiscard))
+                  else do
+                    gainCardsToHand p' [curseCard]
+                    pure (p', Right (Right False))
+      
+      pure $ Just $ Torturer drawn (Map.fromList responses)
