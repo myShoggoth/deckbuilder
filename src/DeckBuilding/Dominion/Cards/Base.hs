@@ -60,9 +60,9 @@ import DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory, valueCardAction, basicCardAction, trashCards, discardCards, handToDeck, discardToDeck, gainCardsToDeck, gainCardsToDiscard, gainCardsToHand )
 import DeckBuilding.Types ( PlayerNumber(..) )
 import DeckBuilding.Dominion.Types
-    ( DominionPlayer,
-      Card(Card),
-      CardType(Action, Value),
+    ( DominionPlayer (playerName, deck, discard, hand, played, actions, buys, money, victory, turns, island, duration, nativeVillage, lighthouse, pirateShip, outpost, gained, strategy),
+      Card(Card, cardName, cost, action, cardType, victoryPoints, numImplicitTypes),
+      CardType(Action, Value, CurseType),
       DominionState,
       DominionAction(ThroneRoom, Remodel, Vassal, Bandit,
         Cellar, Militia, MoneyLender, Poacher, Chapel,
@@ -84,11 +84,11 @@ import Control.Conditional (whenM)
 
 -- | $3
 goldCard :: Card
-goldCard        = Card "Gold"       6 (valueCardAction 3 Gold) Value (simpleVictory 0)
+goldCard = Card { cardName = "Gold", cost = 6, action = valueCardAction 3 Gold, cardType = Value, victoryPoints = simpleVictory 0, numImplicitTypes = 1 } -- Treasure
 
 -- | $2
 silverCard :: Card
-silverCard      = Card "Silver"     3 silverCardAction Value (simpleVictory 0)
+silverCard = Card { cardName = "Silver", cost = 3, action = silverCardAction, cardType = Value, victoryPoints = simpleVictory 0, numImplicitTypes = 1 } -- Treasure
   where
     -- Silver cards need extra logic to make Merchant work in all cases.
     silverCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
@@ -101,31 +101,31 @@ silverCard      = Card "Silver"     3 silverCardAction Value (simpleVictory 0)
 
 -- | $1
 copperCard :: Card
-copperCard      = Card "Copper"     0 (valueCardAction 1 Copper) Value (simpleVictory 0)
+copperCard = Card { cardName = "Copper", cost = 0, action = valueCardAction 1 Copper, cardType = Value, victoryPoints = simpleVictory 0, numImplicitTypes = 1 } -- Treasure
 
 -- | Convience 'List' of treasure 'Card's.
 treasureCards :: [Card]
-treasureCards   = [goldCard, silverCard, copperCard]
+treasureCards = [goldCard, silverCard, copperCard]
 
 -- | 6VP
 provinceCard :: Card
-provinceCard    = Card "Province"   8 (valueCardAction 0 Province) Value (simpleVictory 6)
+provinceCard = Card { cardName = "Province", cost = 8, action = valueCardAction 0 Province, cardType = Value, victoryPoints = simpleVictory 6, numImplicitTypes = 1 } -- Victory
 
 -- | 3VP
 duchyCard :: Card
-duchyCard       = Card "Duchy"      5 (valueCardAction 0 Duchy) Value (simpleVictory 3)
+duchyCard = Card { cardName = "Duchy", cost = 5, action = valueCardAction 0 Duchy, cardType = Value, victoryPoints = simpleVictory 3, numImplicitTypes = 1 } -- Victory
 
 -- | 1VP
 estateCard :: Card
-estateCard      = Card "Estate"     2 (valueCardAction 0 Estate) Value (simpleVictory 1)
+estateCard = Card { cardName = "Estate", cost = 2, action = valueCardAction 0 Estate, cardType = Value, victoryPoints = simpleVictory 1, numImplicitTypes = 1 } -- Victory
 
 -- | -1VP
 curseCard :: Card
-curseCard       = Card "Curse"      0 (valueCardAction 0 Curse) Value (simpleVictory (-1))
+curseCard = Card { cardName = "Curse", cost = 0, action = valueCardAction 0 Curse, cardType = CurseType, victoryPoints = simpleVictory (-1), numImplicitTypes = 1 } -- Curse
 
 -- | Convience 'List' of 'Card's that affect victory values.
 victoryCards :: [Card]
-victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
+victoryCards = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
 
 -- | +1 Card
 --
@@ -135,7 +135,7 @@ victoryCards    = [curseCard, estateCard, duchyCard, gardensCard, provinceCard]
 --
 -- +$1
 marketCard :: Card
-marketCard      = Card "Market"     5 marketCardAction Action (simpleVictory 0)
+marketCard = Card { cardName = "Market", cost = 5, action = marketCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 } :: Card
   where
     marketCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     marketCardAction p = do
@@ -146,7 +146,7 @@ marketCard      = Card "Market"     5 marketCardAction Action (simpleVictory 0)
 --
 -- When another player plays an Attack card, you may first reveal this from your hand, to be unaffected by it.
 moatCard :: Card
-moatCard        = Card "Moat"       2 moatCardAction Action (simpleVictory 0)
+moatCard = Card { cardName = "Moat", cost = 2, action = moatCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     moatCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     moatCardAction p = do
@@ -155,7 +155,7 @@ moatCard        = Card "Moat"       2 moatCardAction Action (simpleVictory 0)
 
 -- | +3 Cards
 smithyCard :: Card
-smithyCard      = Card "Smithy"     4 smithyCardAction Action (simpleVictory 0)
+smithyCard = Card { cardName = "Smithy", cost = 4, action = smithyCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     smithyCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     smithyCardAction p = do
@@ -166,7 +166,7 @@ smithyCard      = Card "Smithy"     4 smithyCardAction Action (simpleVictory 0)
 --
 -- +2 Actions
 villageCard :: Card
-villageCard     = Card "Village"    3 villageCardAction Action (simpleVictory 0)
+villageCard = Card { cardName = "Village", cost = 3, action = villageCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     villageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     villageCardAction p = do
@@ -179,7 +179,7 @@ villageCard     = Card "Village"    3 villageCardAction Action (simpleVictory 0)
 --
 -- +$2
 festivalCard :: Card
-festivalCard    = Card "Festival"   5 festivalCardAction Action (simpleVictory 0)
+festivalCard = Card { cardName = "Festival", cost = 5, action = festivalCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     festivalCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     festivalCardAction p = do
@@ -190,7 +190,7 @@ festivalCard    = Card "Festival"   5 festivalCardAction Action (simpleVictory 0
 --
 -- +1 Action
 laboratoryCard :: Card
-laboratoryCard  = Card "Laboratory" 5 marketCardAction Action (simpleVictory 0)
+laboratoryCard = Card { cardName = "Laboratory", cost = 5, action = marketCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     marketCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     marketCardAction p = do
@@ -201,7 +201,7 @@ laboratoryCard  = Card "Laboratory" 5 marketCardAction Action (simpleVictory 0)
 --
 -- Discard any number of cards, then draw that many.
 cellarCard :: Card
-cellarCard      = Card "Cellar"     2 cellarCardAction Action (simpleVictory 0)
+cellarCard = Card { cardName = "Cellar", cost = 2, action = cellarCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     cellarCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     cellarCardAction p = do
@@ -217,7 +217,7 @@ cellarCard      = Card "Cellar"     2 cellarCardAction Action (simpleVictory 0)
 
 -- | Trash up to 4 cards from your hand.
 chapelCard :: Card
-chapelCard     = Card "Chapel"      2 chapelCardAction Action (simpleVictory 0)
+chapelCard = Card { cardName = "Chapel", cost = 2, action = chapelCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     chapelCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     chapelCardAction p = do
@@ -238,7 +238,7 @@ chapelCard     = Card "Chapel"      2 chapelCardAction Action (simpleVictory 0)
 --
 -- Look through your discard pile. You may put a card from it onto your deck.
 harbingerCard :: Card
-harbingerCard   = Card "Harbinger"  4 harbingerCardAction Action (simpleVictory 0)
+harbingerCard = Card { cardName = "Harbinger", cost = 4, action = harbingerCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     harbingerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     harbingerCardAction p = do
@@ -255,7 +255,7 @@ harbingerCard   = Card "Harbinger"  4 harbingerCardAction Action (simpleVictory 
 --
 -- The first time you play a Silver this turn, +$1.
 merchantCard :: Card
-merchantCard    = Card "Merchant"   3 merchantCardAction Action (simpleVictory 0)
+merchantCard = Card { cardName = "Merchant", cost = 3, action = merchantCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     merchantCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     merchantCardAction p = do
@@ -270,7 +270,7 @@ merchantCard    = Card "Merchant"   3 merchantCardAction Action (simpleVictory 0
 --
 -- Discard the top card of your deck. If it's an Action card, you may play it.
 vassalCard :: Card
-vassalCard      = Card "Vassal"     3 vassalCardAction Action (simpleVictory 0)
+vassalCard = Card { cardName = "Vassal", cost = 3, action = vassalCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     vassalCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     vassalCardAction p = do
@@ -304,7 +304,7 @@ defendsAgainstAttack _ p =
 -- card from their hand and puts it onto their deck (or reveals a hand
 -- with no Victory cards).
 bureaucratCard :: Card
-bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory 0)
+bureaucratCard = Card { cardName = "Bureaucrat", cost = 4, action = bureaucratCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     bureaucratCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     bureaucratCardAction p = do
@@ -329,7 +329,7 @@ bureaucratCard  = Card "Bureaucrat" 4 bureaucratCardAction Action (simpleVictory
 
 -- | Worth 1VP per 10 cards you have (round down).
 gardensCard :: Card
-gardensCard     = Card "Gardens"    4 (valueCardAction 0 Gardens) Value gardensCardVictory
+gardensCard = Card { cardName = "Gardens", cost = 4, action = valueCardAction 0 Gardens, cardType = Value, victoryPoints = gardensCardVictory, numImplicitTypes = 1 }
   where
     gardensCardVictory :: PlayerNumber -> DominionState Int
     gardensCardVictory p = do
@@ -341,7 +341,7 @@ gardensCard     = Card "Gardens"    4 (valueCardAction 0 Gardens) Value gardensC
 --
 -- Each other player discards down to 3 cards in hand.
 militiaCard :: Card
-militiaCard     = Card "Militia"    4 militiaCardAction Action (simpleVictory 0)
+militiaCard = Card { cardName = "Militia", cost = 4, action = militiaCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     militiaCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     militiaCardAction p = do
@@ -363,7 +363,7 @@ militiaCard     = Card "Militia"    4 militiaCardAction Action (simpleVictory 0)
 
 -- | You may trash a Copper from your hand for +$3.	
 moneylenderCard :: Card
-moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action (simpleVictory 0)
+moneylenderCard = Card { cardName = "Moneylender", cost = 4, action = moneylenderCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     moneylenderCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     moneylenderCardAction p = do
@@ -383,7 +383,7 @@ moneylenderCard = Card "Moneylender"  4 moneylenderCardAction Action (simpleVict
 --
 -- Discard a card per empty Supply pile.
 poacherCard :: Card
-poacherCard     = Card "Poacher"      4 poacherCardAction Action (simpleVictory 0)
+poacherCard = Card { cardName = "Poacher", cost = 4, action = poacherCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     poacherCardAction ::  PlayerNumber -> DominionState (Maybe DominionAction)
     poacherCardAction p = do
@@ -397,7 +397,7 @@ poacherCard     = Card "Poacher"      4 poacherCardAction Action (simpleVictory 
 
 -- | Trash a card from your hand. Gain a card costing up to $2 more than it.
 remodelCard :: Card
-remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 0)
+remodelCard = Card { cardName = "Remodel", cost = 4, action = remodelCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     remodelCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     remodelCardAction p = do
@@ -419,7 +419,7 @@ remodelCard     = Card "Remodel"      4 remodelCardAction Action (simpleVictory 
 
 -- | You may play an Action card from your hand twice.
 throneRoomCard :: Card
-throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action (simpleVictory 0)
+throneRoomCard = Card { cardName = "Throne Room", cost = 4, action = throneRoomCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     throneRoomCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     throneRoomCardAction p = do
@@ -448,7 +448,7 @@ throneRoomCard  = Card "Throne Room"  4 throneRoomCardAction Action (simpleVicto
 -- | Gain a Gold. Each other player reveals the top 2 cards of their deck,
 -- trashes a revealed Treasure other than Copper, and discards the rest.
 banditCard :: Card
-banditCard      = Card "Bandit"       5 banditCardAction Action (simpleVictory 0)
+banditCard = Card { cardName = "Bandit", cost = 5, action = banditCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     banditCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     banditCardAction p = do
@@ -482,7 +482,7 @@ banditCard      = Card "Bandit"       5 banditCardAction Action (simpleVictory 0
 --
 -- Each other player draws a card.
 councilRoomCard :: Card
-councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action (simpleVictory 0)
+councilRoomCard = Card { cardName = "Council Room", cost = 5, action = councilRoomCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     councilRoomCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     councilRoomCardAction p = do
@@ -500,7 +500,7 @@ councilRoomCard = Card "Council Room" 5 councilRoomCardAction Action (simpleVict
 --
 -- Each other player gains a Curse.
 witchCard :: Card
-witchCard       = Card "Witch"        5 witchCardAction Action (simpleVictory 0)
+witchCard = Card { cardName = "Witch", cost = 5, action = witchCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     witchCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     witchCardAction p = do
@@ -536,7 +536,7 @@ gainCurse p = do
 -- | You may trash a Treasure card from your hand. Gain a Treasure
 -- card to your hand costing up to $3 more than it.
 mineCard :: Card
-mineCard          = Card "Mine"       5 mineCardAction Action (simpleVictory 0)
+mineCard = Card { cardName = "Mine", cost = 5, action = mineCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     mineCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     mineCardAction p = do
@@ -558,7 +558,7 @@ mineCard          = Card "Mine"       5 mineCardAction Action (simpleVictory 0)
 -- | Draw until you have 7 cards in hand, skipping any Action
 -- cards you choose to; set those aside, discarding them afterwards.
 libraryCard :: Card
-libraryCard     = Card "Library"      5 libraryCardAction Action (simpleVictory 0)
+libraryCard = Card { cardName = "Library", cost = 5, action = libraryCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     libraryCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     libraryCardAction p = do
@@ -596,7 +596,7 @@ libraryCard     = Card "Library"      5 libraryCardAction Action (simpleVictory 
 -- Look at the top 2 cards of your deck. Trash and/or discard any number
 -- of them. Put the rest back on top in any order.
 sentryCard :: Card
-sentryCard    = Card "Sentry"       5 sentryCardAction Action (simpleVictory 0)
+sentryCard = Card { cardName = "Sentry", cost = 5, action = sentryCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     sentryCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     sentryCardAction p = do
@@ -615,7 +615,7 @@ sentryCard    = Card "Sentry"       5 sentryCardAction Action (simpleVictory 0)
 -- | Gain a card to your hand costing up to $5.
 -- Put a card from your hand onto your deck.
 artisanCard :: Card
-artisanCard   = Card "Artisan"      6 artisanCardAction Action (simpleVictory 0)
+artisanCard = Card { cardName = "Artisan", cost = 6, action = artisanCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     artisanCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     artisanCardAction p = do
@@ -638,7 +638,7 @@ artisanCard   = Card "Artisan"      6 artisanCardAction Action (simpleVictory 0)
 
 -- | Gain a card costing up to $4.
 workshopCard :: Card
-workshopCard  = Card "Workshop"     3 workshopCardAction Action (simpleVictory 0)
+workshopCard = Card { cardName = "Workshop", cost = 3, action = workshopCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     workshopCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     workshopCardAction p = do

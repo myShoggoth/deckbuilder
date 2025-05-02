@@ -6,7 +6,33 @@
 {-# LANGUAGE OverloadedLabels          #-}
 
 module DeckBuilding.Dominion.Types
-    ( module DeckBuilding.Dominion.Types
+    ( -- Explicitly export Card and its fields, plus other necessary types
+      Card ( Card -- Constructor
+             , cardName -- Field
+             , cost     -- Field
+             , action   -- Field
+             , cardType -- Field
+             , victoryPoints -- Field
+             , numImplicitTypes -- Field
+             )
+    , DominionState
+    , Strategy (..)
+    , DominionAIGame (..)
+    , DominionBuy (..)
+    , DominionPlayer (..)
+    , CardType (..)
+    , DominionAction (..)
+    , DominionDraw (..)
+    , DominionConfig (..)
+    , DominionBoard (..)
+    , DominionGame (..)
+    , DominionTurn (..)
+    , DominionPlayerTurn (..)
+    , CourtierChoice (..)
+    , CardLocation (..)
+    , BanditDecision(..)
+    -- Keep other exports if they were explicit, or add as needed
+    --, module DeckBuilding.Dominion.Types -- Remove or comment out the re-export
     ) where
 
 import Control.Lens.At (Index)
@@ -101,7 +127,6 @@ data DominionAction =
       MerchantShipDuration |
       Militia (Map.Map PlayerNumber (Either Card [Card])) |
       Mine Card Card |
-      Minion Bool DominionDraw (Map.Map PlayerNumber (Either Card [Card])) |
       Moat DominionDraw |
       MoneyLender |
       NativeVillage (Either Card [Card]) |
@@ -123,7 +148,6 @@ data DominionAction =
       Tactician [Card] |
       TacticianDuration DominionDraw |
       ThroneRoom Card DominionAction DominionAction |
-      Torturer DominionDraw (Map.Map PlayerNumber (Either Card (Either [Card] Bool))) |
       TreasureMap [Card] |
       Treasury DominionDraw |
       TreasuryDuration |
@@ -151,7 +175,12 @@ data DominionAction =
       MiningVillage Card |
       SecretPassage (Maybe Card) (Maybe Card) |
       Nobles DominionDraw Int |
-      Patrol DominionDraw [Card] [Card]
+      Patrol DominionDraw [Card] [Card] |
+      Minion Bool DominionDraw (Map.Map PlayerNumber (Either Card [Card])) |
+      Torturer DominionDraw (Map.Map PlayerNumber (Either Card (Either [Card] Bool))) |
+      TradingPost [Card] (Maybe Card) |
+      Replace Card Card CardLocation |
+      Courtier Card [Maybe CourtierChoice]
   deriving stock (Show, Generic, Eq)
   deriving Arbitrary via GenericArbitrary DominionAction
 
@@ -237,7 +266,7 @@ data DominionAIGame = DominionAIGame {
 -- * 'Duration' - For Action - Duration cards, the Action function
 -- is called when initially played, and the Duration function is
 -- called at the beginning of the next turn.
-data CardType = Value | Action | Duration
+data CardType = Value | Action | Duration | Victory | CurseType
   deriving stock (Show, Eq, Generic)
   deriving Arbitrary via GenericArbitrary CardType
 
@@ -245,48 +274,19 @@ data CardType = Value | Action | Duration
 data Card = Card {
   -- | Name of the card, like Copper or Market. Used mostly for debugging.
   cardName :: Text,
-  -- | Money cost of the card.
-  cost     :: Int,
-  {-|
-    The function that changes that game state based on the card. This is the
-    core of the whole engine.
-
-    'Card': The card being played.
-    Int: The number of the player that is playing the card.
-
-    Updates the game state based on what the card does, then returns the
-    player number.
-  -}
-  action   :: PlayerNumber -> DominionState (Maybe DominionAction),
-  -- | Value or Action
+  -- | Cost of the card in money.
+  cost :: Int,
+  -- | The action to take when the card is played.
+  action :: PlayerNumber -> DominionState (Maybe DominionAction),
+  -- | The primary type, used for interactions like Moat, Vassal etc.
   cardType :: CardType,
-  -- | The function that determines the score for the card
-  -- at the end of the game
-  score    :: PlayerNumber -> DominionState Int
+  -- | How many points the card is worth at the end of the game.
+  victoryPoints :: PlayerNumber -> DominionState Int,
+  -- | Number of implicit types for Courtier (Action, Treasure, Victory, Curse)
+  numImplicitTypes :: Int -- Added field for Courtier
 } deriving stock (Generic)
 
-instance Arbitrary Card where
-  arbitrary = do
-    cst <- arbitrary
-    ct <- arbitrary
-    return $ Card {
-    cardName = "Arbitrary Card",
-    cost = cst,
-    action = \_ -> return Nothing,
-    cardType = ct,
-    score = \_ -> return 0
-  }
-
 type instance Index Card = Card
-
-instance Ord Card where
-  compare c1 c2 = compare (cardName c1) (cardName c2)
-
-instance Eq Card where
-  a == b = cardName a == cardName b
-
-instance Show Card where
-  show c = unpack $ cardName c
 
 -- | What poor choices have I made that led me to this?
 instance Semi.Semigroup Card where
@@ -308,107 +308,111 @@ instance Semi.Semigroup Card where
 -}
 data Strategy = Strategy {
   -- | Friendly name for the strategy, mostly used for debugging.
-  strategyName       :: Text,
+  strategyName               :: Text,
   -- | Called when it is time for the player to buy new cards. The strategy
   --  is responsible for lowering the money, adding the cards to the discard
   --  pile, etc.
-  buyStrategy        :: DominionAIGame -> [DominionBuy],
+  buyStrategy                :: DominionAIGame -> [DominionBuy],
   -- | When a card action has the player discard, this function is called.
   --  (min, max) are the minimum number of cards the player has to discard,
   --  and the maximum they are allowed to.
-  discardStrategy    :: DominionAIGame -> (Int, Int) -> [Card],
+  discardStrategy            :: DominionAIGame -> (Int, Int) -> [Card],
   -- | The player is being prompted to trash zero or more cards from either
   -- their hand only, or the discard pile and the hand. (min, max) are the 
   -- minimum and maximum numbers of cards that may be trashed, and the
   -- discard pile is passed in if applicable.
   -- Return value is a tuple of the card trashing from the hand and the discard
   -- pile, respectively.
-  trashStrategy      :: DominionAIGame -> (Int, Int) -> [Card] -> [Card],
+  trashStrategy              :: DominionAIGame -> (Int, Int) -> [Card] -> [Card],
   -- | Like discardStrategy, except for retrieving cards from the player's
   --  discard pile.
-  retrieveStrategy   :: DominionAIGame -> (Int, Int) -> [Card] -> [Card],
+  retrieveStrategy           :: DominionAIGame -> (Int, Int) -> [Card] -> [Card],
   -- | Called before the hand is evaluated, lets the strategy determine
   --  which order they want the cards played in.
-  nextCard           :: PlayerNumber -> DominionState (Maybe Card),
+  nextCard                   :: PlayerNumber -> DominionState (Maybe Card),
   -- | When a card lets the player gain a card up to cost n into their discard
   --  pile, this is called.
-  gainCardStrategy   :: DominionAIGame -> Int -> Maybe Card,
+  gainCardStrategy           :: DominionAIGame -> Int -> Maybe Card,
   -- | Specifically for the Throne Room card, lets the strategy pick which
   --  card (Just Card) to play twice, or none if Nothing. Pick a card remaining
   --  in the player's hand.
-  throneRoomStrategy :: DominionAIGame -> Maybe Card,
+  throneRoomStrategy         :: DominionAIGame -> Maybe Card,
   -- | For the Library card, called when the player draws an action and returns
   --  whether or not the player wants to skip that card.
-  libraryStrategy    :: DominionAIGame -> Card -> Bool,
+  libraryStrategy            :: DominionAIGame -> Card -> Bool,
   -- | For the Sentry card, gives the top two cards of the player's deck, then
   --  says which ones that player wants to (trash, discard, keep).
-  sentryStrategy     :: DominionAIGame -> [Card] -> ([Card], [Card], [Card]),
+  sentryStrategy             :: DominionAIGame -> [Card] -> ([Card], [Card], [Card]),
   -- | For cards like Artisan, pick n cards that the player would like to put
   --  back onto the top of their deck. The function does that work.
-  handToDeckStrategy :: DominionAIGame -> Int -> [Card],
+  handToDeckStrategy         :: DominionAIGame -> Int -> [Card],
   -- | For the Lurker card, either pick an Action card from supply (Left) or
   --  gain a card from the trash (Right)
-  lurkerStrategy     :: DominionAIGame -> Either Card Card,
+  lurkerStrategy             :: DominionAIGame -> Either Card Card,
   -- | When playing the Island card, what card is put on the Island with it?
-  islandStrategy     :: DominionAIGame -> Maybe Card,
+  islandStrategy             :: DominionAIGame -> Maybe Card,
   -- | Pick one or two (identical) cards to put back in the supply
   -- and make other players gain.
-  ambassadorStrategy :: DominionAIGame -> [Card],
+  ambassadorStrategy         :: DominionAIGame -> [Card],
   -- | Pick a Supply pile to put an Embargo token on
-  embargoStrategy :: DominionAIGame -> Card,
+  embargoStrategy            :: DominionAIGame -> Card,
   -- | Pick a Card to set aside for the next turn
-  havenStrategy :: DominionAIGame -> Card,
+  havenStrategy              :: DominionAIGame -> Card,
   -- | Add the top card of the deck to the Native Village mat (True),
   -- or bring all of the cards from that mat into the hand (False)?
-  nativeVillageStrategy :: DominionAIGame -> Bool,
+  nativeVillageStrategy      :: DominionAIGame -> Bool,
   -- | Do we move this card from the bottom of the deck to the top?
-  pearlDiverStrategy :: DominionAIGame -> Card -> Bool,
+  pearlDiverStrategy         :: DominionAIGame -> Card -> Bool,
   -- | Take three cards from the deck, pick one fo trash, one to discard,
   -- and one to return to the deck.
-  lookoutStrategy :: DominionAIGame -> [Card] -> (Card, Card, Card),
+  lookoutStrategy            :: DominionAIGame -> [Card] -> (Card, Card, Card),
   -- | Look at the cards, either return an empty list to discard all of
   -- the originals, or reorder to be put back on the top of the deck.
-  navigatorStrategy :: DominionAIGame -> [Card] -> [Card],
+  navigatorStrategy          :: DominionAIGame -> [Card] -> [Card],
   -- | Does the player take +money equal to the number of Coin tokens
   -- on their pirate ship mat, or do they look at the top two cards
   -- of each other player's deck and tell them whether to trash a
   -- treasure (if they do so for one player, they get a Coin token)
-  pirateShipStrategy :: DominionAIGame -> Bool,
+  pirateShipStrategy         :: DominionAIGame -> Bool,
   -- | The top 2 cards for a particular other player, if at least one
   -- is a treasure card, can return that card to trash it for that
   -- player (if this happens at least one, the pirate ship player
   -- gains a Coin token for their pirate ship mat).
   pirateShipDecisionStrategy :: DominionAIGame -> [Card] -> Maybe Card,
   -- | Choose which card to trash, gaining its cost as +money
-  salvagerStrategy :: DominionAIGame -> Maybe Card,
+  salvagerStrategy           :: DominionAIGame -> Maybe Card,
   -- | Do we want to return the Treasury card to the deck?
-  treasuryStrategy :: DominionAIGame -> Bool,
+  treasuryStrategy           :: DominionAIGame -> Bool,
   -- | Choose two: +1 card, +1 action, +1 buy, +1 money
   -- Choices must be different
-  pawnStrategy :: DominionAIGame -> (Int, Int, Int, Int),
+  pawnStrategy               :: DominionAIGame -> (Int, Int, Int, Int),
   -- | Choose a card to pass to the left (if possible)
-  masqueradePassStrategy :: DominionAIGame -> Maybe Card,
+  masqueradePassStrategy     :: DominionAIGame -> Maybe Card,
   -- | Choose either draw 2 cards, gain two money, or trash two cards from hand
-  stewardStrategy :: DominionAIGame -> (Int, Int, [Card]),
+  stewardStrategy            :: DominionAIGame -> (Int, Int, [Card]),
   -- | Choose a supply card of a particular cost to replace the trashed card
   -- for the other player.
-  swindlerStrategy :: DominionAIGame -> Int -> Maybe Card,
+  swindlerStrategy           :: DominionAIGame -> Int -> Maybe Card,
   -- | Guess which card is on the top of the deck, get it in hand if right.
-  wishingWellStrategy :: DominionAIGame -> Card,
+  wishingWellStrategy        :: DominionAIGame -> Card,
   -- | Pick a card to gain that costs up to 6 that the player to this
   -- player's right gained last turn. The lists of gained cards is passed in. 
-  smugglerStrategy :: DominionAIGame -> [Card] -> Maybe Card,
+  smugglerStrategy           :: DominionAIGame -> [Card] -> Maybe Card,
   -- | Secret Passage, pick a card to put on top of the deck, and one to put in hand.
   -- First card in the return tuple is the card to put on top of the deck, second is the card to put in hand.
-  secretPassageStrategy :: DominionAIGame -> Maybe Card -> Maybe Card -> (Maybe Card, Maybe Card),
+  secretPassageStrategy      :: DominionAIGame -> Maybe Card -> Maybe Card -> (Maybe Card, Maybe Card),
   -- | Choose one: +3 Cards; or +2 Actions
-  noblesStrategy :: DominionAIGame -> Bool,  -- True for +3 Cards, False for +2 Actions
+  noblesStrategy             :: DominionAIGame -> Bool,  -- True for +3 Cards, False for +2 Actions
   -- | Put revealed Victory cards and Curses back in any order
-  patrolOrderStrategy :: DominionAIGame -> [Card] -> [Card],
+  patrolOrderStrategy        :: DominionAIGame -> [Card] -> [Card],
   -- | Choose one: +$2; or discard your hand, +4 Cards
-  minionStrategy :: DominionAIGame -> Bool,  -- True for +$2, False for discard/draw
+  minionStrategy             :: DominionAIGame -> Bool,  -- True for +$2, False for discard/draw
   -- | Choose one: discard 2 cards; or gain a Curse to hand
-  torturerStrategy :: DominionAIGame -> Bool  -- True for discard, False for Curse
+  torturerStrategy           :: DominionAIGame -> Bool,  -- True for discard, False for Curse
+  -- | Reveal the card on top of the deck and get a bonus
+  courtierRevealStrategy     :: DominionAIGame -> Card,
+  -- | Get a bonus based on the revealed card
+  courtierBonusStrategy      :: DominionAIGame -> Card -> Int -> [Maybe CourtierChoice]
 } deriving stock (Generic)
 
 instance Show Strategy where
@@ -420,45 +424,47 @@ instance Eq Strategy where
 instance Arbitrary Strategy where
   arbitrary = do
     sn <- arbitrary
-    return $ Strategy
-      { strategyName = sn
-      , buyStrategy = return mempty
-      , discardStrategy = return mempty
-      , trashStrategy = return mempty
-      , retrieveStrategy = return mempty
-      , nextCard = return (return mempty)
-      , gainCardStrategy = return mempty
-      , throneRoomStrategy = return mempty
-      , libraryStrategy = return (pure False)
-      , sentryStrategy = return mempty
-      , handToDeckStrategy = return mempty
-      , lurkerStrategy = return $ Left arbitraryCard
-      , islandStrategy = return mempty
-      , ambassadorStrategy = return mempty
-      , embargoStrategy = return arbitraryCard
-      , havenStrategy = return arbitraryCard
-      , nativeVillageStrategy = return False
-      , pearlDiverStrategy = return (pure False)
-      , lookoutStrategy = return (pure (arbitraryCard, arbitraryCard, arbitraryCard))
-      , navigatorStrategy = return mempty
-      , pirateShipStrategy = return False
-      , pirateShipDecisionStrategy = return mempty
-      , salvagerStrategy = return mempty
-      , treasuryStrategy = return True
-      , pawnStrategy = return (1, 1, 0, 0)
-      , masqueradePassStrategy = return mempty
-      , stewardStrategy = return (2, 0, [])
-      , swindlerStrategy = return mempty
-      , wishingWellStrategy = return $ Card "Copper" 0 (\_ -> pure Nothing) Value (\_ -> pure 0)
-      , smugglerStrategy = return mempty
-      , secretPassageStrategy = \_ _ -> return (Nothing, Nothing)
-      , noblesStrategy = return False
-      , patrolOrderStrategy = return mempty
-      , minionStrategy = return False
-      , torturerStrategy = return False
-      }
-      where
-        arbitraryCard = Card "Arbitrary Card" 1 (\_ -> return Nothing) Value (\_ -> return 0)
+    let arbitraryCard = Card "ArbitraryPlaceholder" 0 (\_ -> pure Nothing) Value (\_ -> pure 0) 1
+    return $ Strategy {
+      strategyName = sn,
+      buyStrategy = \_ -> [],
+      discardStrategy = \_ _ -> [],
+      trashStrategy = \_ _ _ -> [],
+      retrieveStrategy = \_ _ _ -> [],
+      gainCardStrategy = \_ _ -> Nothing,
+      throneRoomStrategy = \_ -> Nothing,
+      libraryStrategy = \_ _ -> True,
+      sentryStrategy = \_ cs -> ([], [], cs),
+      handToDeckStrategy = \_ n -> [],
+      lurkerStrategy = \_ -> Left arbitraryCard,
+      islandStrategy = \_ -> Nothing,
+      ambassadorStrategy = \_ -> [],
+      embargoStrategy = \_ -> arbitraryCard,
+      havenStrategy = \_ -> arbitraryCard,
+      nativeVillageStrategy = \_ -> False,
+      pearlDiverStrategy = \_ _ -> False,
+      lookoutStrategy = \_ cards -> case cards of
+                                     [c1, c2, c3] -> (c1, c2, c3)
+                                     _            -> error "Arbitrary Lookout strategy needs 3 cards",
+      navigatorStrategy = \_ cs -> cs,
+      pirateShipStrategy = \_ -> False,
+      pirateShipDecisionStrategy = \_ _ -> Nothing,
+      salvagerStrategy = \_ -> Nothing,
+      treasuryStrategy = \_ -> True,
+      pawnStrategy = \_ -> (1, 1, 0, 0),
+      masqueradePassStrategy = \_ -> Nothing,
+      stewardStrategy = \_ -> (2, 0, []),
+      swindlerStrategy = \_ _ -> Nothing,
+      wishingWellStrategy = \_ -> arbitraryCard,
+      smugglerStrategy = \_ _ -> Nothing,
+      secretPassageStrategy = \_ c1 c2 -> (c1, c2),
+      noblesStrategy = \_ -> True,
+      patrolOrderStrategy = \_ cs -> cs,
+      minionStrategy = \_ -> True,
+      torturerStrategy = \_ -> True,
+      courtierRevealStrategy = \aig -> head (aig ^. #hand),
+      courtierBonusStrategy = \_ _ numTypes -> replicate numTypes Nothing
+    }
 
 data DominionPlayer = DominionPlayer {
   -- | Player name, mostly used for debugging.
@@ -524,3 +530,36 @@ data BanditDecision = BanditDecision
   , discarded :: [Card]
   } deriving stock (Show, Eq, Generic)
     deriving Arbitrary via GenericArbitrary BanditDecision
+
+data CourtierChoice = CourtierAction | CourtierBuy | CourtierMoney | CourtierGainGold
+  deriving stock (Eq, Show, Generic)
+  deriving Arbitrary via GenericArbitrary CourtierChoice
+
+data CardLocation = Hand | Deck | Discard
+  deriving stock (Show, Eq, Generic)
+  deriving Arbitrary via GenericArbitrary CardLocation
+
+-- Restore manual instances based on cardName because functions can't be derived
+instance Ord Card where
+  compare c1 c2 = compare (cardName c1) (cardName c2)
+
+instance Eq Card where
+  c1 == c2 = cardName c1 == cardName c2
+
+instance Show Card where
+  show c = unpack $ cardName c
+
+-- Restore basic Arbitrary instance for Card (adjust if needed)
+instance Arbitrary Card where
+  arbitrary = do
+    cn <- arbitrary -- Generate arbitrary Text for name
+    co <- arbitrary -- Generate arbitrary Int for cost
+    ct <- arbitrary -- Generate arbitrary CardType
+    return $ Card {
+      cardName = cn,
+      cost = co,
+      action = \_ -> return Nothing, -- Placeholder action
+      cardType = ct,
+      victoryPoints = \_ -> return 0, -- Placeholder VP
+      numImplicitTypes = 1 -- Default to 1 type for arbitrary cards
+    }

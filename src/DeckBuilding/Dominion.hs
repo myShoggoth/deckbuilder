@@ -109,7 +109,7 @@ evaluateHand pnum = do
 -- automatically, 'Action' cards can only be played if the player has
 -- remaining action points.
 evaluateCard :: Card -> PlayerNumber -> DominionPlayer -> DominionState (Maybe DominionAction)
-evaluateCard c@(Card _ _ _ Value _) pnum _ = evaluateCard' c pnum
+evaluateCard c@(Card _ _ _ Value _ _) pnum _ = evaluateCard' c pnum
 evaluateCard c pnum (DominionPlayer _ _ _ _ _ 0 _ _ _ _ _ _ _ _ _ _ _ _) = do
   discardCard c pnum
   pure Nothing
@@ -329,11 +329,9 @@ instance Game DominionBoard where
         finalPlayer <- findPlayer p
         pure $ finalPlayer ^. #victory
       victoryPts :: PlayerNumber -> Card -> DominionState Int
-      victoryPts p (Card _ _ _ _ s) = s p
+      victoryPts p (Card _ _ _ _ vp _) = vp p
       getPlayerName :: PlayerNumber -> DominionState Text.Text
-      getPlayerName p = do
-        thePlayer <- findPlayer p
-        return $ thePlayer ^. #playerName
+      getPlayerName p = (^. #playerName) <$> findPlayer p
 
   turnOrder  = do
     players' <- use #players

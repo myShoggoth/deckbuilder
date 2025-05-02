@@ -38,7 +38,7 @@ module DeckBuilding.Dominion.Cards.Seaside
     seaWitchCard
 ) where
 
-import DeckBuilding.Dominion.Types (Card (Card), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade, Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch), CardType (Action, Duration, Value), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), CardPlay (PlayCellar), Strategy (handToDeckStrategy))
+import DeckBuilding.Dominion.Types (Card (Card, cardName, cost, action, cardType, victoryPoints, numImplicitTypes), DominionState, DominionAction (Ambassador, Island, Embargo, Haven, HavenDuration, NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration, Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan, CaravanDuration, Cutpurse, Navigator, PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip, MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury, Tactician, TacticianDuration, Outpost, Smuggler, Astrolabe, AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade, Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch), CardType (Action, Duration, Value), DominionDraw (DominionDraw), DominionPlayer (nativeVillage), Strategy (handToDeckStrategy))
 import DeckBuilding.Types (PlayerNumber(unPlayerNumber, PlayerNumber), turnOrder)
 import Control.Lens ( (^.), use, (%=), Ixed(ix), (.=), (+=), (-=), (^?), _2, _Just, _Right, (^..) )
 import DeckBuilding.Dominion.Cards.Utils (simpleVictory, basicCardAction, discardCards, trashCards, gainCardsToDeck, gainCardsToHand, handToDeck, gainCardsToDiscard)
@@ -57,7 +57,7 @@ import Control.Conditional (unless)
 -- of it from your hand to the Supply. Then each other player
 -- gains a copy of it.
 ambassadorCard :: Card
-ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 0)
+ambassadorCard = Card { cardName = "Ambassador", cost = 3, action = ambassadorCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         ambassadorCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         ambassadorCardAction p = do
@@ -98,7 +98,7 @@ ambassadorCard = Card "Ambassador" 3 ambassadorCardAction Action (simpleVictory 
 -- +$1
 -- +1 Buy
 astrolabeCard :: Card
-astrolabeCard = Card "Astrolab" 3 astrolabeCardAction Duration (simpleVictory 0)
+astrolabeCard = Card { cardName = "Astrolab", cost = 3, action = astrolabeCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         astrolabeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         astrolabeCardAction p = do
@@ -115,7 +115,7 @@ astrolabeCard = Card "Astrolab" 3 astrolabeCardAction Duration (simpleVictory 0)
 -- +2 Actions
 -- +$1.
 bazaarCard :: Card
-bazaarCard = Card "Bazaar" 5 bazaarCardAction Action (simpleVictory 0)
+bazaarCard = Card { cardName = "Bazaar", cost = 5, action = bazaarCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         bazaarCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         bazaarCardAction p = do
@@ -127,7 +127,7 @@ bazaarCard = Card "Bazaar" 5 bazaarCardAction Action (simpleVictory 0)
 --
 -- At the start of your next turn, +1 Card.
 caravanCard :: Card
-caravanCard = Card "Caravan" 4 caravanCardAction Duration (simpleVictory 0)
+caravanCard = Card { cardName = "Caravan", cost = 4, action = caravanCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         caravanCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         caravanCardAction p = do
@@ -144,7 +144,7 @@ caravanCard = Card "Caravan" 4 caravanCardAction Duration (simpleVictory 0)
 --
 -- Each other player discards a Copper (or reveals a hand with no Copper).
 cutpurseCard :: Card
-cutpurseCard = Card "Cutpurse" 4 cutpurseCardAction Action (simpleVictory 0)
+cutpurseCard = Card { cardName = "Cutpurse", cost = 4, action = cutpurseCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         cutpurseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         cutpurseCardAction p = do
@@ -174,7 +174,7 @@ cutpurseCard = Card "Cutpurse" 4 cutpurseCardAction Action (simpleVictory 0)
 -- -----
 -- When a player buys a card, he gains a Curse card per Embargo token on that pile.
 embargoCard :: Card
-embargoCard = Card "Embargo" 2 embargoCardAction Action (simpleVictory 0)
+embargoCard = Card { cardName = "Embargo", cost = 2, action = embargoCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         embargoCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         embargoCardAction p = do
@@ -189,9 +189,9 @@ embargoCard = Card "Embargo" 2 embargoCardAction Action (simpleVictory 0)
             return $ Just $ Embargo supplyCard
 
 -- | You may reveal a Province from your hand. If you do, gain a Gold to your hand.
--- If you don’t, gain a Silver to your hand.
+-- If you don't, gain a Silver to your hand.
 explorerCard :: Card
-explorerCard = Card "Explorer" 5 explorerCardAction Action (simpleVictory 0)
+explorerCard = Card { cardName = "Explorer", cost = 5, action = explorerCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         explorerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         explorerCardAction p = do
@@ -207,7 +207,7 @@ explorerCard = Card "Explorer" 5 explorerCardAction Action (simpleVictory 0)
 --
 -- At the start of your next turn: +1 Action and +$1.
 fishingVillageCard :: Card
-fishingVillageCard = Card "Fishing Village" 3 fishingVillageCardAction Duration (simpleVictory 0)
+fishingVillageCard = Card { cardName = "Fishing Village", cost = 3, action = fishingVillageCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         fishingVillageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         fishingVillageCardAction p = do
@@ -225,7 +225,7 @@ fishingVillageCard = Card "Fishing Village" 3 fishingVillageCardAction Duration 
 -- Each other player with 4 or more cards in hand puts cards from their
 -- hand onto their deck until they have 3 cards in hand.
 ghostShipCard :: Card
-ghostShipCard = Card "Ghost Ship" 5 ghostShipCardAction Action (simpleVictory 0)
+ghostShipCard = Card { cardName = "Ghost Ship", cost = 5, action = ghostShipCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         ghostShipCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         ghostShipCardAction p = do
@@ -252,7 +252,7 @@ ghostShipCard = Card "Ghost Ship" 5 ghostShipCardAction Action (simpleVictory 0)
 -- Set aside a card from your hand face down (under this). At the start
 -- of your next turn, put it into your hand.
 havenCard :: Card
-havenCard = Card "Haven" 2 havenCardAction Duration (simpleVictory 0)
+havenCard = Card { cardName = "Haven", cost = 2, action = havenCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         havenCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         havenCardAction p = do
@@ -273,7 +273,7 @@ havenCard = Card "Haven" 2 havenCardAction Duration (simpleVictory 0)
 --
 -- Put this and a card from your hand onto your Island mat.
 islandCard :: Card
-islandCard = Card "Island" 4 islandCardAction Duration (simpleVictory 2)
+islandCard = Card { cardName = "Island", cost = 4, action = islandCardAction, cardType = Duration, victoryPoints = simpleVictory 2, numImplicitTypes = 1 }
     where
         islandCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         islandCardAction p = do
@@ -293,9 +293,9 @@ islandCard = Card "Island" 4 islandCardAction Duration (simpleVictory 2)
 -- | +1 Action
 -- Now and at the start of your next turn: +$1.
 --
--- While this is in play, when another player plays an Attack card, it doesn’t affect you.
+-- While this is in play, when another player plays an Attack card, it doesn't affect you.
 lighthouseCard :: Card
-lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Duration (simpleVictory 0)
+lighthouseCard = Card { cardName = "Lighthouse", cost = 2, action = lighthouseCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         lighthouseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         lighthouseCardAction p = do
@@ -314,7 +314,7 @@ lighthouseCard = Card "Lighthouse" 2 lighthouseCardAction Duration (simpleVictor
 --
 -- Look at the top 3 cards of your deck. Trash one of them. Discard one of them. Put the other one back on to your deck.
 lookoutCard :: Card
-lookoutCard = Card "Lookout" 3 lookoutCardAction Action (simpleVictory 0)
+lookoutCard = Card { cardName = "Lookout", cost = 3, action = lookoutCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         lookoutCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         lookoutCardAction p = do
@@ -331,7 +331,7 @@ lookoutCard = Card "Lookout" 3 lookoutCardAction Action (simpleVictory 0)
 
 -- | Now and at the start of your next turn: +$2.
 merchantShipCard :: Card
-merchantShipCard = Card "Merchant Ship" 5 merchantShipCardAction Duration (simpleVictory 0)
+merchantShipCard = Card { cardName = "Merchant Ship", cost = 5, action = merchantShipCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         merchantShipCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         merchantShipCardAction p = do
@@ -350,7 +350,7 @@ merchantShipCard = Card "Merchant Ship" 5 merchantShipCardAction Duration (simpl
 -- Village mat (you may look at those cards at any time); or put all
 -- the cards from your mat into your hand.
 nativeVillageCard :: Card
-nativeVillageCard = Card "Native Village" 2 nativeVillageCardAction Action (simpleVictory 0)
+nativeVillageCard = Card { cardName = "Native Village", cost = 2, action = nativeVillageCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         nativeVillageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         nativeVillageCardAction p = do
@@ -375,7 +375,7 @@ nativeVillageCard = Card "Native Village" 2 nativeVillageCardAction Action (simp
 --
 -- Look at the top 5 cards of your deck. Either discard them all, or put them back in any order.
 navigatorCard :: Card
-navigatorCard = Card "Navigator" 4 navigatorCardAction Action (simpleVictory 0)
+navigatorCard = Card { cardName = "Navigator", cost = 4, action = navigatorCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         navigatorCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         navigatorCardAction p = do
@@ -390,10 +390,10 @@ navigatorCard = Card "Navigator" 4 navigatorCardAction Action (simpleVictory 0)
             pure $ Just $ Navigator reorder
 
 -- | If this is the first time you played an Outpost this turn, and the previous
--- turn wasn’t yours, then take an extra turn after this one, and you only draw
+-- turn wasn't yours, then take an extra turn after this one, and you only draw
 -- 3 cards for your next hand.
 outpostCard :: Card
-outpostCard = Card "Outpost" 5 outpostCardAction Action (simpleVictory 0)
+outpostCard = Card { cardName = "Outpost", cost = 5, action = outpostCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         outpostCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         outpostCardAction p = do
@@ -405,7 +405,7 @@ outpostCard = Card "Outpost" 5 outpostCardAction Action (simpleVictory 0)
 --
 -- Look at the bottom card of your deck. You may put it on top.
 pearlDiverCard :: Card
-pearlDiverCard = Card "Pearl Diver" 2 pearlDiverCardAction Action (simpleVictory 0)
+pearlDiverCard = Card { cardName = "Pearl Diver", cost = 2, action = pearlDiverCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         pearlDiverCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         pearlDiverCardAction p = do
@@ -430,7 +430,7 @@ pearlDiverCard = Card "Pearl Diver" 2 pearlDiverCardAction Action (simpleVictory
 -- choose, and discards the rest, and then if anyone trashed a Treasure you add a
 -- Coin token to your Pirate Ship mat.
 pirateShipCard :: Card
-pirateShipCard = Card "Pirate Ship" 4 pirateShipCardAction Action (simpleVictory 0)
+pirateShipCard = Card { cardName = "Pirate Ship", cost = 4, action = pirateShipCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         pirateShipCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         pirateShipCardAction p = do
@@ -468,7 +468,7 @@ pirateShipCard = Card "Pirate Ship" 4 pirateShipCardAction Action (simpleVictory
 --
 -- Trash a card from your hand. +$1 per $1 it costs.
 salvagerCard :: Card
-salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
+salvagerCard = Card { cardName = "Salvager", cost = 4, action = salvagerCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         salvagerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         salvagerCardAction p = do
@@ -484,7 +484,7 @@ salvagerCard = Card "Salvager" 4 salvagerCardAction Action (simpleVictory 0)
 
 -- | Gain a copy of a card costing up to 6 that the player to your right gained on their last turn.
 smugglersCard :: Card
-smugglersCard = Card "Smugglers" 3 smugglersCardAction Action (simpleVictory 0)
+smugglersCard = Card { cardName = "Smugglers", cost = 3, action = smugglersCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         smugglersCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         smugglersCardAction p = do
@@ -507,7 +507,7 @@ smugglersCard = Card "Smugglers" 3 smugglersCardAction Action (simpleVictory 0)
 
 -- | If you have at least one card in hand, discard your hand, and at the start of your next turn, +5 Cards, +1 Action, and +1 Buy.
 tacticianCard :: Card
-tacticianCard = Card "Tactician" 5 tacticianCardAction Duration (simpleVictory 0)
+tacticianCard = Card { cardName = "Tactician", cost = 5, action = tacticianCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         tacticianCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         tacticianCardAction p = do
@@ -528,7 +528,7 @@ tacticianCard = Card "Tactician" 5 tacticianCardAction Duration (simpleVictory 0
 
 -- | Trash this and a Treasure Map from your hand. If you trashed two Treasure Maps, gain 4 Golds onto your deck.
 treasureMapCard :: Card
-treasureMapCard = Card "Treasure Map" 4 treasureMapCardAction Duration (simpleVictory 0)
+treasureMapCard = Card { cardName = "Treasure Map", cost = 4, action = treasureMapCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     -- This is not actually a "Duration" card, but it is the simplest way to avoid having it put into the
     -- player's 'played' pile. If we don't end up playing it, though, we need to do that here.
     where
@@ -547,9 +547,9 @@ treasureMapCard = Card "Treasure Map" 4 treasureMapCardAction Duration (simpleVi
 -- +1 Action
 -- +$1
 --
--- When you discard this from play, if you didn’t buy a Victory card this turn, you may put this onto your deck.
+-- When you discard this from play, if you didn't buy a Victory card this turn, you may put this onto your deck.
 treasuryCard :: Card
-treasuryCard = Card "Treasury" 5 treasuryCardAction Action (simpleVictory 0)
+treasuryCard = Card { cardName = "Treasury", cost = 5, action = treasuryCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         treasuryCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         treasuryCardAction p = do
@@ -558,7 +558,7 @@ treasuryCard = Card "Treasury" 5 treasuryCardAction Action (simpleVictory 0)
 
 -- | Each other player discards the top card of their deck, then gains a Curse onto their deck.
 seaHagCard :: Card
-seaHagCard = Card "Sea Hag" 4 seaHagCardAction Action (simpleVictory 0)
+seaHagCard = Card { cardName = "Sea Hag", cost = 4, action = seaHagCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         seaHagCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         seaHagCardAction p = do
@@ -582,7 +582,7 @@ seaHagCard = Card "Sea Hag" 4 seaHagCardAction Action (simpleVictory 0)
 -- +1 Action
 -- Reveal the top card of your deck. If you have a copy of it in play, put it into your hand.
 seaChartCard :: Card
-seaChartCard = Card "Sea Chart" 3 seaChartCardAction Action (simpleVictory 0)
+seaChartCard = Card { cardName = "Sea Chart", cost = 3, action = seaChartCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         seaChartCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         seaChartCardAction p = do
@@ -605,7 +605,7 @@ seaChartCard = Card "Sea Chart" 3 seaChartCardAction Action (simpleVictory 0)
 --
 -- At the start of your next turn, discard 2 cards.
 tidePoolsCard :: Card
-tidePoolsCard = Card "Tide Pools" 4 tidePoolsCardAction Duration (simpleVictory 0)
+tidePoolsCard = Card { cardName = "Tide Pools", cost = 4, action = tidePoolsCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         tidePoolsCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         tidePoolsCardAction p = do
@@ -627,7 +627,7 @@ tidePoolsCard = Card "Tide Pools" 4 tidePoolsCardAction Duration (simpleVictory 
 --
 -- Discard 3 cards.
 warehouseCard :: Card
-warehouseCard = Card "Warehouse" 3 warehouseCardAction Action (simpleVictory 0)
+warehouseCard = Card { cardName = "Warehouse", cost = 3, action = warehouseCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         warehouseCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         warehouseCardAction p = do
@@ -640,7 +640,7 @@ warehouseCard = Card "Warehouse" 3 warehouseCardAction Action (simpleVictory 0)
 
 -- | Now and at the start of your next turn: +2 Cards and +1 Buy.
 wharfCard :: Card
-wharfCard = Card "Wharf" 5 wharfCardAction Duration (simpleVictory 0)
+wharfCard = Card { cardName = "Wharf", cost = 5, action = wharfCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         wharfCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         wharfCardAction p = do
@@ -655,7 +655,7 @@ wharfCard = Card "Wharf" 5 wharfCardAction Duration (simpleVictory 0)
 
 -- | Blockade: Gain a card costing up to $4. At the start of your next turn, +$2 and each other player gains a Curse.
 blockadeCard :: Card
-blockadeCard = Card "Blockade" 4 blockadeCardAction Duration (simpleVictory 0)
+blockadeCard = Card { cardName = "Blockade", cost = 4, action = blockadeCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         blockadeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         blockadeCardAction p = do
@@ -666,19 +666,19 @@ blockadeCard = Card "Blockade" 4 blockadeCardAction Duration (simpleVictory 0)
                 Nothing -> pure Nothing
                 Just c -> do
                     gainCardsToDiscard p [c]
-                    #players . ix (unPlayerNumber p) . #duration %= ((blockadeCard, blockadeCardDuration (Just c)) :)
+                    #players . ix (unPlayerNumber p) . #duration %= ((blockadeCard, blockadeCardDuration mc):)
                     pure $ Just $ Blockade c
         blockadeCardDuration :: Maybe Card -> PlayerNumber -> DominionState (Maybe DominionAction)
         blockadeCardDuration Nothing _ = pure Nothing
         blockadeCardDuration (Just c) p = do
             #players . ix (unPlayerNumber p) . #money += 2
             #embargoes %= Map.mapWithKey (increaseCards c 1)
-            #players . ix (unPlayerNumber p) . #played %= (blockadeCard :)
+            #players . ix (unPlayerNumber p) . #played %= (blockadeCard:)
             pure $ Just $ Blockade c
 
 -- | Monkey: Until your next turn, when the player to your right gains a card, +1 Card. At the start of your next turn, +1 Card.
 monkeyCard :: Card
-monkeyCard = Card "Monkey" 3 monkeyCardAction Duration (simpleVictory 0)
+monkeyCard = Card { cardName = "Monkey", cost = 3, action = monkeyCardAction, cardType = Duration, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         monkeyCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         monkeyCardAction p = do
@@ -693,7 +693,7 @@ monkeyCard = Card "Monkey" 3 monkeyCardAction Duration (simpleVictory 0)
 
 -- | Corsair: Each other player trashes a Treasure from their hand (or reveals a hand with no Treasures). Gain a Silver to your hand.
 corsairCard :: Card
-corsairCard = Card "Corsair" 4 corsairCardAction Action (simpleVictory 0)
+corsairCard = Card { cardName = "Corsair", cost = 4, action = corsairCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         corsairCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         corsairCardAction p = do
@@ -714,7 +714,7 @@ corsairCard = Card "Corsair" 4 corsairCardAction Action (simpleVictory 0)
 
 -- | Sailor: +2 Actions. If you gained a card this turn, +$2.
 sailorCard :: Card
-sailorCard = Card "Sailor" 4 sailorCardAction Action (simpleVictory 0)
+sailorCard = Card { cardName = "Sailor", cost = 4, action = sailorCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         sailorCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         sailorCardAction p = do
@@ -728,7 +728,7 @@ sailorCard = Card "Sailor" 4 sailorCardAction Action (simpleVictory 0)
 
 -- | Sea Witch: +2 Cards. Each other player gains a Curse.
 seaWitchCard :: Card
-seaWitchCard = Card "Sea Witch" 5 seaWitchCardAction Action (simpleVictory 0)
+seaWitchCard = Card { cardName = "Sea Witch", cost = 5, action = seaWitchCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
     where
         seaWitchCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
         seaWitchCardAction p = do

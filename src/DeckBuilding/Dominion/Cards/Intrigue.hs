@@ -29,6 +29,9 @@ module DeckBuilding.Dominion.Cards.Intrigue
     , patrolCard
     , minionCard
     , torturerCard
+    , tradingPostCard
+    , replaceCard
+    , courtierCard
     ) where
 
 import Control.Lens ( (^.), use, (%=), Ixed(ix), prism', (.=) )
@@ -36,21 +39,25 @@ import Data.Generics.Product ( HasField(field) )
 import Data.List (delete, partition, union)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base
-    ( treasureCards, duchyCard, victoryCards, estateCard, curseCard, moatCard, defendsAgainstAttack )
+    ( treasureCards, duchyCard, victoryCards, estateCard, curseCard, moatCard, defendsAgainstAttack, silverCard, goldCard )
 import DeckBuilding.Dominion.Cards.Utils
     ( simpleVictory, basicCardAction, hasActionCards, handToDeck, valueCardAction, trashCards, gainCardsToDiscard, gainCardsToDeck, discardCards, gainCardsToHand )
 import DeckBuilding.Types ( PlayerNumber(unPlayerNumber, PlayerNumber), Game (turnOrder), Game(.. ) )
 import DeckBuilding.Dominion.Types
-    ( Card(Card, cost),
-      CardType(Value, Action, Duration), DominionState,
+    ( Card(Card, cardName, cost, action, cardType, victoryPoints, numImplicitTypes),
+      CardType(Value, Action, Duration, Victory, CurseType),
+      DominionState,
         DominionAction (Courtyard, Lurker, Pawn, ShantyTown, Conspirator, Ironworks, Duke, Harem, Masquerade,
           Steward, Swindler, WishingWell, Baron, Bridge, Diplomat, Upgrade, Mill, MiningVillage, SecretPassage,
-          Nobles, Patrol, Minion, Torturer),
-        DominionDraw(DominionDraw), Strategy (trashStrategy, gainCardStrategy, discardStrategy, secretPassageStrategy), DominionBoard )
+          Nobles, Patrol, Minion, Torturer, TradingPost, Replace, Courtier),
+        DominionDraw(DominionDraw),
+        Strategy (trashStrategy, gainCardStrategy, discardStrategy, secretPassageStrategy, courtierRevealStrategy,
+          courtierBonusStrategy),
+        DominionBoard, CardLocation (..), CourtierChoice (..) )
 import DeckBuilding.Dominion.Utils
     ( decreaseCards, isCardInPlay, findPlayer, mkDominionAIGame, removeFromCards, deal, discardCard )
 import Data.Traversable (for)
-import Control.Monad (forM)
+import Control.Monad (forM, when)
 import Safe (headMay, lastMay)
 import Data.Foldable (for_)
 import GHC.Base (VecElem(Int16ElemRep))
@@ -58,12 +65,11 @@ import GHC.List (product)
 import Control.Monad.Extra (ifM)
 import Data.Functor (($>))
 
-import Debug.Trace (trace)
 -- | +1 Buy
 --
 -- You may discard an Estate for +4 Money. If you don't, gain an Estate.
 baronCard :: Card
-baronCard       = Card "Baron"        4 baronCardAction Action (simpleVictory 0)
+baronCard       = Card { cardName = "Baron", cost = 4, action = baronCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     baronCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     baronCardAction p = do
@@ -80,7 +86,7 @@ baronCard       = Card "Baron"        4 baronCardAction Action (simpleVictory 0)
 --
 -- Put a card from your hand onto your deck.
 courtyardCard :: Card
-courtyardCard   = Card "Courtyard"    2 courtyardCardAction Action (simpleVictory 0)
+courtyardCard   = Card { cardName = "Courtyard", cost = 2, action = courtyardCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     courtyardCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     courtyardCardAction p = do
@@ -95,7 +101,7 @@ courtyardCard   = Card "Courtyard"    2 courtyardCardAction Action (simpleVictor
 --
 -- Choose one: Trash an Action card from the Supply; or gain an Action card from the trash.
 lurkerCard :: Card
-lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
+lurkerCard      = Card { cardName = "Lurker", cost = 2, action = lurkerCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     lurkerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     lurkerCardAction p = do
@@ -115,7 +121,7 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
           #decks %= Map.mapWithKey (decreaseCards c)
           return $ Just e
         else return Nothing
-    lurk e@(Right c@(Card _ _ _ Action _)) p = do
+    lurk e@(Right c@(Card _ _ _ Action _ _)) p = do
       trsh <- use #trash
       if c `elem` trsh
         then do
@@ -130,7 +136,7 @@ lurkerCard      = Card "Lurker"   2 lurkerCardAction Action (simpleVictory 0)
 --
 -- The choices must be different.
 pawnCard :: Card
-pawnCard        = Card "Pawn"         2 pawnCardAction Action (simpleVictory 0)
+pawnCard        = Card { cardName = "Pawn", cost = 2, action = pawnCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     pawnCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     pawnCardAction p = do
@@ -144,7 +150,7 @@ pawnCard        = Card "Pawn"         2 pawnCardAction Action (simpleVictory 0)
 --
 -- Each player with any cards in hand passes one to the next such player to their left, at once. Then you may trash a card from your hand.
 masqueradeCard :: Card
-masqueradeCard  = Card "Masquerade"   3 masqueradeCardAction Action (simpleVictory 0)
+masqueradeCard  = Card { cardName = "Masquerade", cost = 3, action = masqueradeCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     masqueradeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     masqueradeCardAction p = do
@@ -195,7 +201,7 @@ masqueradeCard  = Card "Masquerade"   3 masqueradeCardAction Action (simpleVicto
 --
 -- Reveal your hand. If you have no Action cards in hand, +2 Cards.
 shantyTownCard :: Card
-shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action (simpleVictory 0)
+shantyTownCard  = Card { cardName = "Shanty Town", cost = 3, action = shantyTownCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     shantyTownCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     shantyTownCardAction p = do
@@ -208,7 +214,7 @@ shantyTownCard  = Card "Shanty Town"  3 shantyTownCardAction Action (simpleVicto
 
 -- | Choose one: +2 Cards; or +2 money; or trash 2 cards from your hand.
 stewardCard :: Card
-stewardCard     = Card "Steward"      3 stewardCardAction Action (simpleVictory 0)
+stewardCard     = Card { cardName = "Steward", cost = 3, action = stewardCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     stewardCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     stewardCardAction p = do
@@ -223,7 +229,7 @@ stewardCard     = Card "Steward"      3 stewardCardAction Action (simpleVictory 
 --
 -- Each other player trashes the top card of their deck and gains a card with the same cost that you choose.
 swindlerCard :: Card
-swindlerCard =    Card "Swindler"     3 swindlerCardAction Action (simpleVictory 0)
+swindlerCard =    Card { cardName = "Swindler", cost = 3, action = swindlerCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     swindlerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     swindlerCardAction p = do
@@ -259,7 +265,7 @@ swindlerCard =    Card "Swindler"     3 swindlerCardAction Action (simpleVictory
 --
 -- If you've played 3 or more Actions this turn (counting this), +1 Card and +1 Action.
 conspiratorCard :: Card
-conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action (simpleVictory 0)
+conspiratorCard = Card { cardName = "Conspirator", cost = 4, action = conspiratorCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     conspiratorCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     conspiratorCardAction p = do
@@ -277,7 +283,7 @@ conspiratorCard = Card "Conspirator"  4 conspiratorCardAction Action (simpleVict
 --
 -- Victory card, +1 Card
 ironworksCard :: Card
-ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictory 0)
+ironworksCard   = Card { cardName = "Ironworks", cost = 4, action = ironworksCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     ironworksCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     ironworksCardAction p = do
@@ -302,7 +308,7 @@ ironworksCard   = Card "Ironworks"    4 ironworksCardAction Action (simpleVictor
 
 -- | Worth 1VP per Duchy you have.
 dukeCard :: Card
-dukeCard        = Card "Duke"         5 (valueCardAction 0 Duke) Action dukeCardValue
+dukeCard        = Card { cardName = "Duke", cost = 5, action = valueCardAction 0 Duke, cardType = Action, victoryPoints = dukeCardValue, numImplicitTypes = 1 }
   where
     dukeCardValue :: PlayerNumber -> DominionState Int
     dukeCardValue p = do
@@ -314,14 +320,14 @@ dukeCard        = Card "Duke"         5 (valueCardAction 0 Duke) Action dukeCard
 --
 -- 2VP
 haremCard :: Card
-haremCard       = Card "Harem"        6 (valueCardAction 2 Harem) Value (simpleVictory 2)
+haremCard       = Card { cardName = "Harem", cost = 6, action = valueCardAction 2 Harem, cardType = Value, victoryPoints = simpleVictory 2, numImplicitTypes = 2 } -- Treasure, Victory
 
 -- | +1 Card
 -- +1 Action
 --
 -- Name a card, then reveal the top card of your deck. If you named it, put it into your hand.
 wishingWellCard :: Card
-wishingWellCard = Card "Wishing Well" 3 wishingWellCardAction Action (simpleVictory 0)
+wishingWellCard = Card { cardName = "Wishing Well", cost = 3, action = wishingWellCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     wishingWellCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     wishingWellCardAction p = do
@@ -342,7 +348,7 @@ wishingWellCard = Card "Wishing Well" 3 wishingWellCardAction Action (simpleVict
 
 -- | +1 Buy, +1 Money
 bridgeCard :: Card
-bridgeCard = Card "Bridge" 4 bridgeCardAction Action (simpleVictory 0)
+bridgeCard = Card { cardName = "Bridge", cost = 4, action = bridgeCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     bridgeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     bridgeCardAction p = do
@@ -355,7 +361,7 @@ bridgeCard = Card "Bridge" 4 bridgeCardAction Action (simpleVictory 0)
 --
 -- If you have 5 or fewer cards in hand after drawing, +2 Actions.
 diplomatCard :: Card
-diplomatCard = Card "Diplomat" 4 diplomatCardAction Action (simpleVictory 0)
+diplomatCard = Card { cardName = "Diplomat", cost = 4, action = diplomatCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     diplomatCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     diplomatCardAction p = do
@@ -371,7 +377,7 @@ diplomatCard = Card "Diplomat" 4 diplomatCardAction Action (simpleVictory 0)
 --
 -- You may trash a card from your hand. Gain a card costing up to $2 more than it.
 upgradeCard :: Card
-upgradeCard = Card "Upgrade" 5 upgradeCardAction Action (simpleVictory 0)
+upgradeCard = Card { cardName = "Upgrade", cost = 5, action = upgradeCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     upgradeCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     upgradeCardAction p = do
@@ -394,7 +400,7 @@ upgradeCard = Card "Upgrade" 5 upgradeCardAction Action (simpleVictory 0)
 -- | +1 Card, +1 Action
 -- You may discard a Treasure for +2 Money.
 millCard :: Card
-millCard = Card "Mill" 4 millCardAction Action (simpleVictory 0)
+millCard = Card { cardName = "Mill", cost = 4, action = millCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     millCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     millCardAction p = do
@@ -412,7 +418,7 @@ millCard = Card "Mill" 4 millCardAction Action (simpleVictory 0)
 -- | +2 Actions
 -- Gain a card costing up to $4.
 miningVillageCard :: Card
-miningVillageCard = Card "Mining Village" 4 miningVillageCardAction Action (simpleVictory 0)
+miningVillageCard = Card { cardName = "Mining Village", cost = 4, action = miningVillageCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     miningVillageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     miningVillageCardAction p = do
@@ -429,7 +435,7 @@ miningVillageCard = Card "Mining Village" 4 miningVillageCardAction Action (simp
 -- | +2 Cards
 -- Look at the top 2 cards of your deck. Put one into your hand and the other on top of your deck.
 secretPassageCard :: Card
-secretPassageCard = Card "Secret Passage" 4 secretPassageCardAction Action (simpleVictory 0)
+secretPassageCard = Card { cardName = "Secret Passage", cost = 4, action = secretPassageCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     secretPassageCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     secretPassageCardAction p = do 
@@ -446,7 +452,7 @@ secretPassageCard = Card "Secret Passage" 4 secretPassageCardAction Action (simp
 -- | Choose one: +3 Cards; or +2 Actions
 -- Worth 2 Victory Points
 noblesCard :: Card
-noblesCard = Card "Nobles" 6 noblesCardAction Action (simpleVictory 2)
+noblesCard = Card { cardName = "Nobles", cost = 6, action = noblesCardAction, cardType = Action, victoryPoints = simpleVictory 2, numImplicitTypes = 2 } -- Action, Victory
   where
     noblesCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     noblesCardAction p = do
@@ -465,7 +471,7 @@ noblesCard = Card "Nobles" 6 noblesCardAction Action (simpleVictory 2)
 -- Reveal the top 4 cards of your deck. Put the Victory cards and Curses into your hand. 
 -- Put the rest back in any order.
 patrolCard :: Card
-patrolCard = Card "Patrol" 5 patrolCardAction Action (simpleVictory 0)
+patrolCard = Card { cardName = "Patrol", cost = 5, action = patrolCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     patrolCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     patrolCardAction p = do
@@ -490,7 +496,7 @@ patrolCard = Card "Patrol" 5 patrolCardAction Action (simpleVictory 0)
 --
 -- Choose one: +$2; or discard your hand, +4 Cards, and each other player with at least 5 cards in hand discards their hand and draws 4 cards.
 minionCard :: Card
-minionCard = Card "Minion" 5 minionCardAction Action (simpleVictory 0)
+minionCard = Card { cardName = "Minion", cost = 5, action = minionCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     minionCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     minionCardAction p = do
@@ -534,7 +540,7 @@ minionCard = Card "Minion" 5 minionCardAction Action (simpleVictory 0)
 --
 -- Each other player chooses one: they discard 2 cards; or they gain a Curse to their hand.
 torturerCard :: Card
-torturerCard = Card "Torturer" 5 torturerCardAction Action (simpleVictory 0)
+torturerCard = Card { cardName = "Torturer", cost = 5, action = torturerCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
   where
     torturerCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
     torturerCardAction p = do
@@ -556,11 +562,90 @@ torturerCard = Card "Torturer" 5 torturerCardAction Action (simpleVictory 0)
                 if chooseDiscard
                   then do
                     let toDiscard = (pl ^. #strategy . #discardStrategy) aig (2, 2)
-                    let toDiscard' = trace ("toDiscard: " ++ show toDiscard) toDiscard
-                    discardCards p' toDiscard'
+                    discardCards p' toDiscard
                     pure (p', Right (Left toDiscard))
                   else do
                     gainCardsToHand p' [curseCard]
                     pure (p', Right (Right False))
       
       pure $ Just $ Torturer drawn (Map.fromList responses)
+
+-- | Trash 2 cards from your hand. If you did, gain a Silver to your hand.
+tradingPostCard :: Card
+tradingPostCard = Card { cardName = "Trading Post", cost = 5, action = tradingPostCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
+  where
+    tradingPostCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    tradingPostCardAction p = do
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let toTrash = (thePlayer ^. #strategy . #trashStrategy) aig (2, 2) (thePlayer ^. #hand)
+      if length toTrash == 2
+        then do
+          trashCards p toTrash
+          gained <- gainCardsToHand p [silverCard]
+          pure $ Just $ TradingPost toTrash (headMay gained)
+        else do
+          -- Trash as many as possible if less than 2 available (or chosen by strategy)
+          trashCards p toTrash
+          pure $ Just $ TradingPost toTrash Nothing
+
+-- | Trash a card from your hand. Gain a card costing up to $2 more than it.
+-- If the gained card is an Action or Treasure, put it on top of your deck;
+-- if it's a Victory card, gain it to your hand.
+replaceCard :: Card
+replaceCard = Card { cardName = "Replace", cost = 5, action = replaceCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
+  where
+    replaceCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    replaceCardAction p = do
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      let toTrashList = (thePlayer ^. #strategy . #trashStrategy) aig (1, 1) (thePlayer ^. #hand)
+      case headMay toTrashList of
+        Nothing -> pure Nothing -- Cannot replace if no card is trashed
+        Just toTrash -> do
+          trashCards p [toTrash]
+          let costLimit = toTrash ^. #cost + 2
+          let mToGain = (thePlayer ^. #strategy . #gainCardStrategy) aig costLimit
+          case mToGain of
+            Nothing -> pure $ Just $ Replace toTrash undefined Discard -- Need a placeholder or better handling
+            Just toGain -> do
+              let location = case () of
+                               _ | toGain `elem` victoryCards -> Hand
+                               _ | toGain ^. #cardType == Action -> Deck
+                               _ | toGain ^. #cardType == Value -> Deck -- Value includes Treasure
+                               _ | toGain ^. #cardType == Duration -> Deck -- Assuming Durations go to deck
+                               _ | toGain ^. #cardType == CurseType -> Hand -- Assuming Curses go to hand too
+                               _ -> Discard -- Default fallback, should ideally not be needed
+              case location of
+                Hand -> gainCardsToHand p [toGain]
+                Deck -> gainCardsToDeck p [toGain]
+                Discard -> gainCardsToDiscard p [toGain] -- Should not happen based on logic
+              pure $ Just $ Replace toTrash toGain location
+
+-- | Reveal a card from your hand. For each type it has (Action, Treasure, Victory, Curse),
+-- choose one: +1 Action; or +1 Buy; or +$3; or gain a Gold.
+courtierCard :: Card
+courtierCard = Card { cardName = "Courtier", cost = 5, action = courtierCardAction, cardType = Action, victoryPoints = simpleVictory 0, numImplicitTypes = 1 }
+  where
+    courtierCardAction :: PlayerNumber -> DominionState (Maybe DominionAction)
+    courtierCardAction p = do
+      thePlayer <- findPlayer p
+      aig <- mkDominionAIGame p
+      -- Reveal a card
+      let revealedCard = (thePlayer ^. #strategy . #courtierRevealStrategy) aig
+      -- Get the number of implicit types for the revealed card
+      let numTypes = revealedCard ^. #numImplicitTypes
+      -- Get the list of desired bonuses from the strategy
+      let chosenBonuses = (thePlayer ^. #strategy . #courtierBonusStrategy) aig revealedCard numTypes
+
+      -- Apply the chosen bonuses
+      for_ chosenBonuses $ \mBonus -> do
+        case mBonus of
+          Just CourtierAction    -> basicCardAction 0 1 0 0 p >> pure ()
+          Just CourtierBuy       -> basicCardAction 0 0 1 0 p >> pure ()
+          Just CourtierMoney     -> basicCardAction 0 0 0 3 p >> pure ()
+          Just CourtierGainGold  -> gainCardsToDiscard p [goldCard] >> pure ()
+          Nothing                -> pure () -- No bonus chosen for this slot
+
+      _ <- basicCardAction 0 (-1) 0 0 p -- Consume the base action for playing Courtier
+      pure $ Just $ Courtier revealedCard chosenBonuses -- Store revealed card and chosen bonuses

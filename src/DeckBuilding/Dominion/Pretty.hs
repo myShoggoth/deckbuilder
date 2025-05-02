@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLabels #-}
 
 module DeckBuilding.Dominion.Pretty where
 
@@ -13,35 +14,28 @@ import Prettyprinter
       Pretty(pretty),
       viaShow, Doc )
 import DeckBuilding.Dominion.Types
-    ( BanditDecision(BanditDecision),
-      DominionDraw(..),
-      DominionAction(Workshop, Copper, Silver, Gold, Curse, Estate,
-                     Duchy, Province, Gardens, Artisan, Astrolabe, Bandit, Chapel, Cellar,
-                     Festival, Harbinger, Island, Remodel, Laboratory, Library, Market,
-                     Merchant, Mine, Moat, MoneyLender, Poacher, Sentry, Smithy,
-                     ThroneRoom, Vassal, Village, Embargo, Haven, HavenDuration,
-                     NativeVillage, PearlDiver, FishingVillage, FishingVillageDuration,
-                     Lighthouse, LighthouseDuration, Bazaar, Lookout, Warehouse, Caravan,
-                     CaravanDuration, Navigator, ThroneRoom, Vassal, Village, Militia,
-                     Harem, Duke, Bureaucrat, Conspirator, CouncilRoom, Courtyard,
-                     Ironworks, Lurker, ShantyTown, Witch, Ambassador, Cutpurse,
-                     PirateShip, Salvager, SeaHag, TreasureMap, Explorer, GhostShip,
-                     MerchantShip, MerchantShipDuration, Wharf, WharfDuration, Treasury,
-                     TacticianDuration, Tactician, Outpost, TreasuryDuration, OutpostDuration,
-                     Swindler, Steward, Masquerade, Pawn, WishingWell, Baron, Smuggler,
-                     AstrolabeDuration, TidePools, TidePoolsDuration, SeaChart, Blockade,
-                     Monkey, MonkeyDuration, Corsair, Sailor, SeaWitch, Bridge, Diplomat, Upgrade,
-                     Nobles, Patrol, Minion, Torturer),
-      DominionBuy(..),
-      DominionPlayerTurn(DominionPlayerTurn),
-      DominionTurn(..),
-      Card(cardName),
-      Strategy(strategyName),
-      DominionGame(DominionGame), DominionAIGame (pirateShip) )
+    ( BanditDecision(..)
+    , DominionDraw(..)
+    , DominionAction(..)
+    , DominionGame(..)
+    , DominionAIGame(..)
+    , CardLocation(..)
+    , CourtierChoice(..)
+    , DominionBuy(..)
+    , DominionPlayerTurn(..)
+    , DominionTurn(..)
+    , Card(..)
+    , Strategy(..)
+    , DominionPlayer(..)
+    , DominionState
+    , DominionBoard(..)
+    )
 import DeckBuilding.Types ( PlayerNumber )
 import qualified Data.Text as Text
 import System.Random (StdGen)
 import qualified Data.Map as Map
+import Data.Maybe (catMaybes)
+import Control.Lens ((^.))
 
 instance Pretty DominionGame where
     pretty (DominionGame pls kndms sed trns res) =
@@ -207,6 +201,9 @@ instance Pretty DominionAction where
     pretty (Minion True (DominionDraw xs) responses) = "Minion chose +$2 and drew" <+> hsep (map pretty xs)
     pretty (Minion False (DominionDraw xs) responses) = "Minion discarded hand, drew" <+> hsep (map pretty xs) <+> "and caused others to:" <+> align (vsep $ map minionResponse $ Map.toList responses)
     pretty (Torturer (DominionDraw xs) responses) = "Torturer drew" <+> hsep (map pretty xs) <+> "and caused others to:" <+> align (vsep $ map torturerResponse $ Map.toList responses)
+    pretty (TradingPost trashed mGained) = "Trading Post trashed" <+> hsep (map pretty trashed) <+> case mGained of Nothing -> "and gained nothing." ; Just gained -> "and gained" <+> pretty gained <+> "to hand."
+    pretty (Replace trashed gained location) = "Replace trashed" <+> pretty trashed <+> "and gained" <+> pretty gained <+> "to" <+> viaShow location <> "."
+    pretty (Courtier revealed bonuses) = "Courtier revealed" <+> pretty revealed <+> "and chose bonuses:" <+> hsep (map pretty (catMaybes bonuses))
 
 militiaResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
 militiaResponse (k, Left c) = "Player " <> viaShow k <> " defends with " <> pretty c
@@ -254,9 +251,9 @@ corsairResponse (k, Right Nothing) = "Player " <> viaShow k <> " does not trash 
 corsairResponse (k, Right (Just c)) = "Player " <> viaShow k <> " trashes" <+> pretty c
 
 seaWitchResponse :: (PlayerNumber, Either Card (Maybe Card)) -> Doc ann
-seaWitchResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
-seaWitchResponse (k, Right Nothing) = "Player " <> viaShow k <> " would gain a curse, but none are left."
-seaWitchResponse (k, Right (Just c)) = "Player " <> viaShow k <> " gains" <+> pretty c
+seaWitchResponse (p, Left def) = "Player" <+> viaShow p <+> "defended with" <+> pretty def
+seaWitchResponse (p, Right Nothing) = "Player" <+> viaShow p <+> "gained a Curse"
+seaWitchResponse (p, Right (Just c)) = "Player" <+> viaShow p <+> "gained a Curse, but couldn't (no Curses left?)"
 
 minionResponse :: (PlayerNumber, Either Card [Card]) -> Doc ann
 minionResponse (k, Left c) = "Player " <> viaShow k <> " defends with" <+> pretty c
@@ -275,3 +272,9 @@ instance {-# OVERLAPS #-} Pretty (PlayerNumber, Either Card BanditDecision) wher
 
 instance Pretty DominionDraw where
     pretty (DominionDraw xs) = align $ hsep $ map pretty xs
+
+instance Pretty CourtierChoice where
+    pretty CourtierAction = "+1 Action"
+    pretty CourtierBuy    = "+1 Buy"
+    pretty CourtierMoney  = "+$3"
+    pretty CourtierGainGold = "Gain Gold"

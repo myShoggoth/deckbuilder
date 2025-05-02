@@ -40,6 +40,8 @@ module DeckBuilding.Dominion.Strategies.Basic
     , bigMoneyPatrolOrder
     , bigMoneyMinion
     , bigMoneyTorturer
+    , bigMoneyCourtierReveal
+    , bigMoneyCourtierBonus
     ) where
 
 import Control.Lens ( (^.) )
@@ -72,15 +74,28 @@ import DeckBuilding.Dominion.Strategies.Utils
       buyN,
       sortByWeight, gainWhichCard )
 import DeckBuilding.Dominion.Types
-    ( Card(Card)
+    ( Card(Card, cardName, cost, action, cardType, victoryPoints, numImplicitTypes)
+    , CardType(Value, Action, CurseType, Victory)
     , DominionState
-    , Strategy(Strategy)
+    , Strategy( Strategy -- Import constructor
+              , strategyName, buyStrategy, discardStrategy, trashStrategy, retrieveStrategy, nextCard -- Import fields
+              , gainCardStrategy, throneRoomStrategy, libraryStrategy, sentryStrategy, handToDeckStrategy
+              , lurkerStrategy, islandStrategy, ambassadorStrategy, embargoStrategy, havenStrategy
+              , nativeVillageStrategy, pearlDiverStrategy, lookoutStrategy, navigatorStrategy
+              , pirateShipStrategy, pirateShipDecisionStrategy, salvagerStrategy, treasuryStrategy
+              , pawnStrategy, masqueradePassStrategy, stewardStrategy, swindlerStrategy, wishingWellStrategy
+              , smugglerStrategy, secretPassageStrategy, noblesStrategy, patrolOrderStrategy
+              , minionStrategy, torturerStrategy, courtierRevealStrategy, courtierBonusStrategy
+              ) -- Explicitly list all fields
     , DominionAIGame(..)
-    , DominionBuy, DominionPlayer (nativeVillage), CardType (Value), DominionAction (Estate) )
+    , DominionBuy, DominionPlayer (nativeVillage), DominionAction (Estate)
+    , CourtierChoice(..)
+    )
 import DeckBuilding.Dominion.Utils ( findPlayer )
 import DeckBuilding.Types (PlayerNumber)
 import qualified Data.Map as Map
 import DeckBuilding.Dominion.Cards.Base (estateCard)
+import Data.Maybe (catMaybes)
 
 -- Strategies
 
@@ -97,41 +112,45 @@ bigMoneyPatrolOrder _ cards = cards  -- Simple implementation: keep same order
 -- | The most basic Dominion strategy: buy the best money you can afford
 --  and provinces.
 bigMoneyStrategy :: Strategy
-bigMoneyStrategy = Strategy "Big Money"
-                            bigMoneyBuy
-                            bigMoneyDiscard
-                            bigMoneyTrash
-                            bigMoneyRetrieve
-                            (nextCardByWeight bigMoneyCardWeight)
-                            bigMoneyGain
-                            bigMoneyThroneRoom
-                            bigMoneyLibrary
-                            bigMoneySentry
-                            bigMoneyHandToDeck
-                            bigMoneyLurker
-                            bigMoneyIsland
-                            bigMoneyAmbassador
-                            bigMoneyEmbargo
-                            bigMoneyHaven
-                            bigMoneyNativeVillage
-                            bigMoneyPearlDiver
-                            bigMoneyLookout
-                            bigMoneyNavigator
-                            bigMoneyPirateShip
-                            bigMoneyPirateShipDecision
-                            bigMoneySalvage
-                            bigMoneyTreasury
-                            bigMoneyPawn
-                            bigMoneyMasqueradePass
-                            bigMoneySteward
-                            bigMoneySwindler
-                            bigMoneyWishingWell
-                            bigMoneySmuggler
-                            bigMoneySecretPassage
-                            bigMoneyNobles
-                            bigMoneyPatrolOrder
-                            bigMoneyMinion
-                            bigMoneyTorturer
+bigMoneyStrategy = Strategy {
+    strategyName = "Big Money",
+    buyStrategy = bigMoneyBuy,
+    discardStrategy = bigMoneyDiscard,
+    trashStrategy = bigMoneyTrash,
+    retrieveStrategy = bigMoneyRetrieve,
+    nextCard = nextCardByWeight bigMoneyCardWeight,
+    gainCardStrategy = bigMoneyGain,
+    throneRoomStrategy = bigMoneyThroneRoom,
+    libraryStrategy = bigMoneyLibrary,
+    sentryStrategy = bigMoneySentry,
+    handToDeckStrategy = bigMoneyHandToDeck,
+    lurkerStrategy = bigMoneyLurker,
+    islandStrategy = bigMoneyIsland,
+    ambassadorStrategy = bigMoneyAmbassador,
+    embargoStrategy = bigMoneyEmbargo,
+    havenStrategy = bigMoneyHaven,
+    nativeVillageStrategy = bigMoneyNativeVillage,
+    pearlDiverStrategy = bigMoneyPearlDiver,
+    lookoutStrategy = bigMoneyLookout,
+    navigatorStrategy = bigMoneyNavigator,
+    pirateShipStrategy = bigMoneyPirateShip,
+    pirateShipDecisionStrategy = bigMoneyPirateShipDecision,
+    salvagerStrategy = bigMoneySalvage,
+    treasuryStrategy = bigMoneyTreasury,
+    pawnStrategy = bigMoneyPawn,
+    masqueradePassStrategy = bigMoneyMasqueradePass,
+    stewardStrategy = bigMoneySteward,
+    swindlerStrategy = bigMoneySwindler,
+    wishingWellStrategy = bigMoneyWishingWell,
+    smugglerStrategy = bigMoneySmuggler,
+    secretPassageStrategy = bigMoneySecretPassage,
+    noblesStrategy = bigMoneyNobles,
+    patrolOrderStrategy = bigMoneyPatrolOrder,
+    minionStrategy = bigMoneyMinion,
+    torturerStrategy = bigMoneyTorturer,
+    courtierRevealStrategy = bigMoneyCourtierReveal,
+    courtierBonusStrategy = bigMoneyCourtierBonus
+}
 
 -- | The most basic Dominion strategy: buy money and then buy provinces.
 bigMoneyBuy :: DominionAIGame -> [DominionBuy]
@@ -187,7 +206,7 @@ bigMoneyGain _ = gainWhichCard gainCards
                     ]
 
 bigMoneyCardWeight :: Card -> Int
-bigMoneyCardWeight (Card _ _ _ Value _) = 2
+bigMoneyCardWeight (Card _ _ _ Value _ _) = 2
 bigMoneyCardWeight _ = 1
 
 -- | We don't buy throne rooms in big money.
@@ -351,42 +370,45 @@ bigMoneySecretPassage aig mc1 mc2 = (mc1, mc2)
 -- | Big money plus buy up to two Smithy cards. Note this one change beats the
 --  crap out of big money.
 bigSmithyStrategy :: Strategy
-bigSmithyStrategy = Strategy "Big Smithy"
-                             bigSmithyBuy
-                             bigMoneyDiscard
-                             bigMoneyTrash
-                             bigMoneyRetrieve
-                             (nextCardByWeight bigSmithyCardWeight)
-                             bigSmithyGain
-                             bigSmithyThroneRoom
-                             bigMoneyLibrary
-                             bigMoneySentry
-                             bigMoneyHandToDeck
-                             bigMoneyLurker
-                             bigMoneyIsland
-                             bigMoneyAmbassador
-                             bigMoneyEmbargo
-                             bigMoneyHaven
-                             bigMoneyNativeVillage
-                             bigMoneyPearlDiver
-                             bigMoneyLookout
-                             bigMoneyNavigator
-                             bigMoneyPirateShip
-                             bigMoneyPirateShipDecision
-                             bigMoneySalvage
-                             bigMoneyTreasury
-                             bigMoneyPawn
-                             bigMoneyMasqueradePass
-                             bigMoneySteward
-                             bigMoneySwindler
-                             bigMoneyWishingWell
-                             bigMoneySmuggler
-                             bigMoneySecretPassage
-                             bigMoneyNobles
-                             bigMoneyPatrolOrder
-                             bigMoneyMinion
-                             bigMoneyTorturer
-
+bigSmithyStrategy = Strategy {
+    strategyName = "Big Smithy",
+    buyStrategy = bigSmithyBuy,
+    discardStrategy = bigMoneyDiscard,
+    trashStrategy = bigMoneyTrash,
+    retrieveStrategy = bigMoneyRetrieve,
+    nextCard = nextCardByWeight bigSmithyCardWeight,
+    gainCardStrategy = bigSmithyGain,
+    throneRoomStrategy = bigSmithyThroneRoom,
+    libraryStrategy = bigMoneyLibrary,
+    sentryStrategy = bigMoneySentry,
+    handToDeckStrategy = bigMoneyHandToDeck,
+    lurkerStrategy = bigMoneyLurker,
+    islandStrategy = bigMoneyIsland,
+    ambassadorStrategy = bigMoneyAmbassador,
+    embargoStrategy = bigMoneyEmbargo,
+    havenStrategy = bigMoneyHaven,
+    nativeVillageStrategy = bigMoneyNativeVillage,
+    pearlDiverStrategy = bigMoneyPearlDiver,
+    lookoutStrategy = bigMoneyLookout,
+    navigatorStrategy = bigMoneyNavigator,
+    pirateShipStrategy = bigMoneyPirateShip,
+    pirateShipDecisionStrategy = bigMoneyPirateShipDecision,
+    salvagerStrategy = bigMoneySalvage,
+    treasuryStrategy = bigMoneyTreasury,
+    pawnStrategy = bigMoneyPawn,
+    masqueradePassStrategy = bigMoneyMasqueradePass,
+    stewardStrategy = bigMoneySteward,
+    swindlerStrategy = bigMoneySwindler,
+    wishingWellStrategy = bigMoneyWishingWell,
+    smugglerStrategy = bigMoneySmuggler,
+    secretPassageStrategy = bigMoneySecretPassage,
+    noblesStrategy = bigMoneyNobles,
+    patrolOrderStrategy = bigMoneyPatrolOrder,
+    minionStrategy = bigMoneyMinion,
+    torturerStrategy = bigMoneyTorturer,
+    courtierRevealStrategy = bigMoneyCourtierReveal,
+    courtierBonusStrategy = bigMoneyCourtierBonus
+}
 
 -- | Just like big money buy also buy up to two smithy cards.
 bigSmithyBuy :: DominionAIGame -> [DominionBuy]
@@ -407,9 +429,9 @@ nextCardByWeight weights p = do
   return $ headMay $ sortByWeight weights $ thePlayer ^. #hand
 
 bigSmithyCardWeight :: Card -> Int
-bigSmithyCardWeight (Card _ _ _ Value _)         = 12
-bigSmithyCardWeight (Card "Throne Room" _ _ _ _) = 11 -- This is for the Throne Room test
-bigSmithyCardWeight (Card "Smithy" _ _ _ _)      = 10
+bigSmithyCardWeight (Card _ _ _ Value _ _)         = 12
+bigSmithyCardWeight (Card "Throne Room" _ _ _ _ _) = 11 -- This is for the Throne Room test
+bigSmithyCardWeight (Card "Smithy" _ _ _ _ _)      = 10
 bigSmithyCardWeight _                            = 1
 
 -- | Just like big money buy we also gain smithy cards.
@@ -431,41 +453,45 @@ bigSmithyThroneRoom g = findFirstCard g throneRoomCards
 -- Village/Smithy engine #4 from https://dominionstrategy.com/2012/07/30/building-the-first-game-engine/
 
 villageSmithyEngine4 :: Strategy
-villageSmithyEngine4 = Strategy "Village/Smithy Engine 4"
-                                villageSmithyEngine4Buy
-                                bigMoneyDiscard
-                                bigMoneyTrash
-                                bigMoneyRetrieve
-                                (nextCardByWeight villageSmithyEngine4CardWeight)
-                                bigSmithyGain
-                                bigSmithyThroneRoom
-                                bigMoneyLibrary
-                                bigMoneySentry
-                                bigMoneyHandToDeck
-                                bigMoneyLurker
-                                bigMoneyIsland
-                                bigMoneyAmbassador
-                                bigMoneyEmbargo
-                                bigMoneyHaven
-                                bigMoneyNativeVillage
-                                bigMoneyPearlDiver
-                                bigMoneyLookout
-                                bigMoneyNavigator
-                                bigMoneyPirateShip
-                                bigMoneyPirateShipDecision
-                                bigMoneySalvage
-                                bigMoneyTreasury
-                                bigMoneyPawn
-                                bigMoneyMasqueradePass
-                                bigMoneySteward
-                                bigMoneySwindler
-                                bigMoneyWishingWell
-                                bigMoneySmuggler
-                                bigMoneySecretPassage
-                                bigMoneyNobles
-                                bigMoneyPatrolOrder
-                                bigMoneyMinion
-                                bigMoneyTorturer
+villageSmithyEngine4 = Strategy {
+    strategyName = "Village/Smithy Engine 4",
+    buyStrategy = villageSmithyEngine4Buy,
+    discardStrategy = bigMoneyDiscard,
+    trashStrategy = bigMoneyTrash,
+    retrieveStrategy = bigMoneyRetrieve,
+    nextCard = nextCardByWeight villageSmithyEngine4CardWeight,
+    gainCardStrategy = bigSmithyGain,
+    throneRoomStrategy = bigSmithyThroneRoom,
+    libraryStrategy = bigMoneyLibrary,
+    sentryStrategy = bigMoneySentry,
+    handToDeckStrategy = bigMoneyHandToDeck,
+    lurkerStrategy = bigMoneyLurker,
+    islandStrategy = bigMoneyIsland,
+    ambassadorStrategy = bigMoneyAmbassador,
+    embargoStrategy = bigMoneyEmbargo,
+    havenStrategy = bigMoneyHaven,
+    nativeVillageStrategy = bigMoneyNativeVillage,
+    pearlDiverStrategy = bigMoneyPearlDiver,
+    lookoutStrategy = bigMoneyLookout,
+    navigatorStrategy = bigMoneyNavigator,
+    pirateShipStrategy = bigMoneyPirateShip,
+    pirateShipDecisionStrategy = bigMoneyPirateShipDecision,
+    salvagerStrategy = bigMoneySalvage,
+    treasuryStrategy = bigMoneyTreasury,
+    pawnStrategy = bigMoneyPawn,
+    masqueradePassStrategy = bigMoneyMasqueradePass,
+    stewardStrategy = bigMoneySteward,
+    swindlerStrategy = bigMoneySwindler,
+    wishingWellStrategy = bigMoneyWishingWell,
+    smugglerStrategy = bigMoneySmuggler,
+    secretPassageStrategy = bigMoneySecretPassage,
+    noblesStrategy = bigMoneyNobles,
+    patrolOrderStrategy = bigMoneyPatrolOrder,
+    minionStrategy = bigMoneyMinion,
+    torturerStrategy = bigMoneyTorturer,
+    courtierRevealStrategy = bigMoneyCourtierReveal,
+    courtierBonusStrategy = bigMoneyCourtierBonus
+}
 
 -- | The buy strategy
 villageSmithyEngine4Buy :: DominionAIGame -> [DominionBuy]
@@ -487,13 +513,13 @@ villageSmithyEngine4Buy g = doBuys g bigVillageSmithyEngine4Cards
 
 
 villageSmithyEngine4CardWeight :: Card -> Int
-villageSmithyEngine4CardWeight (Card _ _ _ Value _)     = 11
-villageSmithyEngine4CardWeight (Card "Village" _ _ _ _) = 10
-villageSmithyEngine4CardWeight (Card "Market" _ _ _ _)  = 9
-villageSmithyEngine4CardWeight (Card "Militia" _ _ _ _) = 8
-villageSmithyEngine4CardWeight (Card "Remodel" _ _ _ _) = 7
-villageSmithyEngine4CardWeight (Card "Smithy" _ _ _ _)  = 6
-villageSmithyEngine4CardWeight (Card "Cellar" _ _ _ _)  = 5
+villageSmithyEngine4CardWeight (Card _ _ _ Value _ _)     = 11
+villageSmithyEngine4CardWeight (Card "Village" _ _ _ _ _) = 10
+villageSmithyEngine4CardWeight (Card "Market" _ _ _ _ _)  = 9
+villageSmithyEngine4CardWeight (Card "Militia" _ _ _ _ _) = 8
+villageSmithyEngine4CardWeight (Card "Remodel" _ _ _ _ _) = 7
+villageSmithyEngine4CardWeight (Card "Smithy" _ _ _ _ _)  = 6
+villageSmithyEngine4CardWeight (Card "Cellar" _ _ _ _ _)  = 5
 villageSmithyEngine4CardWeight _                        = 1
 
 -- Strategy helpers
@@ -578,3 +604,14 @@ bigMoneyMinion _ = True  -- True means +$2, False means discard/draw
 -- | For Torturer card, always choose to discard 2 cards over gaining a Curse
 bigMoneyTorturer :: DominionAIGame -> Bool
 bigMoneyTorturer _ = True  -- True means discard, False means gain Curse
+
+-- | For Courtier card, reveal the first card in hand
+bigMoneyCourtierReveal :: DominionAIGame -> Card
+bigMoneyCourtierReveal g = head (g ^. #hand)
+
+-- | For Courtier card, define a simple bonus selection strategy based on numImplicitTypes.
+-- This basic strategy just takes the first available bonus types based on a fixed priority.
+bigMoneyCourtierBonus :: DominionAIGame -> Card -> Int -> [Maybe CourtierChoice]
+bigMoneyCourtierBonus _ revealedCard numTypes = take numTypes bonusesOrder
+  where
+    bonusesOrder = [Just CourtierAction, Just CourtierMoney, Just CourtierBuy, Just CourtierGainGold]

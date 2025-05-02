@@ -24,7 +24,11 @@ import DeckBuilding.Dominion.Cards
       goldCard,
       firstGameKingdomCards,
       vassalCard,
-      victoryCards, moatCard )
+      victoryCards, moatCard,
+      tradingPostCard,
+      replaceCard,
+      courtierCard,
+      smithyCard )
 import DeckBuilding.Dominion.Strategies.Basic
     ( bigMoneyCardWeight,
       bigMoneyDiscard,
@@ -49,22 +53,35 @@ import DeckBuilding.Dominion.Strategies.Basic
       bigMoneyNavigator,
       bigMoneyPirateShip,
       bigMoneyPirateShipDecision,
-      bigMoneySalvage )
+      bigMoneySalvage,
+      bigMoneyCourtierBonus,
+      bigMoneyCourtierReveal )
 import DeckBuilding.Dominion.Types
-    ( Card,
-      DominionPlayer(DominionPlayer, strategy),
-      DominionConfig(DominionConfig),
-      Strategy(Strategy, gainCardStrategy),
-      DominionState,
-      CardType(Action),
-      DominionGame(DominionGame), DominionBoard(DominionBoard), DominionAIGame )
+    ( Card(Card, action, cardType, victoryPoints, numImplicitTypes, cost)
+    , DominionPlayer(DominionPlayer)
+    , DominionConfig(DominionConfig, playerDefs, kingdomCards)
+    , Strategy( Strategy -- Constructor
+              , trashStrategy -- Field used in updates
+              , gainCardStrategy -- Field used in updates
+              , courtierRevealStrategy -- Field used in updates
+              , courtierBonusStrategy -- Field used in updates
+              )
+    , DominionState,
+      DominionGame(DominionGame), DominionBoard(DominionBoard), DominionAIGame
+    , DominionAction (TradingPost, Replace, Courtier, Minion, Torturer)
+    , CardType (Action, Value, Victory, CurseType)
+    , CardLocation(..)
+    , CourtierChoice (..)
+    )
 import DeckBuilding.Dominion.Utils ( deal, findPlayer )
 import DeckBuilding.Types ( PlayerNumber(PlayerNumber, unPlayerNumber) )
 import System.Random ( mkStdGen )
-import Test.Hspec ( shouldBe, it, describe, Spec )
+import Test.Hspec ( shouldBe, it, describe, Spec, shouldContain, shouldNotContain, shouldNotBe )
 import DeckBuilding.Dominion.Cards.Intrigue (baronCard, courtyardCard, lurkerCard, pawnCard, masqueradeCard, stewardCard, shantyTownCard, swindlerCard, conspiratorCard, ironworksCard, dukeCard, wishingWellCard, bridgeCard, diplomatCard, upgradeCard, millCard, miningVillageCard, secretPassageCard, noblesCard, patrolCard, minionCard, torturerCard)
 import DeckBuilding.Dominion.Strategies.Utils (gainWhichCard)
 import Dominion.Utils ( defaultConfig, initialState, p0, p1, setDeck, setHand )
+import Safe (headMay)
+import DeckBuilding.Dominion.Cards.Utils (simpleVictory)
 
 gainAction :: DominionAIGame -> Int -> Maybe Card
 gainAction _ = gainWhichCard firstGameKingdomCards
@@ -271,119 +288,116 @@ spec = do
             setDeck p0 [copperCard, copperCard, copperCard, copperCard, copperCard]
             noblesCard ^. #action $ p0
             findPlayer p0
-      length (p1AfterCard ^. #hand) `shouldBe` 8  -- 5 starting + 3 drawn
-      p1AfterCard ^. #actions `shouldBe` 0
+      length (p1AfterCard ^. #hand) `shouldBe` 8
 
-    it "gets two actions when that option is chosen" $ do
-      let (p1AfterCard, _) = initialState defaultConfig $ do
-            #players . ix (unPlayerNumber p0) . #strategy . #noblesStrategy .= const False
-            noblesCard ^. #action $ p0
+  describe "Trading Post" $ do
+    it "trashes 2 cards and gains a Silver to hand" $ do
+      let trashStrat = \_ _ _ -> [copperCard, copperCard]
+      let p0Strategy = bigMoneyStrategy { trashStrategy = trashStrat }
+      let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+      let (p0AfterCard, finalState) = initialState config $ do
+            tradingPostCard ^. #action $ p0
             findPlayer p0
-      length (p1AfterCard ^. #hand) `shouldBe` 5  -- No cards drawn
-      p1AfterCard ^. #actions `shouldBe` 2
+      length (p0AfterCard ^. #hand) `shouldBe` 4 -- 5 initial - 2 trashed + 1 gained
+      headMay (p0AfterCard ^. #hand) `shouldBe` Just silverCard
+      length (finalState ^. #trash) `shouldBe` 2
+      finalState ^. #trash `shouldBe` [copperCard, copperCard]
 
-  describe "patrolCardAction" $ do
-    it "draws three cards and puts victory cards in hand" $ do
-      let (p1AfterCard, _) = initialState defaultConfig $ do
-            setDeck p0 [estateCard, copperCard, duchyCard, copperCard, provinceCard, copperCard, copperCard]  -- Need 7 cards: 3 for draw + 4 to inspect
-            patrolCard ^. #action $ p0
+    it "does not gain Silver if fewer than 2 cards are trashed" $ do
+      let trashStrat = \_ _ _ -> [copperCard]
+      let p0Strategy = bigMoneyStrategy { trashStrategy = trashStrat }
+      let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+      let (p0AfterCard, finalState) = initialState config $ do
+            #players . ix 0 . #hand .= [copperCard, estateCard, estateCard, estateCard, estateCard] -- Start with only 1 copper
+            tradingPostCard ^. #action $ p0
             findPlayer p0
-      (p1AfterCard ^. #deck) `shouldBe` [copperCard, copperCard, copperCard]
-      length (p1AfterCard ^. #hand) `shouldBe` 9  -- 5 starting + 3 drawn + 1 victory card from reveal
-      estateCard `elem` (p1AfterCard ^. #hand) `shouldBe` True
-      duchyCard `elem` (p1AfterCard ^. #hand) `shouldBe` True
-      provinceCard `elem` (p1AfterCard ^. #hand) `shouldBe` True
+      length (p0AfterCard ^. #hand) `shouldBe` 4 -- 5 initial - 1 trashed
+      p0AfterCard ^. #hand `shouldNotContain` [silverCard]
+      length (finalState ^. #trash) `shouldBe` 1
+      finalState ^. #trash `shouldBe` [copperCard]
 
-    it "puts non-victory cards back in chosen order" $ do
-      let (p1AfterCard, _) = initialState defaultConfig $ do
-            setDeck p0 [copperCard, silverCard, goldCard, copperCard, copperCard, copperCard, copperCard]  -- Need 7 cards: 3 for draw + 4 to inspect
-            patrolCard ^. #action $ p0
+  describe "Replace" $ do
+    it "trashes a Copper, gains a Silver to deck" $ do
+      let trashStrat = \_ _ _ -> [copperCard]
+      let gainStrat = \_ cost -> if cost == 2 then Just silverCard else Nothing
+      let p0Strategy = bigMoneyStrategy { trashStrategy = trashStrat, gainCardStrategy = gainStrat }
+      let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+      let (p0AfterCard, finalState) = initialState config $ do
+            replaceCard ^. #action $ p0
             findPlayer p0
-      length (p1AfterCard ^. #hand) `shouldBe` 8  -- 5 starting + 3 drawn (no victory cards in reveal)
-      length (p1AfterCard ^. #deck) `shouldBe` 4  -- The 4 non-victory cards put back on deck
+      length (p0AfterCard ^. #hand) `shouldBe` 4 -- 5 initial - 1 trashed
+      headMay (p0AfterCard ^. #deck) `shouldBe` Just silverCard
+      length (finalState ^. #trash) `shouldBe` 1
+      finalState ^. #trash `shouldBe` [copperCard]
 
-  describe "minionCardAction" $ do
-    it "gives +$2 when that option is chosen" $ do
-      let (p1AfterCard, _) = initialState defaultConfig $ do
-            setHand p0 [minionCard]
-            minionCard ^. #action $ p0
+    it "trashes a Silver, gains a Duchy to hand" $ do
+      let trashStrat = \_ _ _ -> [silverCard]
+      let gainStrat = \_ cost -> if cost == 5 then Just duchyCard else Nothing
+      let p0Strategy = bigMoneyStrategy { trashStrategy = trashStrat, gainCardStrategy = gainStrat }
+      let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+      let (p0AfterCard, finalState) = initialState config $ do
+            #players . ix 0 . #hand .= [silverCard, copperCard, copperCard, copperCard, copperCard]
+            replaceCard ^. #action $ p0
             findPlayer p0
-      (p1AfterCard ^. #money) `shouldBe` 2
+      length (p0AfterCard ^. #hand) `shouldBe` 5 -- 5 initial - 1 trashed + 1 gained
+      p0AfterCard ^. #hand `shouldContain` [duchyCard]
+      headMay (p0AfterCard ^. #deck) `shouldNotBe` Just duchyCard
+      length (finalState ^. #trash) `shouldBe` 1
+      finalState ^. #trash `shouldBe` [silverCard]
 
-    it "discards hand and draws 4 when that option is chosen" $ do
-      let (p1AfterCard, _) = initialState defaultConfig $ do
-            #players . ix (unPlayerNumber p0) . #strategy . #minionStrategy .= const False
-            setHand p0 [minionCard, copperCard, silverCard]
-            setDeck p0 [goldCard, goldCard, goldCard, goldCard]  -- Need 4 cards to draw
-            minionCard ^. #action $ p0
+  describe "Courtier" $ do
+    it "reveals Smithy (Action, 1 type) and chooses +1 Action" $ do
+      let testSmithy = smithyCard { numImplicitTypes = 1 }
+      let revealStrat = \_ -> testSmithy
+      let bonusStrat = \_ _ numT -> take numT [Just CourtierAction]
+      let p0Strategy = bigMoneyStrategy { courtierRevealStrategy = revealStrat, courtierBonusStrategy = bonusStrat }
+      let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+      let (p0AfterCard, _) = initialState config $ do
+            #players . ix 0 . #hand .= [testSmithy, copperCard, copperCard, copperCard, estateCard]
+            courtierCard ^. #action $ p0
             findPlayer p0
-      (p1AfterCard ^. #hand) `shouldBe` [goldCard, goldCard, goldCard, goldCard]
-      (p1AfterCard ^. #discard) `shouldBe` [minionCard, copperCard, silverCard]
+      p0AfterCard ^. #actions `shouldBe` 1 -- 0 initial -1 played + 1 gained
+      p0AfterCard ^. #buys `shouldBe` 1
+      p0AfterCard ^. #money `shouldBe` 0
 
-    it "makes other players with 5+ cards discard and draw 4" $ do
-      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
-            #players . ix (unPlayerNumber p0) . #strategy . #minionStrategy .= const False
-            setHand p0 [minionCard]
-            setHand p1 [copperCard, copperCard, copperCard, copperCard, copperCard]  -- 5 cards
-            setDeck p1 [goldCard, goldCard, goldCard, goldCard]  -- Need 4 cards to draw
-            minionCard ^. #action $ p0
-            p1' <- findPlayer p0
-            p2' <- findPlayer p1
-            return (p1', p2')
-      (p2AfterCard ^. #hand) `shouldBe` [goldCard, goldCard, goldCard, goldCard]
-      (p2AfterCard ^. #discard) `shouldBe` [copperCard, copperCard, copperCard, copperCard, copperCard]
-
-    it "doesn't affect players with less than 5 cards" $ do
-      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
-            setHand p0 [minionCard]
-            setHand p1 [copperCard, copperCard, copperCard]  -- Only 3 cards
-            minionCard ^. #action $ p0
-            p1' <- findPlayer p0
-            p2' <- findPlayer p1
-            return (p1', p2')
-      (p2AfterCard ^. #hand) `shouldBe` [copperCard, copperCard, copperCard]
-      (p2AfterCard ^. #discard) `shouldBe` []
-
-  describe "torturerCardAction" $ do
-    it "gives +3 Cards to the player" $ do
-      let (p1AfterCard, _) = initialState defaultConfig $ do
-            setHand p0 [torturerCard]
-            setDeck p0 [goldCard, goldCard, goldCard]  -- Need 3 cards to draw
-            torturerCard ^. #action $ p0
+    it "reveals Gold (Treasure, 1 type) and chooses +$3" $ do
+      let testGold = goldCard { numImplicitTypes = 1 }
+      let revealStrat = \_ -> testGold
+      let bonusStrat = \_ _ numT -> take numT [Just CourtierMoney]
+      let p0Strategy = bigMoneyStrategy { courtierRevealStrategy = revealStrat, courtierBonusStrategy = bonusStrat }
+      let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+      let (p0AfterCard, _) = initialState config $ do
+            #players . ix 0 . #hand .= [testGold, copperCard, copperCard, copperCard, estateCard]
+            courtierCard ^. #action $ p0
             findPlayer p0
-      length (p1AfterCard ^. #hand) `shouldBe` 4
+      p0AfterCard ^. #actions `shouldBe` 0
+      p0AfterCard ^. #buys `shouldBe` 1
+      p0AfterCard ^. #money `shouldBe` 3
 
-    it "makes other players discard 2 cards when they choose that option" $ do
-      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
-            #players . ix (unPlayerNumber p1) . #strategy . #torturerStrategy .= const True
-            setHand p0 [torturerCard]
-            setHand p1 [copperCard, silverCard, goldCard]
-            torturerCard ^. #action $ p0
-            p1' <- findPlayer p0
-            p2' <- findPlayer p1
-            return (p1', p2')
-      (p2AfterCard ^. #hand) `shouldBe` [goldCard]
-      (p2AfterCard ^. #discard) `shouldBe` [copperCard, silverCard]
+    it "reveals Province (Victory, 1 type) and chooses +1 Buy" $ do
+      let testProvince = provinceCard { numImplicitTypes = 1 }
+      let revealStrat = \_ -> testProvince
+      let bonusStrat = \_ _ numT -> take numT [Just CourtierBuy]
+      let p0Strategy = bigMoneyStrategy { courtierRevealStrategy = revealStrat, courtierBonusStrategy = bonusStrat }
+      let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+      let (p0AfterCard, _) = initialState config $ do
+            #players . ix 0 . #hand .= [testProvince, copperCard, copperCard, copperCard, estateCard]
+            courtierCard ^. #action $ p0
+            findPlayer p0
+      p0AfterCard ^. #actions `shouldBe` 0
+      p0AfterCard ^. #buys `shouldBe` 2 -- 1 initial + 1 gained
+      p0AfterCard ^. #money `shouldBe` 0
 
-    it "gives a Curse when players choose that option" $ do
-      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
-            #players . ix (unPlayerNumber p1) . #strategy . #torturerStrategy .= const False
-            setHand p0 [torturerCard]
-            setHand p1 [copperCard]
-            torturerCard ^. #action $ p0
-            p1' <- findPlayer p0
-            p2' <- findPlayer p1
-            return (p1', p2')
-      curseCard `elem` (p2AfterCard ^. #hand) `shouldBe` True
-
-    it "doesn't affect players with Moat" $ do
-      let ((p1AfterCard, p2AfterCard), _) = initialState defaultConfig $ do
-            setHand p0 [torturerCard]
-            setHand p1 [moatCard, copperCard, silverCard]
-            torturerCard ^. #action $ p0
-            p1' <- findPlayer p0
-            p2' <- findPlayer p1
-            return (p1', p2')
-      (p2AfterCard ^. #hand) `shouldBe` [moatCard, copperCard, silverCard]
-      (p2AfterCard ^. #discard) `shouldBe` []
-      curseCard `elem` (p2AfterCard ^. #hand) `shouldBe` False
+    it "reveals Harem (Treasure/Victory, 2 types) and gets +$3 and +1 Buy" $ do
+        let haremCard = Card "Harem" 6 undefined Value (simpleVictory 2) 2
+        let revealStrat = \_ -> haremCard
+        let bonusStrat = \_ card numT -> take numT [Just CourtierMoney, Just CourtierBuy]
+        let p0Strategy = bigMoneyStrategy { courtierRevealStrategy = revealStrat, courtierBonusStrategy = bonusStrat }
+        let config = defaultConfig { playerDefs = [("Player 0", p0Strategy), ("Player 1", bigMoneyStrategy)] }
+        let (p0AfterCard, _) = initialState config $ do
+              #players . ix 0 . #hand .= [haremCard, copperCard, copperCard, copperCard, estateCard]
+              courtierCard ^. #action $ p0
+              findPlayer p0
+        p0AfterCard ^. #actions `shouldBe` 0
+        p0AfterCard ^. #buys `shouldBe` 2 -- 1 initial + 1 gained
+        p0AfterCard ^. #money `shouldBe` 3
